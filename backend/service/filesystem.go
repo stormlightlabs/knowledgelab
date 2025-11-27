@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"notes/backend/internal/domain"
+	"notes/backend/domain"
 
 	"github.com/fsnotify/fsnotify"
 )

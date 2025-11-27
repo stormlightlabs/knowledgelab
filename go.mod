@@ -4,12 +4,17 @@ go 1.24
 
 toolchain go1.24.5
 
-require github.com/wailsapp/wails/v2 v2.11.0
+require (
+	github.com/covrom/bm25s v1.0.2
+	github.com/fsnotify/fsnotify v1.9.0
+	github.com/wailsapp/wails/v2 v2.11.0
+	github.com/yuin/goldmark v1.7.13
+	go.abhg.dev/goldmark/wikilink v0.6.0
+	gopkg.in/yaml.v3 v3.0.1
+)
 
 require (
 	github.com/bep/debounce v1.2.1 // indirect
-	github.com/covrom/bm25s v1.0.2 // indirect
-	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -33,13 +38,10 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
 	github.com/wailsapp/mimetype v1.4.1 // indirect
-	github.com/yuin/goldmark v1.7.13 // indirect
-	go.abhg.dev/goldmark/wikilink v0.6.0 // indirect
 	golang.org/x/crypto v0.33.0 // indirect
 	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 // replace github.com/wailsapp/wails/v2 v2.11.0 => /Users/owais/.asdf/installs/golang/1.24.5/packages/pkg/mod

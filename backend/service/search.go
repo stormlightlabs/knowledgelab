@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/covrom/bm25s"
-	"notes/backend/internal/domain"
+	"notes/backend/domain"
 )
 
 // SearchService provides full-text search capabilities using BM25 ranking.

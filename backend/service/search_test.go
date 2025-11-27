@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"notes/backend/internal/domain"
+	"notes/backend/domain"
 )
 
 func TestSearchService_IndexNote(t *testing.T) {

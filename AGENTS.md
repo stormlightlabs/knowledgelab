@@ -18,6 +18,40 @@ High-level responsibilities:
 - **Frontend (F#)**: state management (MVU), rendering, commands dispatched to backend, plugin-like UI features.
 - **Backend (Go via Wails)**: workspace management, file/graph index, sync, search, background jobs.
 
+### Architecture
+
+#### Backend (Go + Wails)
+
+The backend is built with Go and provides:
+
+- **Domain types**: Note, Block, Link, Tag, Workspace
+- **Services**: Filesystem, Notes, Graph, Search
+- **Wails API**: Exposes Go methods to the frontend via JSON-RPC
+
+Located in `/backend`:
+
+- `backend/domain` - Core domain types and errors
+- `backend/service` - Business logic services
+- `app.go` - Wails application and API bindings
+- `main.go` - Application entry point
+
+#### Frontend (F# + Fable + Elmish)
+
+The frontend uses the Model-View-Update (MVU) architecture:
+
+- **Domain**: F# types that mirror Go domain types
+- **Api**: Wails runtime bindings for calling backend
+- **Model**: Elmish state, messages, and update logic
+- **View**: React components using Feliz
+
+Located in `/frontend/src`:
+
+- `Domain.fs` - Frontend domain types
+- `Api.fs` - Wails API bindings
+- `Model.fs` - MVU state and update logic
+- `View.fs` - UI components
+- `Program.fs` - Application entry point
+
 ### Data & Plugin Philosophy
 
 The app aims to behave like existing PKM tools:
@@ -60,3 +94,34 @@ Contribution rules:
 2. Wails bindings (`Bind`) should be thin adapters, not business logic.
 3. All filesystem access must go through audited service interfaces (for easier testing and sandboxing).
 4. Add unit tests for new domain services and table-driven tests where possible.
+
+## Testing
+
+### Backend Tests
+
+```bash
+cd backend
+go test ./...
+```
+
+Tests use Go's standard testing package and cover:
+
+- Markdown parsing and link extraction
+- Graph construction and queries
+- Search indexing and BM25 ranking
+- Filesystem operations
+
+### Frontend Tests
+
+```bash
+cd frontend
+pnpm test
+```
+
+Tests use Fable.Jester (Jest bindings for F#) and cover:
+
+- MVU update logic
+- State transitions
+- Routing behavior
+
+The Wails API is mocked for testing, so tests run without the Go backend.

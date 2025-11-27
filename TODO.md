@@ -29,35 +29,32 @@ graph view similar to Obsidian and Logseq.
 
 ### API Surface to Frontend
 
-- [ ] Define Wails-bindable Go methods:
-    - [ ] `OpenVault(path)` → `VaultInfo`.
-    - [ ] `ListNotes()` → `[NoteSummary]`.
-    - [ ] `GetNote(id)` / `SaveNote(note)` / `DeleteNote(id)`.
-    - [ ] `GetBacklinks(id)` / `GetGraph()` / `Search(query)`.
-- [ ] Standardize JSON DTOs for Fable interop.
-- [ ] Add basic error mapping (domain errors → user-friendly messages).
+- [x] Define Wails-bindable Go methods:
+    - [x] `OpenVault(path)` → `VaultInfo`.
+    - [x] `ListNotes()` → `[NoteSummary]`.
+    - [x] `GetNote(id)` / `SaveNote(note)` / `DeleteNote(id)`.
+    - [x] `GetBacklinks(id)` / `GetGraph()` / `Search(query)`.
+- [x] Standardize JSON DTOs for Fable interop.
+- [x] Add basic error mapping (domain errors → user-friendly messages).
 
 ### Tests & Tooling
 
-- [ ] Add `go test ./...` CI job.
 - [x] Unit tests for:
     - [x] Markdown parsing + link extraction.
     - [x] Graph construction.
     - [x] Search indexing and matching.
-- [ ] Benchmarks for graph build on large vaults (optional).
 
 ## Frontend (F# Fable + Elmish + React)
 
 ### Frontend Skeleton
 
-- [ ] Initialize Fable + Elmish + React app in `frontend/`.
-- [ ] Define root MVU types:
-    - [ ] `Model` (app-wide state: vault, notes, selection, panels).
-    - [ ] `Msg` (all UI events).
-    - [ ] `update : Msg -> Model -> Model * Cmd<Msg>`.
-    - [ ] `view : Model -> ReactElement`.
-- [ ] Implement routing/navigation (e.g. active note, graph, settings).
-- [ ] Wire startup to call Wails backend for initial vault state.
+- [x] Define root MVU types:
+    - [x] `Model` (app-wide state: vault, notes, selection, panels).
+    - [x] `Msg` (all UI events).
+    - [x] `update : Msg -> Model -> Model * Cmd<Msg>`.
+    - [x] `view : Model -> ReactElement`.
+- [x] Implement routing/navigation (e.g. active note, graph, settings).
+- [x] Wire startup to call Wails backend for initial vault state.
 
 ### Core Screens
 
@@ -97,9 +94,9 @@ graph view similar to Obsidian and Logseq.
 
 ### Frontend Testing
 
-- [ ] Add tests for:
-    - [ ] `update` logic (pure Elmish tests).
-    - [ ] Routing behavior.
+- [x] Add tests for:
+    - [x] `update` logic (pure Elmish tests).
+    - [x] Routing behavior.
     - [ ] Serialization/deserialization of models used in Wails calls.
 
 ## PKM & Data Model Parity
@@ -130,3 +127,5 @@ graph view similar to Obsidian and Logseq.
 - [ ] Inline outlining workflows closer to Logseq (block refs, nested blocks)
 - [ ] Basic mobile-friendly layout (for small windows).
 - [ ] Optional sync/export features with explicit privacy design.
+- [ ] Benchmarks for graph build on large vaults
+- [ ] Add `go test ./...` CI job.

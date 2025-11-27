@@ -1,0 +1,150 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+@font-face {
+  font-family: "Satoshi Variable";
+  src: url("/Satoshi-Variable.ttf") format("truetype");
+  font-weight: 300 900;
+  font-display: swap;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Satoshi Variable";
+  src: url("/Satoshi-VariableItalic.ttf") format("truetype");
+  font-weight: 300 900;
+  font-display: swap;
+  font-style: italic;
+}
+
+@theme {
+  --default-font-family: 'Satoshi Variable', sans-serif;
+  --font-display: 'Satoshi Variable', sans-serif;
+  --font-mono: "JetBrains Mono Variable", monospace;
+  --font-sans: 'Public Sans Variable', sans-serif;
+  /* Oxocarbon Light */
+  --color-base00: #f2f4f8;
+  --color-base01: #dde1e6;
+  --color-base02: #525252;
+  --color-base03: #161616;
+  --color-base04: #262626;
+  --color-base05: #393939;
+  --color-base06: #525252;
+  --color-base07: #08bdba;
+  --color-base08: #ff7eb6;
+  --color-base09: #ee5396;
+  --color-base0A: #FF6F00;
+  --color-base0B: #0f62fe;
+  --color-base0C: #673AB7;
+  --color-base0D: #42be65;
+  --color-base0E: #be95ff;
+  --color-base0F: #37474F;
+}
+
+body {
+  @apply font-sans;
+}
+
+pre, code {
+  @apply font-mono;
+}
+
+@utility default-transition {
+  @apply transition-all duration-300 ease-in-out;
+}
+
+@utility true-center {
+  @apply flex items-center justify-center;
+}
+
+@utility vert-center {
+  @apply flex items-center;
+}
+
+@utility inline-mid {
+  @apply inline-flex items-center gap-2;
+}
+
+.editor-root {
+  @apply p-4 border-1 border-transparent focus:outline-none relative flex-grow min-w-2xl max-w-4xl mx-auto min-h-full;
+}
+
+.editor-code {
+  @apply bg-base01 font-mono p-2 py-4 rounded-lg text-sm mx-0 my-2 overflow-x-auto relative block text-base05;
+}
+
+.editor-inline-code {
+  @apply bg-base01 font-mono p-0.5 rounded-sm text-sm text-base03;
+}
+
+.editor-blockquote {
+  @apply border-blue-500 border-l-4 pl-4 my-4 font-medium font-display;
+}
+
+@utility heading {
+  @apply font-bold my-2 font-display;
+}
+
+.editor-h1 {
+  @apply text-4xl heading;
+}
+
+.editor-h2 {
+  @apply text-3xl heading;
+}
+
+.editor-h3 {
+  @apply text-2xl heading;
+}
+
+.editor-h4 {
+  @apply text-xl heading;
+}
+
+.editor-h5 {
+  @apply text-lg heading;
+}
+
+.editor-h6 {
+  @apply text-base heading;
+}
+
+.editor-link {
+  @apply text-base06 underline hover:text-base07;
+}
+
+.editor-paragraph {
+  @apply my-2;
+}
+
+.editor-list-ol {
+  @apply list-decimal list-inside;
+}
+
+.editor-list-ul {
+  @apply list-disc list-inside;
+}
+
+.editor-listitem {
+  @apply my-1;
+}
+
+.editor-listitem-checked {
+  @apply line-through text-base03;
+}
+
+.editor-listitem-unchecked {
+  @apply text-base05;
+}
+
+.editor-nested-listitem {
+  @apply ml-4;
+}
+
+.editor-hr {
+  @apply my-4 border-t-2 border-base02;
+}
+
+.editor-placeholder {
+  @apply absolute top-[1.125rem] left-[1.125rem] opacity-50;
+}

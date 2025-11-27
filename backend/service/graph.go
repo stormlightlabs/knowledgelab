@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"notes/backend/internal/domain"
+	"notes/backend/domain"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"

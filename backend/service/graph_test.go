@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"notes/backend/internal/domain"
+	"notes/backend/domain"
 )
 
 func TestGraphService_IndexNote(t *testing.T) {

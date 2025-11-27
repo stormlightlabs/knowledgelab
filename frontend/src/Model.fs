@@ -1,0 +1,230 @@
+module Model
+
+open Elmish
+open System
+open Domain
+
+/// Route represents the current view/page in the application
+type Route =
+    | VaultPicker
+    | NoteList
+    | NoteEditor of noteId: string
+    | GraphView
+    | Settings
+
+/// Panel represents optional side panels that can be shown
+type Panel =
+    | Backlinks
+    | TagsPanel
+    | SearchPanel
+
+/// App state holds all application data and UI state
+type State =
+    { Workspace: WorkspaceInfo option
+      Notes: NoteSummary list
+      CurrentNote: Note option
+      CurrentRoute: Route
+      VisiblePanels: Set<Panel>
+      SearchQuery: string
+      SearchResults: SearchResult list
+      Graph: Graph option
+      Tags: string list
+      Loading: bool
+      Error: string option }
+
+    static member Default =
+        { Workspace = None
+          Notes = []
+          CurrentNote = None
+          CurrentRoute = VaultPicker
+          VisiblePanels = Set.ofList [ Backlinks ]
+          SearchQuery = ""
+          SearchResults = []
+          Graph = None
+          Tags = []
+          Loading = false
+          Error = None }
+
+/// Messages represent all possible user actions and events
+type Msg =
+    | OpenVault of path: string
+    | VaultOpened of Result<WorkspaceInfo, string>
+    | LoadNotes
+    | NotesLoaded of Result<NoteSummary list, string>
+    | SelectNote of noteId: string
+    | NoteLoaded of Result<Note, string>
+    | SaveNote of Note
+    | NoteSaved of Result<unit, string>
+    | CreateNote of title: string * folder: string
+    | NoteCreated of Result<Note, string>
+    | DeleteNote of noteId: string
+    | NoteDeleted of Result<unit, string>
+    | NavigateTo of Route
+    | TogglePanel of Panel
+    | UpdateSearchQuery of query: string
+    | PerformSearch
+    | SearchCompleted of Result<SearchResult list, string>
+    | LoadGraph
+    | GraphLoaded of Result<Graph, string>
+    | LoadTags
+    | TagsLoaded of Result<string list, string>
+    | SetError of string
+    | ClearError
+
+let Init () = State.Default, Cmd.none
+
+let Update (msg: Msg) (state: State) : (State * Cmd<Msg>) =
+    match msg with
+    | OpenVault path ->
+        { state with Loading = true },
+        Cmd.OfPromise.either Api.openVault path (Ok >> VaultOpened) (fun ex -> VaultOpened(Error ex.Message))
+    | VaultOpened(Ok workspace) ->
+        { state with
+            Workspace = Some workspace
+            Loading = false
+            CurrentRoute = NoteList
+            Error = None },
+        Cmd.ofMsg LoadNotes
+    | VaultOpened(Error err) ->
+        { state with
+            Loading = false
+            Error = Some err },
+        Cmd.none
+    | LoadNotes ->
+        { state with Loading = true },
+        Cmd.OfPromise.either Api.listNotes () (List.ofArray >> Ok >> NotesLoaded) (fun ex ->
+            NotesLoaded(Error ex.Message))
+    | NotesLoaded(Ok notes) ->
+        { state with
+            Notes = notes
+            Loading = false
+            Error = None },
+        Cmd.none
+    | NotesLoaded(Error err) ->
+        { state with
+            Loading = false
+            Error = Some err },
+        Cmd.none
+    | SelectNote noteId ->
+        { state with Loading = true },
+        Cmd.OfPromise.either Api.getNote noteId (Ok >> NoteLoaded) (fun ex -> NoteLoaded(Error ex.Message))
+    | NoteLoaded(Ok note) ->
+        { state with
+            CurrentNote = Some note
+            CurrentRoute = NoteEditor note.Id
+            Loading = false
+            Error = None },
+        Cmd.none
+    | NoteLoaded(Error err) ->
+        { state with
+            Loading = false
+            Error = Some err },
+        Cmd.none
+    | SaveNote note ->
+        { state with Loading = true },
+        Cmd.OfPromise.either Api.saveNote note (fun _ -> NoteSaved(Ok())) (fun ex -> NoteSaved(Error ex.Message))
+    | NoteSaved(Ok()) ->
+        { state with
+            Loading = false
+            Error = None },
+        Cmd.ofMsg LoadNotes
+    | NoteSaved(Error err) ->
+        { state with
+            Loading = false
+            Error = Some err },
+        Cmd.none
+    | CreateNote(title, folder) ->
+        { state with Loading = true },
+        Cmd.OfPromise.either (Api.createNote title) folder (Ok >> NoteCreated) (fun ex -> NoteCreated(Error ex.Message))
+    | NoteCreated(Ok note) ->
+        { state with
+            CurrentNote = Some note
+            CurrentRoute = NoteEditor note.Id
+            Loading = false
+            Error = None },
+        Cmd.ofMsg LoadNotes
+    | NoteCreated(Error err) ->
+        { state with
+            Loading = false
+            Error = Some err },
+        Cmd.none
+    | DeleteNote noteId ->
+        { state with Loading = true },
+        Cmd.OfPromise.either Api.deleteNote noteId (fun _ -> NoteDeleted(Ok())) (fun ex ->
+            NoteDeleted(Error ex.Message))
+    | NoteDeleted(Ok()) ->
+        { state with
+            CurrentNote = None
+            CurrentRoute = NoteList
+            Loading = false
+            Error = None },
+        Cmd.ofMsg LoadNotes
+    | NoteDeleted(Error err) ->
+        { state with
+            Loading = false
+            Error = Some err },
+        Cmd.none
+    | NavigateTo route -> { state with CurrentRoute = route }, Cmd.none
+    | TogglePanel panel ->
+        let newPanels =
+            if state.VisiblePanels.Contains panel then
+                state.VisiblePanels.Remove panel
+            else
+                state.VisiblePanels.Add panel
+
+        { state with VisiblePanels = newPanels }, Cmd.none
+    | UpdateSearchQuery query -> { state with SearchQuery = query }, Cmd.none
+    | PerformSearch ->
+        let query =
+            { Query = state.SearchQuery
+              Tags = []
+              PathPrefix = ""
+              DateFrom = None
+              DateTo = None
+              Limit = 50 }
+
+        { state with Loading = true },
+        Cmd.OfPromise.either Api.search query (List.ofArray >> Ok >> SearchCompleted) (fun ex ->
+            SearchCompleted(Error ex.Message))
+    | SearchCompleted(Ok results) ->
+        { state with
+            SearchResults = results
+            Loading = false
+            Error = None },
+        Cmd.none
+    | SearchCompleted(Error err) ->
+        { state with
+            Loading = false
+            Error = Some err },
+        Cmd.none
+    | LoadGraph ->
+        { state with Loading = true },
+        Cmd.OfPromise.either Api.getGraph () (Ok >> GraphLoaded) (fun ex -> GraphLoaded(Error ex.Message))
+    | GraphLoaded(Ok graph) ->
+        { state with
+            Graph = Some graph
+            Loading = false
+            Error = None },
+        Cmd.none
+    | GraphLoaded(Error err) ->
+        { state with
+            Loading = false
+            Error = Some err },
+        Cmd.none
+    | LoadTags ->
+        { state with Loading = true },
+        Cmd.OfPromise.either Api.getAllTags () (List.ofArray >> Ok >> TagsLoaded) (fun ex ->
+            TagsLoaded(Error ex.Message))
+    | TagsLoaded(Ok tags) ->
+        { state with
+            Tags = tags
+            Loading = false
+            Error = None },
+        Cmd.none
+    | TagsLoaded(Error err) ->
+        { state with
+            Loading = false
+            Error = Some err },
+        Cmd.none
+    | SetError err -> { state with Error = Some err }, Cmd.none
+    | ClearError -> { state with Error = None }, Cmd.none

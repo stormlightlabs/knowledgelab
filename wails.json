@@ -1,0 +1,13 @@
+{
+    "$schema": "https://wails.io/schemas/config.v2.json",
+    "name": "notes",
+    "outputfilename": "notes",
+    "frontend:install": "pnpm install",
+    "frontend:build": "pnpm build",
+    "frontend:dev:watcher": "pnpm serve",
+    "frontend:dev:serverUrl": "auto",
+    "author": {
+        "name": "Owais Jamil",
+        "email": "desertthunder.dev@gmail.com"
+    }
+}

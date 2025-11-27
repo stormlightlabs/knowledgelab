@@ -58,20 +58,26 @@ graph view similar to Obsidian and Logseq.
 
 ### Core Screens
 
-- [ ] **Vault picker**:
-    - [ ] UI to open/create vault using backend API.
-- [ ] **Editor view**:
-    - [ ] Markdown / outline editor component.
-    - [ ] Support headings, lists, code, inline links (`[[...]]`).
+- [x] **Vault picker**:
+    - [x] UI to open/create vault using backend API.
+- [x] **Editor view**:
+    - [x] Markdown / outline editor component.
+    - [x] Support headings, lists, code, inline links (`[[...]]`).
     - [ ] Keyboard shortcuts for basic formatting.
-- [ ] **Note list / outline sidebar**:
-    - [ ] Filterable list of notes (by title, tag).
-    - [ ] Double-click to open in editor.
-- [ ] **Backlinks panel**:
-    - [ ] Show list of notes linking to the current note.
-    - [ ] Click to navigate.
-- [ ] **Daily notes**:
-    - [ ] “Today” button to jump/create daily note (Obsidian/Logseq-style).
+- [x] **Note list / outline sidebar**:
+    - [x] Filterable list of notes (by title, tag).
+    - [x] Double-click to open in editor.
+- [x] **Backlinks panel**:
+    - [x] Show list of notes linking to the current note.
+    - [x] Click to navigate.
+- [x] **Daily notes**:
+    - [x] "Today" button to jump/create daily note
+
+### Theming & UX
+
+- [x] Basic layout:
+    - [x] Sidebar (notes), main editor, right panel (backlinks/graph).
+- [x] Add minimal settings panel (theme, font size, vault path overview).
 
 ### Graph View
 
@@ -85,24 +91,18 @@ graph view similar to Obsidian and Logseq.
     - [ ] `Msg` for selecting nodes, refreshing graph.
     - [ ] `update` integrates graph actions.
 
-### Theming & UX
-
-- [ ] Implement light/dark theme toggling.
-- [ ] Basic layout:
-    - [ ] Sidebar (notes), main editor, right panel (backlinks/graph).
-- [ ] Add minimal settings panel (theme, font size, vault path overview).
-
 ### Frontend Testing
 
 - [x] Add tests for:
     - [x] `update` logic (pure Elmish tests).
     - [x] Routing behavior.
+    - [x] Backlinks and daily notes features.
     - [ ] Serialization/deserialization of models used in Wails calls.
 
 ## PKM & Data Model Parity
 
 - [ ] Analyze core Obsidian features: local Markdown, links, plugins, graph, daily notes.
-    - [ ] Map each to “must-have” vs “later”.
+    - [ ] Map each to "must-have" vs "later".
 - [ ] Analyze core Logseq features: local outliner, daily journals, backlinks, graph.
     - [ ] Decide how much outliner behavior to support in v1.
 - [ ] Define canonical Markdown / outline dialect for this app:
@@ -113,10 +113,10 @@ graph view similar to Obsidian and Logseq.
 
 ## Plugin & Extensibility
 
-- [ ] Define internal “extension points”:
+- [ ] Define internal "extension points":
     - [ ] Toolbar commands.
     - [ ] Sidebar panels.
-    - [ ] Note-level actions (e.g. “Copy link”, “Open in file manager”).
+    - [ ] Note-level actions (e.g. "Copy link", "Open in file manager").
 - [ ] Implement minimal internal plugin-like registry (no user scripts yet):
     - [ ] Register built-in features (daily notes, backlinks, graph) via the same mechanism.
 - [ ] Document constraints for a future public plugin API, inspired by Obsidian’s plugin ecosystem.

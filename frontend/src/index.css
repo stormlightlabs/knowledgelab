@@ -22,27 +22,49 @@
   --font-display: 'Satoshi Variable', sans-serif;
   --font-mono: "JetBrains Mono Variable", monospace;
   --font-sans: 'Public Sans Variable', sans-serif;
-  /* Oxocarbon Light */
-  --color-base00: #f2f4f8;
-  --color-base01: #dde1e6;
-  --color-base02: #525252;
-  --color-base03: #161616;
-  --color-base04: #262626;
-  --color-base05: #393939;
-  --color-base06: #525252;
-  --color-base07: #08bdba;
-  --color-base08: #ff7eb6;
-  --color-base09: #ee5396;
-  --color-base0A: #FF6F00;
-  --color-base0B: #0f62fe;
-  --color-base0C: #673AB7;
-  --color-base0D: #42be65;
-  --color-base0E: #be95ff;
-  --color-base0F: #37474F;
+
+  --color-bg: #161821;
+  --color-fg: #c6c8d1;
+  --color-bg-alt: #1e2132;
+  --color-comment: #6b7089;
+  --color-selection: #2a3158;
+  --color-line-highlight: #1e2132;
+
+  --color-red: #e27878;
+  --color-red-bright: #e98989;
+  --color-green: #b4be82;
+  --color-green-bright: #c0ca8e;
+  --color-yellow: #e2a478;
+  --color-yellow-bright: #e9b189;
+  --color-blue: #84a0c6;
+  --color-blue-bright: #91acd1;
+  --color-magenta: #a093c7;
+  --color-magenta-bright: #ada0d3;
+  --color-cyan: #89b8c2;
+  --color-cyan-bright: #95c4ce;
+  --color-white: #d2d4de;
+
+  /* Semantic mappings for base16 compatibility */
+  --color-base00: #161821; /* background */
+  --color-base01: #1e2132; /* lighter background */
+  --color-base02: #2a3158; /* selection */
+  --color-base03: #6b7089; /* comments */
+  --color-base04: #84a0c6; /* dark foreground */
+  --color-base05: #c6c8d1; /* default foreground */
+  --color-base06: #d2d4de; /* light foreground */
+  --color-base07: #e8e9f0; /* lightest foreground */
+  --color-base08: #e27878; /* red */
+  --color-base09: #e2a478; /* orange/yellow */
+  --color-base0A: #e9b189; /* yellow-bright */
+  --color-base0B: #b4be82; /* green */
+  --color-base0C: #89b8c2; /* cyan */
+  --color-base0D: #84a0c6; /* blue */
+  --color-base0E: #a093c7; /* magenta */
+  --color-base0F: #e27878; /* deprecated/error */
 }
 
 body {
-  @apply font-sans;
+  @apply font-sans bg-base00 text-base05;
 }
 
 pre, code {
@@ -66,23 +88,23 @@ pre, code {
 }
 
 .editor-root {
-  @apply p-4 border-1 border-transparent focus:outline-none relative flex-grow min-w-2xl max-w-4xl mx-auto min-h-full;
+  @apply p-4 border border-transparent focus:outline-none relative grow min-w-2xl max-w-4xl mx-auto min-h-full bg-base00 text-base05;
 }
 
 .editor-code {
-  @apply bg-base01 font-mono p-2 py-4 rounded-lg text-sm mx-0 my-2 overflow-x-auto relative block text-base05;
+  @apply bg-base01 font-mono p-2 py-4 rounded-lg text-sm mx-0 my-2 overflow-x-auto relative block text-base05 border border-base02;
 }
 
 .editor-inline-code {
-  @apply bg-base01 font-mono p-0.5 rounded-sm text-sm text-base03;
+  @apply bg-base01 font-mono p-0.5 rounded-sm text-sm text-cyan border border-base02;
 }
 
 .editor-blockquote {
-  @apply border-blue-500 border-l-4 pl-4 my-4 font-medium font-display;
+  @apply border-blue border-l-4 pl-4 my-4 font-medium font-display text-base05;
 }
 
 @utility heading {
-  @apply font-bold my-2 font-display;
+  @apply font-bold my-2 font-display text-base06;
 }
 
 .editor-h1 {
@@ -110,19 +132,19 @@ pre, code {
 }
 
 .editor-link {
-  @apply text-base06 underline hover:text-base07;
+  @apply text-blue underline hover:text-blue-bright default-transition;
 }
 
 .editor-paragraph {
-  @apply my-2;
+  @apply my-2 text-base05;
 }
 
 .editor-list-ol {
-  @apply list-decimal list-inside;
+  @apply list-decimal list-inside text-base05;
 }
 
 .editor-list-ul {
-  @apply list-disc list-inside;
+  @apply list-disc list-inside text-base05;
 }
 
 .editor-listitem {
@@ -146,5 +168,5 @@ pre, code {
 }
 
 .editor-placeholder {
-  @apply absolute top-[1.125rem] left-[1.125rem] opacity-50;
+  @apply absolute top-4.5 left-4.5 opacity-50 text-base03;
 }

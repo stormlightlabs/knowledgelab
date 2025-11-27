@@ -14,3 +14,6 @@ fable_modules
 
 wailsjs
 *.json.md5
+
+docs/.vitepress/cache
+docs/.vitepress/dist

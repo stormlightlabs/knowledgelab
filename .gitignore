@@ -1,0 +1,16 @@
+build/bin
+bin
+
+node_modules
+
+frontend/dist
+dist
+
+.fake
+obj
+fable_modules
+.fake
+*.fs.js
+
+wailsjs
+*.json.md5

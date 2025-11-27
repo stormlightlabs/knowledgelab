@@ -71,7 +71,7 @@ Jest.describe (
         Jest.expect(state.Workspace).toEqual (None)
         Jest.expect(state.Notes.IsEmpty).toEqual (true)
         Jest.expect(state.CurrentNote).toEqual (None)
-        Jest.expect(state.CurrentRoute).toEqual (VaultPicker)
+        Jest.expect(state.CurrentRoute).toEqual (WorkspacePicker)
     )
 
     Jest.test (
@@ -145,5 +145,64 @@ Jest.describe (
 
         let newState, _ = Update (UpdateNoteContent "New content") initialState
         Jest.expect(newState.CurrentNote).toEqual (None)
+    )
+
+    Jest.test (
+      "GraphLoaded success updates graph",
+      fun () ->
+        let initialState = State.Default
+
+        let testGraph = {
+          Nodes = [ "note1"; "note2"; "note3" ]
+          Edges = [
+            { Source = "note1"; Target = "note2"; Type = "wiki" }
+            { Source = "note2"; Target = "note3"; Type = "wiki" }
+          ]
+        }
+
+        let newState, _ = Update (GraphLoaded(Ok testGraph)) initialState
+        Jest.expect(newState.Graph.IsSome).toEqual (true)
+        Jest.expect(newState.Loading).toEqual (false)
+        Jest.expect(newState.Error).toEqual (None)
+    )
+
+    Jest.test (
+      "GraphLoaded error sets error message",
+      fun () ->
+        let initialState = State.Default
+        let errorMsg = "Failed to load graph"
+        let newState, _ = Update (GraphLoaded(Error errorMsg)) initialState
+        Jest.expect(newState.Error).toEqual (Some errorMsg)
+        Jest.expect(newState.Loading).toEqual (false)
+    )
+
+    Jest.test (
+      "GraphNodeHovered updates hovered node",
+      fun () ->
+        let initialState = State.Default
+        let nodeId = "note1"
+        let newState, _ = Update (GraphNodeHovered(Some nodeId)) initialState
+        Jest.expect(newState.HoveredNode).toEqual (Some nodeId)
+    )
+
+    Jest.test (
+      "GraphZoomChanged updates zoom state",
+      fun () ->
+        let initialState = State.Default
+
+        let newZoomState = { Scale = 1.5; TranslateX = 10.0; TranslateY = 20.0 }
+
+        let newState, _ = Update (GraphZoomChanged newZoomState) initialState
+        Jest.expect(newState.ZoomState.Scale).toEqual (1.5)
+        Jest.expect(newState.ZoomState.TranslateX).toEqual (10.0)
+        Jest.expect(newState.ZoomState.TranslateY).toEqual (20.0)
+    )
+
+    Jest.test (
+      "GraphEngineChanged updates graph engine",
+      fun () ->
+        let initialState = State.Default
+        let newState, _ = Update (GraphEngineChanged Canvas) initialState
+        Jest.expect(newState.GraphEngine).toEqual (Canvas)
     )
 )

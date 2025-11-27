@@ -4,8 +4,8 @@ open Feliz
 open Model
 open Domain
 
-/// Renders the vault picker screen when no workspace is open
-let vaultPicker (state : State) (dispatch : Msg -> unit) =
+/// Renders the workspace picker screen when no workspace is open
+let workspacePicker (state : State) (dispatch : Msg -> unit) =
   Html.div [
     prop.className "flex items-center justify-center h-screen bg-base00"
     prop.children [
@@ -25,7 +25,7 @@ let vaultPicker (state : State) (dispatch : Msg -> unit) =
               "w-full bg-blue hover:bg-blue-bright text-base00 font-bold py-2 px-4 rounded transition-all"
             prop.text "Choose Folder"
             // TODO: Open folder picker dialog
-            prop.onClick (fun _ -> dispatch (OpenVault "./test-workspace"))
+            prop.onClick (fun _ -> dispatch (OpenWorkspace "./test-workspace"))
           ]
         ]
       ]
@@ -200,7 +200,7 @@ let settingsPanel (state : State) (dispatch : Msg -> unit) =
 /// Renders the main content area based on current route
 let mainContent (state : State) (dispatch : Msg -> unit) =
   match state.CurrentRoute with
-  | VaultPicker -> vaultPicker state dispatch
+  | WorkspacePicker -> workspacePicker state dispatch
   | NoteList ->
     Html.div [
       prop.className "flex-1 flex items-center justify-center bg-base00"
@@ -224,11 +224,7 @@ let mainContent (state : State) (dispatch : Msg -> unit) =
         prop.className "flex-1 flex items-center justify-center bg-base00 text-base05"
         prop.text "Loading..."
       ]
-  | GraphView ->
-    Html.div [
-      prop.className "flex-1 flex items-center justify-center bg-base00 text-base05"
-      prop.text "Graph view (coming soon)"
-    ]
+  | GraphView -> GraphView.render state dispatch
   | Settings -> settingsPanel state dispatch
 
 /// Renders error notification if present
@@ -291,20 +287,20 @@ let render (state : State) (dispatch : Msg -> unit) =
   Html.div [
     prop.className "h-screen w-full bg-base00 flex flex-col overflow-hidden"
     prop.children [
-      if state.Workspace.IsSome && state.CurrentRoute <> VaultPicker then
+      if state.Workspace.IsSome && state.CurrentRoute <> WorkspacePicker then
         navigationBar state dispatch
 
       Html.div [
         prop.className "flex-1 flex overflow-hidden"
         prop.children [
-          if state.Workspace.IsSome && state.CurrentRoute <> VaultPicker then
+          if state.Workspace.IsSome && state.CurrentRoute <> WorkspacePicker then
             notesList state dispatch
 
           mainContent state dispatch
 
           if
             state.VisiblePanels.Contains Backlinks
-            && state.CurrentRoute <> VaultPicker
+            && state.CurrentRoute <> WorkspacePicker
             && state.CurrentRoute <> Settings
           then
             backlinksPanel state dispatch

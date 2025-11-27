@@ -12,9 +12,9 @@ graph view similar to Obsidian and Logseq.
 
 - [x] Define core domain types:
     - [x] `Note`, `Block` (for outline-style content), `Link`, `Tag`, `DailyNote`.
-    - [x] `Vault` / `Workspace` configuration (root folder, ignore patterns).
+    - [x] `Workspace` configuration (root folder, ignore patterns).
 - [x] Implement filesystem service:
-    - [x] Open/create vault at a given path.
+    - [x] Open/create workspace at a given path.
     - [x] Load all Markdown / outline files from disk.
     - [x] Watch filesystem for changes and emit events.
 - [x] Implement note service:
@@ -30,7 +30,7 @@ graph view similar to Obsidian and Logseq.
 ### API Surface to Frontend
 
 - [x] Define Wails-bindable Go methods:
-    - [x] `OpenVault(path)` → `VaultInfo`.
+    - [x] `OpenWorkspace(path)` → `WorkspaceInfo`.
     - [x] `ListNotes()` → `[NoteSummary]`.
     - [x] `GetNote(id)` / `SaveNote(note)` / `DeleteNote(id)`.
     - [x] `GetBacklinks(id)` / `GetGraph()` / `Search(query)`.
@@ -49,17 +49,17 @@ graph view similar to Obsidian and Logseq.
 ### Frontend Skeleton
 
 - [x] Define root MVU types:
-    - [x] `Model` (app-wide state: vault, notes, selection, panels).
+    - [x] `Model` (app-wide state: workspace, notes, selection, panels).
     - [x] `Msg` (all UI events).
     - [x] `update : Msg -> Model -> Model * Cmd<Msg>`.
     - [x] `view : Model -> ReactElement`.
 - [x] Implement routing/navigation (e.g. active note, graph, settings).
-- [x] Wire startup to call Wails backend for initial vault state.
+- [x] Wire startup to call Wails backend for initial workspace state.
 
 ### Core Screens
 
-- [x] **Vault picker**:
-    - [x] UI to open/create vault using backend API.
+- [x] **Workspace picker**:
+    - [x] UI to open/create workspace using backend API.
 - [x] **Editor view**:
     - [x] Markdown / outline editor component.
     - [x] Support headings, lists, code, inline links (`[[...]]`).
@@ -77,19 +77,51 @@ graph view similar to Obsidian and Logseq.
 
 - [x] Basic layout:
     - [x] Sidebar (notes), main editor, right panel (backlinks/graph).
-- [x] Add minimal settings panel (theme, font size, vault path overview).
+- [x] Add minimal settings panel (theme, font size, workspace path overview).
 
 ### Graph View
 
-- [ ] Select a graph visualization library (or simple custom canvas).
-- [ ] Implement:
-    - [ ] Nodes = notes, edges = links.
-    - [ ] Hover to show note title; click to open note.
-    - [ ] Basic pan/zoom.
-- [ ] Wiring:
-    - [ ] `Model` includes graph data from backend.
-    - [ ] `Msg` for selecting nodes, refreshing graph.
-    - [ ] `update` integrates graph actions.
+- [x] Add D3 (force simulation) as the layout engine for the note graph
+- [x] Data & layout:
+    - [x] Define `GraphNode` and `GraphLink` types in the frontend model (ids, labels, degree, etc.).
+    - [x] Expose a `GraphData` record `{ nodes : GraphNode list; links : GraphLink list }`.
+    - [x] From backend graph API, normalize data into `GraphData` suitable for D3-force (source/target IDs, weights).
+    - [x] Create a D3-force simulation (via JS interop) that:
+        - [x] Uses forces for link distance, node repulsion, and centering.
+        - [x] Updates node positions (`x`, `y`) on each tick.
+        - [x] Exposes a way to (re)start the simulation when data changes.
+- [x] SVG renderer:
+    - [x] Implement an `SvgGraph.view` that:
+        - [x] Renders links as `<line>` elements from `source.x, source.y` to `target.x, target.y`.
+        - [x] Renders nodes as `<circle>` (or similar) with `cx, cy` from simulation positions.
+        - [ ] Uses CSS classes to style nodes/edges based on state (selected, hovered, dimmed).
+    - [x] Implement hover & click:
+        - [ ] Hover: show note title in a tooltip/overlay; highlight node and its neighbors.
+        - [x] Click: dispatch a message to open the note in the editor and center it in the graph.
+- [ ] Pan / zoom:
+    - [ ] Wrap the SVG in a `<g>` with a transform and use a D3 zoom behavior to:
+        - [ ] Support mouse wheel zoom.
+        - [ ] Support click-and-drag panning.
+    - [ ] Keep zoom state (scale, translation) in the Elmish model or in a small JS module with messages to sync if needed.
+- [x] Wiring (Elmish):
+    - [x] `Model`:
+        - [x] Add `GraphData` and `GraphState` (e.g. selected node id, hovered node id, zoom state, engine = Svg|Canvas).
+    - [x] `Msg`:
+        - [x] Add messages such as:
+            - [x] `GraphNodeClicked of NoteId`
+            - [x] `GraphNodeHovered of NoteId option`
+            - [x] `GraphZoomChanged of ZoomState`
+            - [x] `GraphEngineChanged of GraphEngine`
+    - [x] `update`:
+        - [x] Handle graph-related messages:
+            - [x] Update selection/hover state.
+            - [x] Trigger note opening when a node is clicked.
+            - [ ] Refresh graph when backend graph data changes (e.g. on note save).
+    - [x] `view`:
+        - [x] Route to `SvgGraph.view` (and later `CanvasGraph.view`) based on `model.GraphEngine`.
+- [ ] Canvas renderer:
+    - [ ] Add a `CanvasGraph.view` that reuses the same D3-force simulation but draws nodes/links on `<canvas>`.
+    - [ ] Expose a user setting to switch between SVG and Canvas for large graphs.
 
 ### Frontend Testing
 
@@ -97,6 +129,7 @@ graph view similar to Obsidian and Logseq.
     - [x] `update` logic (pure Elmish tests).
     - [x] Routing behavior.
     - [x] Backlinks and daily notes features.
+    - [x] Graph view functionality (load, hover, zoom, engine switching).
     - [ ] Serialization/deserialization of models used in Wails calls.
 
 ## PKM & Data Model Parity
@@ -107,9 +140,6 @@ graph view similar to Obsidian and Logseq.
     - [ ] Decide how much outliner behavior to support in v1.
 - [ ] Define canonical Markdown / outline dialect for this app:
     - [ ] Wikilinks, tags, fenced code, tasks (`[ ]` / `[x]`), headings, blocks.
-- [ ] Document migration/import strategy:
-    - [ ] Point at existing Obsidian / Logseq vaults without modifying them.
-    - [ ] Clearly describe what is supported / unsupported.
 
 ## Plugin & Extensibility
 
@@ -127,5 +157,5 @@ graph view similar to Obsidian and Logseq.
 - [ ] Inline outlining workflows closer to Logseq (block refs, nested blocks)
 - [ ] Basic mobile-friendly layout (for small windows).
 - [ ] Optional sync/export features with explicit privacy design.
-- [ ] Benchmarks for graph build on large vaults
+- [ ] Benchmarks for graph build on large workspaces
 - [ ] Add `go test ./...` CI job.

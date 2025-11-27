@@ -1,12 +1,11 @@
 module Api
 
 open Fable.Core
-open Fable.Core.JsInterop
 open Domain
 
 /// Wails runtime bindings for calling Go backend methods.
-[<Import("OpenVault", from = "@wailsjs/go/main/App")>]
-let openVault (path : string) : JS.Promise<WorkspaceInfo> = jsNative
+[<Import("OpenWorkspace", from = "@wailsjs/go/main/App")>]
+let openWorkspace (path : string) : JS.Promise<WorkspaceInfo> = jsNative
 
 [<Import("ListNotes", from = "@wailsjs/go/main/App")>]
 let listNotes () : JS.Promise<NoteSummary array> = jsNative

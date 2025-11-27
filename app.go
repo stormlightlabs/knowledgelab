@@ -51,9 +51,9 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 }
 
-// OpenVault opens a workspace at the specified path and builds the initial index.
+// OpenWorkspace opens a workspace at the specified path and builds the initial index.
 // Returns workspace information including note count and configuration.
-func (a *App) OpenVault(path string) (*domain.WorkspaceInfo, error) {
+func (a *App) OpenWorkspace(path string) (*domain.WorkspaceInfo, error) {
 	info, err := a.fs.OpenWorkspace(path)
 	if err != nil {
 		return nil, a.wrapError("failed to open workspace", err)

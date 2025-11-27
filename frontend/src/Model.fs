@@ -6,7 +6,7 @@ open Domain
 
 /// Route represents the current view/page in the application
 type Route =
-  | VaultPicker
+  | WorkspacePicker
   | NoteList
   | NoteEditor of noteId : string
   | GraphView
@@ -28,6 +28,10 @@ type State = {
   SearchQuery : string
   SearchResults : SearchResult list
   Graph : Graph option
+  SelectedNode : string option
+  HoveredNode : string option
+  ZoomState : ZoomState
+  GraphEngine : GraphEngine
   Tags : string list
   Backlinks : Link list
   Loading : bool
@@ -38,11 +42,15 @@ type State = {
     Workspace = None
     Notes = []
     CurrentNote = None
-    CurrentRoute = VaultPicker
+    CurrentRoute = WorkspacePicker
     VisiblePanels = Set.ofList [ Backlinks ]
     SearchQuery = ""
     SearchResults = []
     Graph = None
+    SelectedNode = None
+    HoveredNode = None
+    ZoomState = ZoomState.Default
+    GraphEngine = Svg
     Tags = []
     Backlinks = []
     Loading = false
@@ -51,8 +59,8 @@ type State = {
 
 /// Messages represent all possible user actions and events
 type Msg =
-  | OpenVault of path : string
-  | VaultOpened of Result<WorkspaceInfo, string>
+  | OpenWorkspace of path : string
+  | WorkspaceOpened of Result<WorkspaceInfo, string>
   | LoadNotes
   | NotesLoaded of Result<NoteSummary list, string>
   | SelectNote of noteId : string
@@ -76,6 +84,9 @@ type Msg =
   | BacklinksLoaded of Result<Link list, string>
   | OpenDailyNote
   | UpdateNoteContent of content : string
+  | GraphNodeHovered of noteId : string option
+  | GraphZoomChanged of ZoomState
+  | GraphEngineChanged of GraphEngine
   | SetError of string
   | ClearError
 
@@ -83,11 +94,11 @@ let Init () = State.Default, Cmd.none
 
 let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   match msg with
-  | OpenVault path ->
+  | OpenWorkspace path ->
     { state with Loading = true },
-    Cmd.OfPromise.either Api.openVault path (Ok >> VaultOpened) (fun ex ->
-      VaultOpened(Error ex.Message))
-  | VaultOpened(Ok workspace) ->
+    Cmd.OfPromise.either Api.openWorkspace path (Ok >> WorkspaceOpened) (fun ex ->
+      WorkspaceOpened(Error ex.Message))
+  | WorkspaceOpened(Ok workspace) ->
     {
       state with
           Workspace = Some workspace
@@ -96,7 +107,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
           Error = None
     },
     Cmd.ofMsg LoadNotes
-  | VaultOpened(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
+  | WorkspaceOpened(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | LoadNotes ->
     { state with Loading = true },
     Cmd.OfPromise.either Api.listNotes () (List.ofArray >> Ok >> NotesLoaded) (fun ex ->
@@ -233,5 +244,8 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
 
       { state with CurrentNote = Some updatedNote }, Cmd.ofMsg (SaveNote updatedNote)
     | None -> state, Cmd.none
+  | GraphNodeHovered nodeId -> { state with HoveredNode = nodeId }, Cmd.none
+  | GraphZoomChanged zoomState -> { state with ZoomState = zoomState }, Cmd.none
+  | GraphEngineChanged engine -> { state with GraphEngine = engine }, Cmd.none
   | SetError err -> { state with Error = Some err }, Cmd.none
   | ClearError -> { state with Error = None }, Cmd.none

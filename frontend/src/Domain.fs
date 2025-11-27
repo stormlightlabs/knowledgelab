@@ -112,3 +112,35 @@ type SearchResult = {
   Tags : string list
   ModifiedAt : DateTime
 }
+
+/// GraphNode represents a node in the force-directed graph with simulation data
+type GraphNode = {
+  Id : string
+  Label : string
+  Group : int
+  Degree : int
+  mutable X : float option
+  mutable Y : float option
+  mutable Vx : float option
+  mutable Vy : float option
+}
+
+/// GraphLink represents an edge between two nodes in the graph
+type GraphLink = { Source : string; Target : string; Value : float }
+
+/// GraphData holds the complete graph structure for D3 force simulation
+type GraphData = { Nodes : GraphNode list; Links : GraphLink list }
+
+/// ZoomState tracks the current pan and zoom transformation
+type ZoomState = {
+  Scale : float
+  TranslateX : float
+  TranslateY : float
+} with
+
+  static member Default = { Scale = 1.0; TranslateX = 0.0; TranslateY = 0.0 }
+
+/// GraphEngine determines the rendering mode for the graph
+type GraphEngine =
+  | Svg
+  | Canvas

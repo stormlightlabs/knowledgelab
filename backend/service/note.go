@@ -33,13 +33,11 @@ func NewNoteService(fs *FilesystemService) *NoteService {
 
 // GetNote retrieves a note by its ID (relative path).
 func (s *NoteService) GetNote(id string) (*domain.Note, error) {
-	// Read file content
 	content, err := s.fs.ReadFile(id)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get file info for timestamps
 	workspace, err := s.fs.GetCurrentWorkspace()
 	if err != nil {
 		return nil, err
@@ -51,7 +49,6 @@ func (s *NoteService) GetNote(id string) (*domain.Note, error) {
 		return nil, fmt.Errorf("failed to stat file: %w", err)
 	}
 
-	// Parse note
 	note, err := s.parseNote(id, content, info)
 	if err != nil {
 		return nil, err
@@ -74,20 +71,17 @@ func (s *NoteService) ListNotes() ([]domain.NoteSummary, error) {
 
 	summaries := make([]domain.NoteSummary, 0, len(files))
 	for _, relPath := range files {
-		// Read file
 		content, err := s.fs.ReadFile(relPath)
 		if err != nil {
-			continue // Skip files we can't read
+			continue
 		}
 
-		// Get file info
 		fullPath := filepath.Join(workspace.RootPath, relPath)
 		info, err := os.Stat(fullPath)
 		if err != nil {
 			continue
 		}
 
-		// Parse frontmatter and extract title/tags quickly
 		title, tags := s.extractTitleAndTags(content)
 		if title == "" {
 			title = strings.TrimSuffix(filepath.Base(relPath), filepath.Ext(relPath))
@@ -105,12 +99,8 @@ func (s *NoteService) ListNotes() ([]domain.NoteSummary, error) {
 	return summaries, nil
 }
 
-// SaveNote creates or updates a note.
 func (s *NoteService) SaveNote(note *domain.Note) error {
-	// Generate content with frontmatter
 	content := s.serializeNote(note)
-
-	// Write to filesystem
 	return s.fs.WriteFile(note.Path, content)
 }
 
@@ -119,21 +109,17 @@ func (s *NoteService) DeleteNote(id string) error {
 	return s.fs.DeleteFile(id)
 }
 
-// CreateNote creates a new note with the given title and content.
 func (s *NoteService) CreateNote(title, folder string) (*domain.Note, error) {
-	// Generate filename from title
 	filename := sanitizeFilename(title) + ".md"
 	relPath := filename
 	if folder != "" {
 		relPath = filepath.Join(folder, filename)
 	}
 
-	// Check if file already exists
 	if _, err := s.fs.ReadFile(relPath); err == nil {
 		return nil, &domain.ErrAlreadyExists{Resource: "note", ID: relPath}
 	}
 
-	// Create note with basic content
 	content := "# " + title + "\n\n"
 
 	note := &domain.Note{
@@ -149,7 +135,6 @@ func (s *NoteService) CreateNote(title, folder string) (*domain.Note, error) {
 		ModifiedAt:  time.Now(),
 	}
 
-	// Save to disk
 	if err := s.SaveNote(note); err != nil {
 		return nil, err
 	}
@@ -160,24 +145,17 @@ func (s *NoteService) CreateNote(title, folder string) (*domain.Note, error) {
 // parseNote converts raw content into a structured Note.
 // It extracts frontmatter, parses Markdown structure, and identifies blocks.
 func (s *NoteService) parseNote(id string, content []byte, info os.FileInfo) (*domain.Note, error) {
-	// Extract frontmatter
 	frontmatter, body, err := s.extractFrontmatter(content)
 	if err != nil {
 		return nil, &domain.ErrInvalidFrontmatter{Path: id, Reason: err.Error()}
 	}
 
-	// Extract title (from frontmatter or first heading)
 	title := s.extractTitle(frontmatter, body)
 	if title == "" {
 		title = strings.TrimSuffix(filepath.Base(id), filepath.Ext(id))
 	}
 
-	// Parse Markdown to extract blocks
 	blocks := s.extractBlocks(id, body)
-
-	// Note: Links and tags extraction will be done by the graph service
-	// to avoid circular dependencies
-
 	note := &domain.Note{
 		ID:          id,
 		Title:       title,
@@ -187,7 +165,7 @@ func (s *NoteService) parseNote(id string, content []byte, info os.FileInfo) (*d
 		Blocks:      blocks,
 		Links:       []domain.Link{},
 		Tags:        []domain.Tag{},
-		CreatedAt:   info.ModTime(), // Use file mtime as approximation
+		CreatedAt:   info.ModTime(),
 		ModifiedAt:  info.ModTime(),
 	}
 
@@ -196,13 +174,12 @@ func (s *NoteService) parseNote(id string, content []byte, info os.FileInfo) (*d
 
 // extractFrontmatter parses YAML frontmatter from content.
 // Returns frontmatter map, body content, and any error.
+// TODO: use YAML de/serialization lib
 func (s *NoteService) extractFrontmatter(content []byte) (map[string]any, []byte, error) {
-	// Check for frontmatter delimiters
 	if !bytes.HasPrefix(content, []byte("---\n")) && !bytes.HasPrefix(content, []byte("---\r\n")) {
 		return make(map[string]any), content, nil
 	}
 
-	// Find end of frontmatter
 	lines := bytes.Split(content, []byte("\n"))
 	endIdx := -1
 	for i := 1; i < len(lines); i++ {
@@ -217,11 +194,9 @@ func (s *NoteService) extractFrontmatter(content []byte) (map[string]any, []byte
 		return make(map[string]any), content, nil
 	}
 
-	// Extract frontmatter content
 	fmContent := bytes.Join(lines[1:endIdx], []byte("\n"))
 	body := bytes.Join(lines[endIdx+1:], []byte("\n"))
 
-	// Parse YAML
 	var frontmatter map[string]any
 	if len(fmContent) > 0 {
 		if err := yaml.Unmarshal(fmContent, &frontmatter); err != nil {
@@ -238,19 +213,17 @@ func (s *NoteService) extractFrontmatter(content []byte) (map[string]any, []byte
 
 // extractTitle gets the title from frontmatter or first heading.
 func (s *NoteService) extractTitle(frontmatter map[string]any, content []byte) string {
-	// Check frontmatter first
 	if title, ok := frontmatter["title"].(string); ok && title != "" {
 		return title
 	}
 
-	// Parse Markdown to find first heading
 	doc := s.parser.Parser().Parse(text.NewReader(content))
 	var title string
 	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if entering && n.Kind() == ast.KindHeading {
 			heading := n.(*ast.Heading)
 			if heading.Level == 1 {
-				title = string(heading.Text(content))
+				title = nodeText(heading, content)
 				return ast.WalkStop, nil
 			}
 		}
@@ -270,11 +243,10 @@ func (s *NoteService) extractTitleAndTags(content []byte) (string, []domain.Tag)
 
 	title := s.extractTitle(frontmatter, body)
 
-	// Extract tags from frontmatter
 	var tags []domain.Tag
 	if fmTags, ok := frontmatter["tags"]; ok {
 		switch t := fmTags.(type) {
-		case []interface{}:
+		case []any:
 			for _, tag := range t {
 				if tagStr, ok := tag.(string); ok {
 					tags = append(tags, domain.Tag{Name: tagStr})
@@ -325,7 +297,7 @@ func (s *NoteService) extractBlocks(noteID string, content []byte) []domain.Bloc
 		}
 
 		if shouldCreate {
-			blockContent := string(n.Text(content))
+			blockContent := nodeText(n, content)
 			blockID := generateBlockID(noteID, blockIdx)
 
 			blocks = append(blocks, domain.Block{
@@ -352,11 +324,9 @@ func (s *NoteService) extractBlocks(noteID string, content []byte) []domain.Bloc
 func (s *NoteService) serializeNote(note *domain.Note) []byte {
 	var buf bytes.Buffer
 
-	// Write frontmatter if present
 	if len(note.Frontmatter) > 0 {
 		buf.WriteString("---\n")
 
-		// Ensure title is in frontmatter
 		if note.Title != "" {
 			note.Frontmatter["title"] = note.Title
 		}
@@ -368,7 +338,6 @@ func (s *NoteService) serializeNote(note *domain.Note) []byte {
 		buf.WriteString("---\n\n")
 	}
 
-	// Write content
 	buf.WriteString(note.Content)
 
 	return buf.Bytes()
@@ -376,18 +345,15 @@ func (s *NoteService) serializeNote(note *domain.Note) []byte {
 
 // sanitizeFilename converts a title to a valid filename.
 func sanitizeFilename(title string) string {
-	// Replace invalid characters
 	invalid := []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|"}
 	filename := title
 	for _, char := range invalid {
 		filename = strings.ReplaceAll(filename, char, "-")
 	}
 
-	// Trim spaces and dots
 	filename = strings.TrimSpace(filename)
 	filename = strings.Trim(filename, ".")
 
-	// Limit length
 	if len(filename) > 200 {
 		filename = filename[:200]
 	}
@@ -404,4 +370,24 @@ func generateBlockID(noteID string, position int) string {
 	data := fmt.Sprintf("%s:%d", noteID, position)
 	hash := sha256.Sum256([]byte(data))
 	return fmt.Sprintf("%x", hash[:8])
+}
+
+// nodeText extracts text content from an AST node by walking its children.
+func nodeText(n ast.Node, source []byte) string {
+	var buf bytes.Buffer
+	ast.Walk(n, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+		if entering {
+			switch v := node.(type) {
+			case *ast.Text:
+				buf.Write(v.Segment.Value(source))
+				if v.SoftLineBreak() {
+					buf.WriteByte('\n')
+				}
+			case *ast.String:
+				buf.Write(v.Value)
+			}
+		}
+		return ast.WalkContinue, nil
+	})
+	return buf.String()
 }

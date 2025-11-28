@@ -68,3 +68,5 @@ export const Search = () => Promise.resolve([]);
 export const GetNotesWithTag = () => Promise.resolve([]);
 
 export const GetAllTags = () => Promise.resolve([]);
+
+export const SelectDirectory = () => Promise.resolve("/mock/workspace/directory");

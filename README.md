@@ -1,4 +1,4 @@
-# Notes
+# Notes (codename: Knowledge Lab)
 
 A local-first, Markdown-based personal knowledge management (PKM) application inspired by Obsidian and Logseq, built with F# (Fable + Elmish + React) on the frontend and Wails (Go) on the backend.
 

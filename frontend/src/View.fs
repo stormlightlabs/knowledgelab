@@ -10,22 +10,45 @@ let workspacePicker (state : State) (dispatch : Msg -> unit) =
     prop.className "flex items-center justify-center h-screen bg-base00"
     prop.children [
       Html.div [
-        prop.className "bg-base01 p-8 rounded-lg shadow-lg max-w-md w-full"
+        prop.className "text-center max-w-xl"
         prop.children [
-          Html.h1 [
-            prop.className "text-2xl font-bold mb-4 text-base05"
-            prop.text "Open Workspace"
+          Html.div [
+            prop.className "mb-8"
+            prop.children [
+              Html.h1 [
+                prop.className "text-5xl font-bold mb-4 text-base05"
+                prop.text "Knowledge Lab"
+              ]
+              Html.p [
+                prop.className "text-lg text-base04 mb-2"
+                prop.text "Your local-first, graph-based knowledge workspace"
+              ]
+              Html.p [
+                prop.className "text-sm text-base03"
+                prop.text
+                  "Build your personal knowledge graph with markdown, wikilinks, and powerful search"
+              ]
+            ]
           ]
-          Html.p [
-            prop.className "text-base03 mb-4"
-            prop.text "Select a folder to open as your notes workspace"
-          ]
-          Html.button [
-            prop.className
-              "w-full bg-blue hover:bg-blue-bright text-base00 font-bold py-2 px-4 rounded transition-all"
-            prop.text "Choose Folder"
-            // TODO: Open folder picker dialog
-            prop.onClick (fun _ -> dispatch (OpenWorkspace "./test-workspace"))
+          Html.div [
+            prop.className "bg-base01 p-8 rounded-lg shadow-xl border border-base02"
+            prop.children [
+              Html.h2 [
+                prop.className "text-xl font-semibold mb-4 text-base05"
+                prop.text "Get Started"
+              ]
+              Html.p [
+                prop.className "text-base03 mb-6"
+                prop.text
+                  "Open a folder to use as your notes workspace. All your notes will be stored locally as markdown files."
+              ]
+              Html.button [
+                prop.className
+                  "w-full bg-blue hover:bg-blue-bright text-base00 font-bold py-3 px-6 rounded transition-all shadow-md hover:shadow-lg"
+                prop.text "Open Folder"
+                prop.onClick (fun _ -> dispatch SelectWorkspaceFolder)
+              ]
+            ]
           ]
         ]
       ]
@@ -35,6 +58,7 @@ let workspacePicker (state : State) (dispatch : Msg -> unit) =
 /// Renders a note list item
 let noteListItem (note : NoteSummary) (dispatch : Msg -> unit) =
   Html.div [
+    prop.key $"{note.Id}"
     prop.className "p-3 hover:bg-base02 cursor-pointer border-b border-base02 transition-all"
     prop.onClick (fun _ -> dispatch (SelectNote note.Id))
     prop.children [
@@ -42,13 +66,16 @@ let noteListItem (note : NoteSummary) (dispatch : Msg -> unit) =
       Html.div [ prop.className "text-sm text-base03"; prop.text note.Path ]
       Html.div [
         prop.className "flex gap-2 mt-1"
-        prop.children [
-          for tag in note.Tags do
+        prop.children (
+          note.Tags
+          |> List.map (fun t ->
             Html.span [
+              prop.key $"#{t.NoteId}:{t.Name}"
               prop.className "text-xs bg-blue text-base00 px-2 py-1 rounded"
-              prop.text $"#{tag.Name}"
-            ]
-        ]
+              prop.text $"#{t.Name}"
+            ])
+        )
+
       ]
     ]
   ]
@@ -78,10 +105,7 @@ let notesList (state : State) (dispatch : Msg -> unit) =
       ]
       Html.div [
         prop.className "flex-1 overflow-y-auto"
-        prop.children [
-          for note in state.Notes do
-            noteListItem note dispatch
-        ]
+        prop.children (state.Notes |> List.map (fun note -> noteListItem note dispatch))
       ]
     ]
   ]
@@ -116,6 +140,7 @@ let noteEditor (note : Note) (dispatch : Msg -> unit) =
 /// Renders a backlink item
 let backlinkItem (link : Link) (dispatch : Msg -> unit) =
   Html.div [
+    prop.key $"{link.DisplayText}_{link.Source}:{link.Target}"
     prop.className "p-2 hover:bg-base02 cursor-pointer border-b border-base02 transition-all"
     prop.onClick (fun _ -> dispatch (SelectNote link.Source))
     prop.children [
@@ -139,19 +164,21 @@ let backlinksPanel (state : State) (dispatch : Msg -> unit) =
           ]
         ]
       ]
-      Html.div [
-        prop.className "flex-1 overflow-y-auto"
-        prop.children [
-          if state.Backlinks.IsEmpty then
+      if state.Backlinks.IsEmpty then
+        Html.div [
+          prop.className "flex-1 overflow-y-auto"
+          prop.children [
             Html.div [
               prop.className "p-4 text-center text-base03 text-sm"
               prop.text "No backlinks found"
             ]
-          else
-            for link in state.Backlinks do
-              backlinkItem link dispatch
+          ]
         ]
-      ]
+      else
+        Html.div [
+          prop.className "flex-1 overflow-y-auto"
+          prop.children (state.Backlinks |> List.map (fun link -> backlinkItem link dispatch))
+        ]
     ]
   ]
 

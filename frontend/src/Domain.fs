@@ -144,3 +144,13 @@ type ZoomState = {
 type GraphEngine =
   | Svg
   | Canvas
+
+/// FileFilter represents a file type filter for dialogs
+type FileFilter = { DisplayName : string; Pattern : string }
+
+/// DialogType represents different types of message dialogs
+type DialogType =
+  | InfoDialog
+  | WarningDialog
+  | ErrorDialog
+  | QuestionDialog

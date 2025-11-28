@@ -237,7 +237,7 @@ func (s *GraphService) extractLinks(note *domain.Note) []domain.Link {
 		case *ast.Link:
 			dest := string(node.Destination)
 			if !strings.HasPrefix(dest, "http://") && !strings.HasPrefix(dest, "https://") {
-				displayText := string(node.Text(content))
+				displayText := nodeText(node, content)
 
 				links = append(links, domain.Link{
 					Source:      note.ID,

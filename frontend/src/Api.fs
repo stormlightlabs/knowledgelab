@@ -36,3 +36,26 @@ let getNotesWithTag (tagName : string) : JS.Promise<string array> = jsNative
 
 [<Import("GetAllTags", from = "@wailsjs/go/main/App")>]
 let getAllTags () : JS.Promise<string array> = jsNative
+
+/// Dialog bindings
+[<Import("SelectDirectory", from = "@wailsjs/go/main/App")>]
+let selectDirectory (title : string) : JS.Promise<string> = jsNative
+
+[<Import("SelectFile", from = "@wailsjs/go/main/App")>]
+let selectFile (title : string) (filters : FileFilter array) : JS.Promise<string> = jsNative
+
+[<Import("SelectFiles", from = "@wailsjs/go/main/App")>]
+let selectFiles (title : string) (filters : FileFilter array) : JS.Promise<string array> = jsNative
+
+[<Import("SaveFile", from = "@wailsjs/go/main/App")>]
+let saveFile (title : string) (defaultFilename : string) (filters : FileFilter array) : JS.Promise<string> = jsNative
+
+[<Import("ShowMessage", from = "@wailsjs/go/main/App")>]
+let showMessage (title : string) (message : string) (dialogType : string) : JS.Promise<string> = jsNative
+
+/// Helper to convert DialogType to string for API calls
+let dialogTypeToString = function
+  | InfoDialog -> "info"
+  | WarningDialog -> "warning"
+  | ErrorDialog -> "error"
+  | QuestionDialog -> "question"

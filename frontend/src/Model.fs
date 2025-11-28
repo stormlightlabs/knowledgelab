@@ -59,6 +59,7 @@ type State = {
 
 /// Messages represent all possible user actions and events
 type Msg =
+  | SelectWorkspaceFolder
   | OpenWorkspace of path : string
   | WorkspaceOpened of Result<WorkspaceInfo, string>
   | LoadNotes
@@ -94,6 +95,17 @@ let Init () = State.Default, Cmd.none
 
 let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   match msg with
+  | SelectWorkspaceFolder ->
+    state,
+    Cmd.OfPromise.either
+      (fun () -> Api.selectDirectory "Select Workspace Folder")
+      ()
+      (fun path ->
+        if System.String.IsNullOrEmpty(path) then
+          ClearError
+        else
+          OpenWorkspace path)
+      (fun ex -> SetError ex.Message)
   | OpenWorkspace path ->
     { state with Loading = true },
     Cmd.OfPromise.either Api.openWorkspace path (Ok >> WorkspaceOpened) (fun ex ->

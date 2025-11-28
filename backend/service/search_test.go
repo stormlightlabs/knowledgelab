@@ -358,3 +358,63 @@ func TestSearchService_Tokenization(t *testing.T) {
 		})
 	}
 }
+
+func TestSearchService_ScoreSorting(t *testing.T) {
+	search := NewSearchService()
+
+	notes := []domain.Note{
+		{
+			ID:         "best-match.md",
+			Title:      "Go Programming Language Go Go",
+			Path:       "best-match.md",
+			Content:    "Go is awesome Go Go Go",
+			ModifiedAt: time.Now(),
+		},
+		{
+			ID:         "medium-match.md",
+			Title:      "Programming",
+			Path:       "medium-match.md",
+			Content:    "Go is a language",
+			ModifiedAt: time.Now(),
+		},
+		{
+			ID:         "low-match.md",
+			Title:      "Introduction",
+			Path:       "low-match.md",
+			Content:    "This mentions Go once",
+			ModifiedAt: time.Now(),
+		},
+	}
+
+	err := search.IndexAll(notes)
+	if err != nil {
+		t.Fatalf("IndexAll() error = %v", err)
+	}
+
+	results, err := search.Search(SearchQuery{
+		Query: "Go",
+		Limit: 10,
+	})
+
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+
+	if len(results) != 3 {
+		t.Fatalf("Search() returned %d results, want 3", len(results))
+	}
+
+	// Verify results are sorted by score in descending order
+	for i := 0; i < len(results)-1; i++ {
+		if results[i].Score < results[i+1].Score {
+			t.Errorf("Results not sorted correctly: result[%d].Score = %f < result[%d].Score = %f",
+				i, results[i].Score, i+1, results[i+1].Score)
+		}
+	}
+
+	if results[0].NoteID != "best-match.md" {
+		t.Errorf("First result = %q, want %q (scores: %v)",
+			results[0].NoteID, "best-match.md",
+			[]float64{results[0].Score, results[1].Score, results[2].Score})
+	}
+}

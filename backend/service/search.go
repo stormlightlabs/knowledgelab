@@ -1,12 +1,14 @@
 package service
 
 import (
+	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/covrom/bm25s"
 	"notes/backend/domain"
+
+	"github.com/covrom/bm25s"
 )
 
 // SearchService provides full-text search capabilities using BM25 ranking.
@@ -35,12 +37,12 @@ type SearchDocument struct {
 
 // SearchQuery represents a search request with filters.
 type SearchQuery struct {
-	Query      string   // Search query text
-	Tags       []string // Filter by tags (AND logic)
-	PathPrefix string   // Filter by path prefix
+	Query      string     // Search query text
+	Tags       []string   // Filter by tags (AND logic)
+	PathPrefix string     // Filter by path prefix
 	DateFrom   *time.Time `ts_type:"string"`
 	DateTo     *time.Time `ts_type:"string"`
-	Limit      int // Maximum number of results (0 = no limit)
+	Limit      int        // Maximum number of results (0 = no limit)
 }
 
 // SearchResult represents a single search result with ranking score.
@@ -123,11 +125,9 @@ func (s *SearchService) Search(query SearchQuery) ([]SearchResult, error) {
 		return []SearchResult{}, nil
 	}
 
-	// Perform BM25 search on candidates
 	results := []SearchResult{}
 
 	if query.Query == "" {
-		// No query text - return all candidates sorted by date
 		for _, idx := range candidates {
 			doc := s.docs[idx]
 			results = append(results, SearchResult{
@@ -140,11 +140,9 @@ func (s *SearchService) Search(query SearchQuery) ([]SearchResult, error) {
 			})
 		}
 	} else {
-		// Score each candidate document using BM25
 		for _, idx := range candidates {
 			doc := s.docs[idx]
 
-			// Calculate BM25 score
 			score := s.index.Score(idx, query.Query)
 
 			if score > 0 {
@@ -159,11 +157,11 @@ func (s *SearchService) Search(query SearchQuery) ([]SearchResult, error) {
 			}
 		}
 
-		// Sort by score descending
-		s.sortByScore(results)
+		sort.Slice(results, func(i, j int) bool {
+			return results[i].Score > results[j].Score
+		})
 	}
 
-	// Apply limit
 	if query.Limit > 0 && len(results) > query.Limit {
 		results = results[:query.Limit]
 	}
@@ -209,13 +207,11 @@ func (s *SearchService) IndexAll(notes []domain.Note) error {
 
 // applyCandidateFilters returns document indices that match filter criteria.
 func (s *SearchService) applyCandidateFilters(query SearchQuery) []int {
-	// Start with all documents
 	candidates := make(map[int]bool)
 	for i := range s.docs {
 		candidates[i] = true
 	}
 
-	// Filter by tags (AND logic)
 	if len(query.Tags) > 0 {
 		tagMatches := make(map[int]int)
 		for _, tag := range query.Tags {
@@ -226,7 +222,6 @@ func (s *SearchService) applyCandidateFilters(query SearchQuery) []int {
 			}
 		}
 
-		// Only keep documents that have all required tags
 		for idx := range candidates {
 			if tagMatches[idx] < len(query.Tags) {
 				delete(candidates, idx)
@@ -234,7 +229,6 @@ func (s *SearchService) applyCandidateFilters(query SearchQuery) []int {
 		}
 	}
 
-	// Filter by path prefix
 	if query.PathPrefix != "" {
 		for idx := range candidates {
 			if !strings.HasPrefix(s.docs[idx].Path, query.PathPrefix) {
@@ -243,7 +237,6 @@ func (s *SearchService) applyCandidateFilters(query SearchQuery) []int {
 		}
 	}
 
-	// Filter by date range
 	if query.DateFrom != nil {
 		for idx := range candidates {
 			if s.docs[idx].ModifiedAt.Before(*query.DateFrom) {
@@ -259,7 +252,6 @@ func (s *SearchService) applyCandidateFilters(query SearchQuery) []int {
 		}
 	}
 
-	// Convert to slice
 	result := make([]int, 0, len(candidates))
 	for idx := range candidates {
 		result = append(result, idx)
@@ -275,14 +267,12 @@ func (s *SearchService) rebuildBM25Index() {
 		return
 	}
 
-	// Prepare documents for BM25
 	documents := make([]string, len(s.docs))
 	for i, doc := range s.docs {
 		searchText := doc.Title + " " + doc.Content
 		documents[i] = searchText
 	}
 
-	// Create new BM25 index with custom tokenizer
 	s.index = bm25s.New(documents, bm25s.WithTokenizer(func(text string) []string {
 		return s.tokenize(text)
 	}))
@@ -290,7 +280,6 @@ func (s *SearchService) rebuildBM25Index() {
 
 // removeNoteFromIndex removes a note from internal structures.
 func (s *SearchService) removeNoteFromIndex(noteID string) {
-	// Find and remove document
 	newDocs := make([]SearchDocument, 0, len(s.docs))
 	for _, doc := range s.docs {
 		if doc.NoteID != noteID {
@@ -299,7 +288,6 @@ func (s *SearchService) removeNoteFromIndex(noteID string) {
 	}
 	s.docs = newDocs
 
-	// Rebuild tag index
 	s.tagIndex = make(map[string][]int)
 	for i, doc := range s.docs {
 		for _, tag := range doc.Tags {
@@ -310,10 +298,7 @@ func (s *SearchService) removeNoteFromIndex(noteID string) {
 
 // tokenize splits text into searchable tokens.
 func (s *SearchService) tokenize(text string) []string {
-	// Simple tokenization: lowercase, split on whitespace and punctuation
 	text = strings.ToLower(text)
-
-	// Replace punctuation with spaces
 	replacer := strings.NewReplacer(
 		".", " ", ",", " ", "!", " ", "?", " ",
 		";", " ", ":", " ", "(", " ", ")", " ",
@@ -322,28 +307,14 @@ func (s *SearchService) tokenize(text string) []string {
 	)
 	text = replacer.Replace(text)
 
-	// Split and filter
 	words := strings.Fields(text)
 	tokens := make([]string, 0, len(words))
 
 	for _, word := range words {
-		// Skip very short tokens
 		if len(word) > 1 {
 			tokens = append(tokens, word)
 		}
 	}
 
 	return tokens
-}
-
-// sortByScore sorts results by score in descending order.
-func (s *SearchService) sortByScore(results []SearchResult) {
-	// Simple bubble sort (sufficient for typical result sizes)
-	for i := 0; i < len(results); i++ {
-		for j := i + 1; j < len(results); j++ {
-			if results[j].Score > results[i].Score {
-				results[i], results[j] = results[j], results[i]
-			}
-		}
-	}
 }

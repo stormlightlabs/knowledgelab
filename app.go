@@ -6,6 +6,8 @@ import (
 
 	"notes/backend/domain"
 	"notes/backend/service"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct holds application services and state.
@@ -207,6 +209,52 @@ func (a *App) buildInitialIndex() {
 	}
 
 	fmt.Printf("Indexed %d notes\n", len(notes))
+}
+
+// SelectDirectory opens a native directory picker dialog.
+// Returns the selected directory path or empty string if cancelled.
+func (a *App) SelectDirectory(title string) (string, error) {
+	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: title,
+	})
+}
+
+// SelectFile opens a native file picker dialog.
+// Returns the selected file path or empty string if cancelled.
+func (a *App) SelectFile(title string, filters []runtime.FileFilter) (string, error) {
+	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:   title,
+		Filters: filters,
+	})
+}
+
+// SelectFiles opens a native file picker dialog for multiple files.
+// Returns the selected file paths or empty slice if cancelled.
+func (a *App) SelectFiles(title string, filters []runtime.FileFilter) ([]string, error) {
+	return runtime.OpenMultipleFilesDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:   title,
+		Filters: filters,
+	})
+}
+
+// SaveFile opens a native save file dialog.
+// Returns the selected save path or empty string if cancelled.
+func (a *App) SaveFile(title, defaultFilename string, filters []runtime.FileFilter) (string, error) {
+	return runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           title,
+		DefaultFilename: defaultFilename,
+		Filters:         filters,
+	})
+}
+
+// ShowMessage displays a message dialog to the user.
+// Returns the user's response (e.g., "Yes", "No", "OK", "Cancel").
+func (a *App) ShowMessage(title, message string, dialogType runtime.DialogType) (string, error) {
+	return runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
+		Type:    dialogType,
+		Title:   title,
+		Message: message,
+	})
 }
 
 // wrapError converts domain errors to user-friendly messages.

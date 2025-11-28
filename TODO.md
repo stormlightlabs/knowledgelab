@@ -195,21 +195,21 @@ For tests:
 
 ### SQLite graph (schema + migrations)
 
-- [ ] Use `mattn/go-sqlite3`
-- [ ] Implement `OpenGraphDB(dbPath) (*sql.DB, error)` + `PRAGMA foreign_keys=ON`.
-- [ ] Write initial migration for `pages`, `blocks`, `links`, `schema_meta`.
-- [ ] Implement `Migrate(db *sql.DB) error` with simple versioning.
-- [ ] Implement basic CRUD: `CreatePage`, `GetPageByID`, `GetBlocksForPage`, `GetBacklinks`.
-- [ ] Add indexes on `blocks.page_id` and `links.to_page_id`.
-- [ ] Add tests using a temp DB (migrations + basic CRUD + backlinks).
-    - [ ] Add DB tests using `t.TempDir()` + temp SQLite file.
+- [x] Use `mattn/go-sqlite3`
+- [x] Implement `OpenGraphDB(dbPath) (*sql.DB, error)` + `PRAGMA foreign_keys=ON`.
+- [x] Write initial migration for `pages`, `blocks`, `links`, `schema_meta`.
+- [x] Implement `Migrate(db *sql.DB) error` with simple versioning.
+- [x] Implement basic CRUD: `CreatePage`, `GetPageByID`, `GetBlocksForPage`, `GetBacklinks`.
+- [x] Add indexes on `blocks.page_id` and `links.to_page_id`.
+- [x] Add tests using a temp DB (migrations + basic CRUD + backlinks).
+    - [x] Add DB tests using `t.TempDir()` + temp SQLite file.
 - NOTE: Migrations should be checked and applied on application load
 
 #### Repository façade for Wails & Wails bindings
 
-- [ ] Implement `WorkspaceStore` (wraps `AppDirs`, calls TOML helpers).
-- [ ] Implement `GraphStore` (wraps `*sql.DB`, exposes graph CRUD/query).
-- [ ] Implement `NewStores(appName, workspaceName)` to construct dirs + DB + stores.
+- [x] Implement `WorkspaceStore` (wraps `AppDirs`, calls TOML helpers).
+- [x] Implement `GraphStore` (wraps `*sql.DB`, exposes graph CRUD/query).
+- [x] Implement `NewStores(appName, workspaceName)` to construct dirs + DB + stores.
 - [ ] Bind `WorkspaceStore` and `GraphStore` in `options.App{ Bind: [...] }`.
 
 ### F#/Fable integration

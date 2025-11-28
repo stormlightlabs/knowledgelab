@@ -3,6 +3,8 @@ module Model
 open Elmish
 open System
 open Domain
+open Fable.Core
+open Fable.Core.JsInterop
 
 /// Route represents the current view/page in the application
 type Route =
@@ -36,6 +38,8 @@ type State = {
   Backlinks : Link list
   Settings : Settings option
   WorkspaceSnapshot : WorkspaceSnapshot option
+  SettingsSaveTimer : int option
+  SnapshotSaveTimer : int option
   Loading : bool
   Error : string option
 } with
@@ -57,6 +61,8 @@ type State = {
     Backlinks = []
     Settings = None
     WorkspaceSnapshot = None
+    SettingsSaveTimer = None
+    SnapshotSaveTimer = None
     Loading = false
     Error = None
   }
@@ -96,11 +102,38 @@ type Msg =
   | SettingsLoaded of Result<Settings, string>
   | WorkspaceSnapshotLoaded of Result<WorkspaceSnapshot, string>
   | SettingsChanged of Settings
+  | DebouncedSettingsSave
   | SettingsSaved of Result<unit, string>
   | WorkspaceSnapshotChanged of WorkspaceSnapshot
+  | DebouncedSnapshotSave
   | WorkspaceSnapshotSaved of Result<unit, string>
   | SetError of string
   | ClearError
+
+/// Debounce delay in milliseconds
+[<Literal>]
+let private DebounceDelayMs = 800
+
+/// JavaScript setTimeout interop for debouncing
+[<Emit("setTimeout(() => $0(), $1)")>]
+let private setTimeout (callback : unit -> unit) (delay : int) : int = jsNative
+
+/// JavaScript clearTimeout interop for canceling debounced operations
+[<Emit("clearTimeout($0)")>]
+let private clearTimeout (timerId : int) : unit = jsNative
+
+/// Creates a debounced command that dispatches a message after a delay
+let private debounceCmd (msg : Msg) : Cmd<Msg> =
+  let delayedDispatch (dispatch : Msg -> unit) =
+    setTimeout (fun () -> dispatch msg) DebounceDelayMs |> ignore
+
+  [ delayedDispatch ]
+
+/// Cancels a pending debounced operation if one exists
+let private cancelTimer (timerId : int option) : unit =
+  match timerId with
+  | Some id -> clearTimeout id
+  | None -> ()
 
 let Init () =
   State.Default, Cmd.ofMsg HydrateFromDisk
@@ -292,20 +325,30 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     Cmd.none
   | WorkspaceSnapshotLoaded(Error err) -> { state with Error = Some err }, Cmd.none
   | SettingsChanged settings ->
-    // TODO: Implement debouncing (500-1000ms)
-    { state with Settings = Some settings },
-    Cmd.OfPromise.either Api.saveSettings settings (fun _ -> SettingsSaved(Ok())) (fun ex ->
-      SettingsSaved(Error ex.Message))
+    cancelTimer state.SettingsSaveTimer
+    { state with Settings = Some settings }, debounceCmd DebouncedSettingsSave
+  | DebouncedSettingsSave ->
+    match state.Settings with
+    | Some settings ->
+      { state with SettingsSaveTimer = None },
+      Cmd.OfPromise.either Api.saveSettings settings (fun _ -> SettingsSaved(Ok())) (fun ex ->
+        SettingsSaved(Error ex.Message))
+    | None -> state, Cmd.none
   | SettingsSaved(Ok()) -> { state with Error = None }, Cmd.none
   | SettingsSaved(Error err) -> { state with Error = Some err }, Cmd.none
   | WorkspaceSnapshotChanged snapshot ->
-    // TODO: Implement debouncing (500-1000ms)
-    { state with WorkspaceSnapshot = Some snapshot },
-    Cmd.OfPromise.either
-      Api.saveWorkspaceSnapshot
-      snapshot
-      (fun _ -> WorkspaceSnapshotSaved(Ok()))
-      (fun ex -> WorkspaceSnapshotSaved(Error ex.Message))
+    cancelTimer state.SnapshotSaveTimer
+    { state with WorkspaceSnapshot = Some snapshot }, debounceCmd DebouncedSnapshotSave
+  | DebouncedSnapshotSave ->
+    match state.WorkspaceSnapshot with
+    | Some snapshot ->
+      { state with SnapshotSaveTimer = None },
+      Cmd.OfPromise.either
+        Api.saveWorkspaceSnapshot
+        snapshot
+        (fun _ -> WorkspaceSnapshotSaved(Ok()))
+        (fun ex -> WorkspaceSnapshotSaved(Error ex.Message))
+    | None -> state, Cmd.none
   | WorkspaceSnapshotSaved(Ok()) -> { state with Error = None }, Cmd.none
   | WorkspaceSnapshotSaved(Error err) -> { state with Error = Some err }, Cmd.none
   | SetError err -> { state with Error = Some err }, Cmd.none

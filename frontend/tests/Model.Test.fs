@@ -406,6 +406,114 @@ Jest.describe (
         let newState, _ = Update (WorkspaceSnapshotSaved(Error errorMsg)) initialState
         Jest.expect(newState.Error).toEqual (Some errorMsg)
     )
+
+    Jest.test (
+      "DebouncedSettingsSave triggers save when settings exist",
+      fun () ->
+        let testSettings = {
+          General = {
+            Theme = "dark"
+            Language = "en"
+            AutoSave = true
+            AutoSaveInterval = 30
+          }
+          Editor = {
+            FontFamily = "monospace"
+            FontSize = 14
+            LineHeight = 1.6
+            TabSize = 2
+            VimMode = false
+            SpellCheck = true
+          }
+        }
+
+        let initialState = { State.Default with Settings = Some testSettings }
+        let newState, _ = Update DebouncedSettingsSave initialState
+        Jest.expect(newState.SettingsSaveTimer).toEqual None
+    )
+
+    Jest.test (
+      "DebouncedSettingsSave does nothing when no settings",
+      fun () ->
+        let initialState = { State.Default with Settings = None }
+        let newState, cmd = Update DebouncedSettingsSave initialState
+        Jest.expect(newState).toEqual initialState
+    )
+
+    Jest.test (
+      "DebouncedSnapshotSave triggers save when snapshot exists",
+      fun () ->
+        let testSnapshot = {
+          UI = {
+            ActivePage = "test.md"
+            SidebarVisible = true
+            SidebarWidth = 280
+            RightPanelVisible = false
+            RightPanelWidth = 300
+            PinnedPages = []
+            RecentPages = []
+            GraphLayout = "force"
+          }
+        }
+
+        let initialState = { State.Default with WorkspaceSnapshot = Some testSnapshot }
+        let newState, _ = Update DebouncedSnapshotSave initialState
+        Jest.expect(newState.SnapshotSaveTimer).toEqual None
+    )
+
+    Jest.test (
+      "DebouncedSnapshotSave does nothing when no snapshot",
+      fun () ->
+        let initialState = { State.Default with WorkspaceSnapshot = None }
+        let newState, cmd = Update DebouncedSnapshotSave initialState
+        Jest.expect(newState).toEqual initialState
+    )
+
+    Jest.test (
+      "SettingsChanged updates settings immediately",
+      fun () ->
+        let testSettings = {
+          General = {
+            Theme = "dark"
+            Language = "en"
+            AutoSave = true
+            AutoSaveInterval = 30
+          }
+          Editor = {
+            FontFamily = "monospace"
+            FontSize = 14
+            LineHeight = 1.6
+            TabSize = 2
+            VimMode = false
+            SpellCheck = true
+          }
+        }
+
+        let initialState = State.Default
+        let newState, _ = Update (SettingsChanged testSettings) initialState
+        Jest.expect(newState.Settings).toEqual (Some testSettings)
+    )
+
+    Jest.test (
+      "WorkspaceSnapshotChanged updates snapshot immediately",
+      fun () ->
+        let testSnapshot = {
+          UI = {
+            ActivePage = "test.md"
+            SidebarVisible = true
+            SidebarWidth = 280
+            RightPanelVisible = false
+            RightPanelWidth = 300
+            PinnedPages = []
+            RecentPages = []
+            GraphLayout = "force"
+          }
+        }
+
+        let initialState = State.Default
+        let newState, _ = Update (WorkspaceSnapshotChanged testSnapshot) initialState
+        Jest.expect(newState.WorkspaceSnapshot).toEqual (Some testSnapshot)
+    )
 )
 
 Jest.describe (

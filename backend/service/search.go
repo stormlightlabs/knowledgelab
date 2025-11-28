@@ -38,8 +38,8 @@ type SearchQuery struct {
 	Query      string   // Search query text
 	Tags       []string // Filter by tags (AND logic)
 	PathPrefix string   // Filter by path prefix
-	DateFrom   *time.Time
-	DateTo     *time.Time
+	DateFrom   *time.Time `ts_type:"string"`
+	DateTo     *time.Time `ts_type:"string"`
 	Limit      int // Maximum number of results (0 = no limit)
 }
 
@@ -50,7 +50,7 @@ type SearchResult struct {
 	Path       string    `json:"path"`
 	Score      float64   `json:"score"`
 	Tags       []string  `json:"tags"`
-	ModifiedAt time.Time `json:"modifiedAt"`
+	ModifiedAt time.Time `json:"modifiedAt" ts_type:"string"`
 }
 
 // NewSearchService creates a new search service.

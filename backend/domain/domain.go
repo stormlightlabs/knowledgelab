@@ -13,8 +13,8 @@ type Note struct {
 	Blocks      []Block        `json:"blocks"`      // Outline-style blocks
 	Links       []Link         `json:"links"`       // Outgoing links found in content
 	Tags        []Tag          `json:"tags"`        // Tags found in content and frontmatter
-	CreatedAt   time.Time      `json:"createdAt"`   // File creation time
-	ModifiedAt  time.Time      `json:"modifiedAt"`  // Last modification time
+	CreatedAt   time.Time      `json:"createdAt" ts_type:"string"`   // File creation time
+	ModifiedAt  time.Time      `json:"modifiedAt" ts_type:"string"`  // Last modification time
 }
 
 // Block represents an outline-style content block within a note.
@@ -72,7 +72,7 @@ type Tag struct {
 // Daily notes follow a naming convention (e.g., "2025-01-27.md")
 // and provide quick access to journaling workflows.
 type DailyNote struct {
-	Date   time.Time `json:"date"`   // Journal date
+	Date   time.Time `json:"date" ts_type:"string"`   // Journal date
 	NoteID string    `json:"noteId"` // Associated note ID
 }
 
@@ -83,8 +83,8 @@ type Workspace struct {
 	Name           string    `json:"name"`           // Human-readable workspace name
 	RootPath       string    `json:"rootPath"`       // Absolute path to workspace root directory
 	IgnorePatterns []string  `json:"ignorePatterns"` // File patterns to ignore (e.g., .git, node_modules)
-	CreatedAt      time.Time `json:"createdAt"`      // Workspace creation time
-	LastOpenedAt   time.Time `json:"lastOpenedAt"`   // Last time workspace was opened
+	CreatedAt      time.Time `json:"createdAt" ts_type:"string"`      // Workspace creation time
+	LastOpenedAt   time.Time `json:"lastOpenedAt" ts_type:"string"`   // Last time workspace was opened
 }
 
 // WorkspaceConfig holds workspace-specific settings and preferences.
@@ -101,7 +101,7 @@ type NoteSummary struct {
 	Title      string    `json:"title"`
 	Path       string    `json:"path"`
 	Tags       []Tag     `json:"tags"`
-	ModifiedAt time.Time `json:"modifiedAt"`
+	ModifiedAt time.Time `json:"modifiedAt" ts_type:"string"`
 }
 
 // WorkspaceInfo provides basic workspace information.

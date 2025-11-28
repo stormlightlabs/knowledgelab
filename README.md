@@ -100,4 +100,8 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) & [AGENTS](./AGENTS.md) for development
 
 ## License
 
-[License TBD]
+AGPL-3.0-or-later. See [`LICENSE`](./LICENSE) for details.
+
+## References
+
+[STATUS](./.claude/commands/STATUS.md) command & [AGENTS](./AGENTS.md) adapted from [plyr.fm](https://tangled.org/zzstoatzz.io/plyr.fm) by [zzstoatzz.io](https://bsky.app/profile/zzstoatzz.io)

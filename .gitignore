@@ -17,3 +17,8 @@ wailsjs
 
 docs/.vitepress/cache
 docs/.vitepress/dist
+
+# DEVELOPMENT SANDBOX
+sandbox/
+STATUS.md
+!.claude/commands/STATUS.md

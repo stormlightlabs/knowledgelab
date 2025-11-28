@@ -4,6 +4,8 @@ This project is a local-first, graph-based notes application inspired by Obsidia
 
 Between this & [CONTRIBUTING](./CONTRIBUTING.md), these are canonical guidelines for working on this project
 
+Prior to starting work, review existing `STATUS.md` files in the root of the project or in `sandbox/`
+
 ## System Overview
 
 - **Domain**
@@ -118,10 +120,6 @@ cd frontend
 pnpm test
 ```
 
-Tests use Fable.Jester (Jest bindings for F#) and cover:
-
-- MVU update logic
-- State transitions
-- Routing behavior
+Tests use Fable.Jester (Jest bindings for F#) and cover: MVU update logic, State transitions, Routing behavior
 
 The Wails API is mocked for testing, so tests run without the Go backend.

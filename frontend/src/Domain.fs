@@ -154,3 +154,47 @@ type DialogType =
   | WarningDialog
   | ErrorDialog
   | QuestionDialog
+
+  /// Helper to convert self to string for API calls
+  member x.ToStr() : string =
+    match x with
+    | InfoDialog -> "info"
+    | WarningDialog -> "warning"
+    | ErrorDialog -> "error"
+    | QuestionDialog -> "question"
+
+/// GeneralSettings contains application-wide preferences
+type GeneralSettings = {
+  Theme : string
+  Language : string
+  AutoSave : bool
+  AutoSaveInterval : int
+}
+
+/// EditorSettings contains editor-specific preferences
+type EditorSettings = {
+  FontFamily : string
+  FontSize : int
+  LineHeight : float
+  TabSize : int
+  VimMode : bool
+  SpellCheck : bool
+}
+
+/// Settings represents the application-wide settings stored in settings.toml
+type Settings = { General : GeneralSettings; Editor : EditorSettings }
+
+/// WorkspaceUI contains UI state for a workspace
+type WorkspaceUI = {
+  ActivePage : string
+  SidebarVisible : bool
+  SidebarWidth : int
+  RightPanelVisible : bool
+  RightPanelWidth : int
+  PinnedPages : string list
+  RecentPages : string list
+  GraphLayout : string
+}
+
+/// WorkspaceSnapshot represents the UI state for a specific workspace
+type WorkspaceSnapshot = { UI : WorkspaceUI }

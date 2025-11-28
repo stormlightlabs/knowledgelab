@@ -70,3 +70,39 @@ export const GetNotesWithTag = () => Promise.resolve([]);
 export const GetAllTags = () => Promise.resolve([]);
 
 export const SelectDirectory = () => Promise.resolve("/mock/workspace/directory");
+
+export const LoadSettings = () =>
+  Promise.resolve({
+    General: {
+      Theme: "auto",
+      Language: "en",
+      AutoSave: true,
+      AutoSaveInterval: 30,
+    },
+    Editor: {
+      FontFamily: "monospace",
+      FontSize: 14,
+      LineHeight: 1.6,
+      TabSize: 2,
+      VimMode: false,
+      SpellCheck: true,
+    },
+  });
+
+export const SaveSettings = () => Promise.resolve();
+
+export const LoadWorkspaceSnapshot = () =>
+  Promise.resolve({
+    UI: {
+      ActivePage: "",
+      SidebarVisible: true,
+      SidebarWidth: 280,
+      RightPanelVisible: false,
+      RightPanelWidth: 300,
+      PinnedPages: [],
+      RecentPages: [],
+      GraphLayout: "force",
+    },
+  });
+
+export const SaveWorkspaceSnapshot = () => Promise.resolve();

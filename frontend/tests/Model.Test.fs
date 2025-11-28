@@ -226,6 +226,186 @@ Jest.describe (
         Jest.expect(newState.Loading).toEqual false
         Jest.expect(newState.Error).toEqual None
     )
+
+    Jest.test (
+      "SettingsLoaded success updates settings",
+      fun () ->
+        let initialState = State.Default
+
+        let testSettings = {
+          General = {
+            Theme = "dark"
+            Language = "en"
+            AutoSave = true
+            AutoSaveInterval = 30
+          }
+          Editor = {
+            FontFamily = "monospace"
+            FontSize = 14
+            LineHeight = 1.6
+            TabSize = 2
+            VimMode = false
+            SpellCheck = true
+          }
+        }
+
+        let newState, _ = Update (SettingsLoaded(Ok testSettings)) initialState
+        Jest.expect(newState.Settings.IsSome).toEqual true
+        Jest.expect(newState.Error).toEqual None
+
+        match newState.Settings with
+        | Some s ->
+          Jest.expect(s.General.Theme).toEqual "dark"
+          Jest.expect(s.Editor.FontSize).toEqual 14
+        | None -> failwith "Expected settings to be present"
+    )
+
+    Jest.test (
+      "SettingsLoaded error sets error message",
+      fun () ->
+        let initialState = State.Default
+        let errorMsg = "Failed to load settings"
+        let newState, _ = Update (SettingsLoaded(Error errorMsg)) initialState
+        Jest.expect(newState.Error).toEqual (Some errorMsg)
+        Jest.expect(newState.Settings).toEqual None
+    )
+
+    Jest.test (
+      "WorkspaceSnapshotLoaded success updates snapshot",
+      fun () ->
+        let initialState = State.Default
+
+        let testSnapshot = {
+          UI = {
+            ActivePage = "test-note.md"
+            SidebarVisible = true
+            SidebarWidth = 280
+            RightPanelVisible = false
+            RightPanelWidth = 300
+            PinnedPages = [ "page1.md"; "page2.md" ]
+            RecentPages = [ "recent1.md" ]
+            GraphLayout = "force"
+          }
+        }
+
+        let newState, _ = Update (WorkspaceSnapshotLoaded(Ok testSnapshot)) initialState
+        Jest.expect(newState.WorkspaceSnapshot.IsSome).toEqual true
+        Jest.expect(newState.Error).toEqual None
+
+        match newState.WorkspaceSnapshot with
+        | Some s ->
+          Jest.expect(s.UI.ActivePage).toEqual "test-note.md"
+          Jest.expect(s.UI.SidebarWidth).toEqual 280
+          Jest.expect(s.UI.PinnedPages.Length).toEqual 2
+        | None -> failwith "Expected workspace snapshot to be present"
+    )
+
+    Jest.test (
+      "WorkspaceSnapshotLoaded error sets error message",
+      fun () ->
+        let initialState = State.Default
+        let errorMsg = "Failed to load workspace snapshot"
+        let newState, _ = Update (WorkspaceSnapshotLoaded(Error errorMsg)) initialState
+        Jest.expect(newState.Error).toEqual (Some errorMsg)
+        Jest.expect(newState.WorkspaceSnapshot).toEqual None
+    )
+
+    Jest.test (
+      "SettingsChanged updates settings and triggers save",
+      fun () ->
+        let initialState = State.Default
+
+        let testSettings = {
+          General = {
+            Theme = "light"
+            Language = "en"
+            AutoSave = false
+            AutoSaveInterval = 60
+          }
+          Editor = {
+            FontFamily = "Inter"
+            FontSize = 16
+            LineHeight = 1.8
+            TabSize = 4
+            VimMode = true
+            SpellCheck = false
+          }
+        }
+
+        let newState, _ = Update (SettingsChanged testSettings) initialState
+        Jest.expect(newState.Settings.IsSome).toEqual true
+
+        match newState.Settings with
+        | Some s ->
+          Jest.expect(s.General.Theme).toEqual "light"
+          Jest.expect(s.Editor.FontSize).toEqual 16
+          Jest.expect(s.Editor.VimMode).toEqual true
+        | None -> failwith "Expected settings to be present"
+    )
+
+    Jest.test (
+      "WorkspaceSnapshotChanged updates snapshot and triggers save",
+      fun () ->
+        let initialState = State.Default
+
+        let testSnapshot = {
+          UI = {
+            ActivePage = "new-note.md"
+            SidebarVisible = false
+            SidebarWidth = 350
+            RightPanelVisible = true
+            RightPanelWidth = 400
+            PinnedPages = [ "pinned1.md" ]
+            RecentPages = []
+            GraphLayout = "tree"
+          }
+        }
+
+        let newState, _ = Update (WorkspaceSnapshotChanged testSnapshot) initialState
+        Jest.expect(newState.WorkspaceSnapshot.IsSome).toEqual true
+
+        match newState.WorkspaceSnapshot with
+        | Some s ->
+          Jest.expect(s.UI.ActivePage).toEqual "new-note.md"
+          Jest.expect(s.UI.SidebarVisible).toEqual false
+          Jest.expect(s.UI.SidebarWidth).toEqual 350
+          Jest.expect(s.UI.GraphLayout).toEqual "tree"
+        | None -> failwith "Expected workspace snapshot to be present"
+    )
+
+    Jest.test (
+      "SettingsSaved success clears error",
+      fun () ->
+        let initialState = { State.Default with Error = Some "Previous error" }
+        let newState, _ = Update (SettingsSaved(Ok())) initialState
+        Jest.expect(newState.Error).toEqual None
+    )
+
+    Jest.test (
+      "SettingsSaved error sets error message",
+      fun () ->
+        let initialState = State.Default
+        let errorMsg = "Failed to save settings"
+        let newState, _ = Update (SettingsSaved(Error errorMsg)) initialState
+        Jest.expect(newState.Error).toEqual (Some errorMsg)
+    )
+
+    Jest.test (
+      "WorkspaceSnapshotSaved success clears error",
+      fun () ->
+        let initialState = { State.Default with Error = Some "Previous error" }
+        let newState, _ = Update (WorkspaceSnapshotSaved(Ok())) initialState
+        Jest.expect(newState.Error).toEqual None
+    )
+
+    Jest.test (
+      "WorkspaceSnapshotSaved error sets error message",
+      fun () ->
+        let initialState = State.Default
+        let errorMsg = "Failed to save workspace snapshot"
+        let newState, _ = Update (WorkspaceSnapshotSaved(Error errorMsg)) initialState
+        Jest.expect(newState.Error).toEqual (Some errorMsg)
+    )
 )
 
 Jest.describe (

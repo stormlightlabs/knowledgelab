@@ -18,6 +18,7 @@ type App struct {
 	notes    *service.NoteService
 	graph    *service.GraphService
 	search   *service.SearchService
+	stores   *service.Stores
 	indexing bool
 }
 
@@ -32,11 +33,17 @@ func NewApp() *App {
 	graph := service.NewGraphService()
 	search := service.NewSearchService()
 
+	stores, err := service.NewStores("notes", "default")
+	if err != nil {
+		panic(fmt.Sprintf("failed to create stores: %v", err))
+	}
+
 	return &App{
 		fs:     fs,
 		notes:  notes,
 		graph:  graph,
 		search: search,
+		stores: stores,
 	}
 }
 
@@ -50,6 +57,9 @@ func (a *App) startup(ctx context.Context) {
 func (a *App) shutdown(ctx context.Context) {
 	if a.fs != nil {
 		a.fs.Close()
+	}
+	if a.stores != nil {
+		a.stores.Close()
 	}
 }
 
@@ -181,14 +191,12 @@ func (a *App) buildInitialIndex() {
 	a.indexing = true
 	defer func() { a.indexing = false }()
 
-	// Get all notes
 	summaries, err := a.notes.ListNotes()
 	if err != nil {
 		fmt.Printf("Failed to list notes during indexing: %v\n", err)
 		return
 	}
 
-	// Load and index each note
 	notes := make([]domain.Note, 0, len(summaries))
 	for _, summary := range summaries {
 		note, err := a.notes.GetNote(summary.ID)
@@ -255,6 +263,41 @@ func (a *App) ShowMessage(title, message string, dialogType runtime.DialogType) 
 		Title:   title,
 		Message: message,
 	})
+}
+
+// LoadSettings loads application-wide settings from disk.
+func (a *App) LoadSettings() (*service.Settings, error) {
+	settings, err := a.stores.Workspace.LoadSettings()
+	if err != nil {
+		return nil, a.wrapError("failed to load settings", err)
+	}
+	return &settings, nil
+}
+
+// SaveSettings saves application-wide settings to disk.
+func (a *App) SaveSettings(settings service.Settings) error {
+	if err := a.stores.Workspace.SaveSettings(settings); err != nil {
+		return a.wrapError("failed to save settings", err)
+	}
+	return nil
+}
+
+// LoadWorkspaceSnapshot loads workspace-specific UI state from disk.
+func (a *App) LoadWorkspaceSnapshot() (*service.WorkspaceSnapshot, error) {
+	snapshot, err := a.stores.Workspace.LoadSnapshot()
+	if err != nil {
+		return nil, a.wrapError("failed to load workspace snapshot", err)
+	}
+	return &snapshot, nil
+}
+
+// SaveWorkspaceSnapshot saves workspace-specific UI state to disk.
+// Frontend should debounce calls (500-1000ms) to avoid excessive writes.
+func (a *App) SaveWorkspaceSnapshot(snapshot service.WorkspaceSnapshot) error {
+	if err := a.stores.Workspace.SaveSnapshot(snapshot); err != nil {
+		return a.wrapError("failed to save workspace snapshot", err)
+	}
+	return nil
 }
 
 // wrapError converts domain errors to user-friendly messages.

@@ -34,6 +34,8 @@ type State = {
   GraphEngine : GraphEngine
   Tags : string list
   Backlinks : Link list
+  Settings : Settings option
+  WorkspaceSnapshot : WorkspaceSnapshot option
   Loading : bool
   Error : string option
 } with
@@ -53,6 +55,8 @@ type State = {
     GraphEngine = Svg
     Tags = []
     Backlinks = []
+    Settings = None
+    WorkspaceSnapshot = None
     Loading = false
     Error = None
   }
@@ -88,10 +92,18 @@ type Msg =
   | GraphNodeHovered of noteId : string option
   | GraphZoomChanged of ZoomState
   | GraphEngineChanged of GraphEngine
+  | HydrateFromDisk
+  | SettingsLoaded of Result<Settings, string>
+  | WorkspaceSnapshotLoaded of Result<WorkspaceSnapshot, string>
+  | SettingsChanged of Settings
+  | SettingsSaved of Result<unit, string>
+  | WorkspaceSnapshotChanged of WorkspaceSnapshot
+  | WorkspaceSnapshotSaved of Result<unit, string>
   | SetError of string
   | ClearError
 
-let Init () = State.Default, Cmd.none
+let Init () =
+  State.Default, Cmd.ofMsg HydrateFromDisk
 
 let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   match msg with
@@ -261,5 +273,40 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   | GraphNodeHovered nodeId -> { state with HoveredNode = nodeId }, Cmd.none
   | GraphZoomChanged zoomState -> { state with ZoomState = zoomState }, Cmd.none
   | GraphEngineChanged engine -> { state with GraphEngine = engine }, Cmd.none
+  | HydrateFromDisk ->
+    state,
+    Cmd.batch [
+      Cmd.OfPromise.either Api.loadSettings () (Ok >> SettingsLoaded) (fun ex ->
+        SettingsLoaded(Error ex.Message))
+      Cmd.OfPromise.either Api.loadWorkspaceSnapshot () (Ok >> WorkspaceSnapshotLoaded) (fun ex ->
+        WorkspaceSnapshotLoaded(Error ex.Message))
+    ]
+  | SettingsLoaded(Ok settings) -> { state with Settings = Some settings; Error = None }, Cmd.none
+  | SettingsLoaded(Error err) -> { state with Error = Some err }, Cmd.none
+  | WorkspaceSnapshotLoaded(Ok snapshot) ->
+    {
+      state with
+          WorkspaceSnapshot = Some snapshot
+          Error = None
+    },
+    Cmd.none
+  | WorkspaceSnapshotLoaded(Error err) -> { state with Error = Some err }, Cmd.none
+  | SettingsChanged settings ->
+    // TODO: Implement debouncing (500-1000ms)
+    { state with Settings = Some settings },
+    Cmd.OfPromise.either Api.saveSettings settings (fun _ -> SettingsSaved(Ok())) (fun ex ->
+      SettingsSaved(Error ex.Message))
+  | SettingsSaved(Ok()) -> { state with Error = None }, Cmd.none
+  | SettingsSaved(Error err) -> { state with Error = Some err }, Cmd.none
+  | WorkspaceSnapshotChanged snapshot ->
+    // TODO: Implement debouncing (500-1000ms)
+    { state with WorkspaceSnapshot = Some snapshot },
+    Cmd.OfPromise.either
+      Api.saveWorkspaceSnapshot
+      snapshot
+      (fun _ -> WorkspaceSnapshotSaved(Ok()))
+      (fun ex -> WorkspaceSnapshotSaved(Error ex.Message))
+  | WorkspaceSnapshotSaved(Ok()) -> { state with Error = None }, Cmd.none
+  | WorkspaceSnapshotSaved(Error err) -> { state with Error = Some err }, Cmd.none
   | SetError err -> { state with Error = Some err }, Cmd.none
   | ClearError -> { state with Error = None }, Cmd.none

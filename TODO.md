@@ -159,3 +159,61 @@ The following features are deferred to future releases after v1 launch:
 - [ ] Benchmarks for graph build on large workspaces.
 - [ ] Add `go test ./...` CI job.
 - [ ] Test serialization/deserialization of models used in Wails calls.
+
+## Configuration
+
+Here’s the same milestone broken down as simple task lists:
+
+### App data directories
+
+- [x] `AppDirs` struct (`ConfigRoot`, `WorkspaceRoot`, `SettingsPath`, `WorkspacePath`, `DBPath`).
+- [x] Implement `NewAppDirs(appName, workspaceName)` using `os.UserConfigDir` + `filepath.Join`.
+- [x] Add `Ensure()` method to create workspace directories with `os.MkdirAll`.
+- [x] Add unit tests for path construction (no disk IO where possible).
+
+### `settings.toml` with BurntSushi & `workspace.toml` for UI state
+
+- [ ] Define v1 `settings.toml` schema (general + editor sections).
+- [ ] Implement `Settings` Go struct mirroring the schema.
+- [ ] Implement `DefaultSettings()` helper.
+- [ ] Implement `LoadSettings(path) (Settings, error)` using `toml.DecodeFile`.
+- [ ] Implement `SaveSettings(path, Settings) error` using `toml.NewEncoder`.
+- [ ] Add round-trip tests for settings
+- [ ] Define `workspace.toml` schema (active page, sidebar, pinned pages).
+- [ ] Implement `WorkspaceSnapshot` Go struct.
+- [ ] Implement `LoadWorkspaceSnapshot(path) (WorkspaceSnapshot, error)`.
+- [ ] Implement `SaveWorkspaceSnapshot(path, WorkspaceSnapshot) error`.
+- [ ] Debounce saves on the frontend and add documentation
+- [ ] Add round-trip tests for workspace snapshot.
+- Note that these should be stored in os.UserConfigDir
+
+For tests:
+
+- [ ] Create `testdata/settings_v1.toml` and `testdata/workspace_v1.toml`.
+- [ ] Add tests loading fixtures into Go structs and asserting values.
+- [ ] Add struct → TOML → struct round-trip tests.
+
+### SQLite graph (schema + migrations)
+
+- [ ] Choose SQLite driver (`mattn/go-sqlite3` or `modernc.org/sqlite`).
+- [ ] Implement `OpenGraphDB(dbPath) (*sql.DB, error)` + `PRAGMA foreign_keys=ON`.
+- [ ] Write initial migration for `pages`, `blocks`, `links`, `schema_meta`.
+- [ ] Implement `Migrate(db *sql.DB) error` with simple versioning.
+- [ ] Implement basic CRUD: `CreatePage`, `GetPageByID`, `GetBlocksForPage`, `GetBacklinks`.
+- [ ] Add indexes on `blocks.page_id` and `links.to_page_id`.
+- [ ] Add tests using a temp DB (migrations + basic CRUD + backlinks).
+    - [ ] Add DB tests using `t.TempDir()` + temp SQLite file.
+
+#### Repository façade for Wails & Wails bindings
+
+- [ ] Implement `WorkspaceStore` (wraps `AppDirs`, calls TOML helpers).
+- [ ] Implement `GraphStore` (wraps `*sql.DB`, exposes graph CRUD/query).
+- [ ] Implement `NewStores(appName, workspaceName)` to construct dirs + DB + stores.
+- [ ] Bind `WorkspaceStore` and `GraphStore` in `options.App{ Bind: [...] }`.
+
+### F#/Fable integration
+
+- [ ] Define F# record types for `Settings`, `WorkspaceUi`, and root `Model`.
+- [ ] Implement `init` that calls `LoadSettings` + `LoadWorkspaceSnapshot` via bindings.
+- [ ] Add `HydrateFromDisk` message and handler in `update`.
+- [ ] Wire `SettingsChanged` and `WorkspaceChanged` messages to call save APIs (with debounce).

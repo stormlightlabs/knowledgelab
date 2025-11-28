@@ -68,11 +68,9 @@ func (s *FilesystemService) OpenWorkspace(path string) (*domain.WorkspaceInfo, e
 		return nil, &domain.ErrInvalidPath{Path: path, Reason: err.Error()}
 	}
 
-	// Check if directory exists
 	info, err := os.Stat(absPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// Create workspace directory
 			if err := os.MkdirAll(absPath, 0755); err != nil {
 				return nil, fmt.Errorf("failed to create workspace directory: %w", err)
 			}
@@ -83,7 +81,6 @@ func (s *FilesystemService) OpenWorkspace(path string) (*domain.WorkspaceInfo, e
 		return nil, &domain.ErrInvalidPath{Path: path, Reason: "not a directory"}
 	}
 
-	// Create workspace object
 	workspaceID := generateWorkspaceID(absPath)
 	workspace := &domain.Workspace{
 		ID:             workspaceID,
@@ -94,20 +91,17 @@ func (s *FilesystemService) OpenWorkspace(path string) (*domain.WorkspaceInfo, e
 		LastOpenedAt:   time.Now(),
 	}
 
-	// Count notes
 	noteCount, err := s.countMarkdownFiles(absPath, workspace.IgnorePatterns)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count notes: %w", err)
 	}
 
-	// Close existing workspace if any
 	if s.currentWorkspace != nil {
 		s.stopWatching()
 	}
 
 	s.currentWorkspace = workspace
 
-	// Start watching filesystem
 	if err := s.startWatching(absPath); err != nil {
 		return nil, fmt.Errorf("failed to start filesystem watcher: %w", err)
 	}
@@ -120,7 +114,7 @@ func (s *FilesystemService) OpenWorkspace(path string) (*domain.WorkspaceInfo, e
 			DefaultTags:     []string{},
 		},
 		NoteCount:   noteCount,
-		TotalBlocks: 0, // Will be calculated during indexing
+		TotalBlocks: 0,
 	}, nil
 }
 
@@ -149,7 +143,6 @@ func (s *FilesystemService) LoadMarkdownFiles() ([]string, error) {
 			return err
 		}
 
-		// Skip ignored patterns
 		if s.shouldIgnore(path, workspace.IgnorePatterns) {
 			if d.IsDir() {
 				return filepath.SkipDir
@@ -157,9 +150,7 @@ func (s *FilesystemService) LoadMarkdownFiles() ([]string, error) {
 			return nil
 		}
 
-		// Include only Markdown files
 		if !d.IsDir() && isMarkdownFile(path) {
-			// Store relative path
 			relPath, err := filepath.Rel(workspace.RootPath, path)
 			if err != nil {
 				return err
@@ -186,7 +177,6 @@ func (s *FilesystemService) ReadFile(relativePath string) ([]byte, error) {
 
 	fullPath := filepath.Join(workspace.RootPath, relativePath)
 
-	// Validate that path is within workspace (prevent directory traversal)
 	if !strings.HasPrefix(fullPath, workspace.RootPath) {
 		return nil, &domain.ErrInvalidPath{Path: relativePath, Reason: "path outside workspace"}
 	}
@@ -211,18 +201,15 @@ func (s *FilesystemService) WriteFile(relativePath string, content []byte) error
 
 	fullPath := filepath.Join(workspace.RootPath, relativePath)
 
-	// Validate that path is within workspace
 	if !strings.HasPrefix(fullPath, workspace.RootPath) {
 		return &domain.ErrInvalidPath{Path: relativePath, Reason: "path outside workspace"}
 	}
 
-	// Ensure directory exists
 	dir := filepath.Dir(fullPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	// Write file
 	if err := os.WriteFile(fullPath, content, 0644); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
@@ -239,7 +226,6 @@ func (s *FilesystemService) DeleteFile(relativePath string) error {
 
 	fullPath := filepath.Join(workspace.RootPath, relativePath)
 
-	// Validate that path is within workspace
 	if !strings.HasPrefix(fullPath, workspace.RootPath) {
 		return &domain.ErrInvalidPath{Path: relativePath, Reason: "path outside workspace"}
 	}
@@ -275,12 +261,10 @@ func (s *FilesystemService) Close() error {
 
 // startWatching begins filesystem watching for the workspace.
 func (s *FilesystemService) startWatching(rootPath string) error {
-	// Add root directory to watcher
 	if err := s.addWatchRecursive(rootPath); err != nil {
 		return err
 	}
 
-	// Start event processing goroutine
 	go s.processEvents()
 
 	return nil
@@ -302,7 +286,6 @@ func (s *FilesystemService) addWatchRecursive(root string) error {
 		}
 
 		if d.IsDir() {
-			// Skip ignored directories
 			if s.shouldIgnore(path, s.currentWorkspace.IgnorePatterns) {
 				return filepath.SkipDir
 			}
@@ -327,12 +310,10 @@ func (s *FilesystemService) processEvents() {
 				return
 			}
 
-			// Convert fsnotify event to our event type
 			var op FileOperation
 			switch {
 			case event.Op&fsnotify.Create == fsnotify.Create:
 				op = FileOpCreate
-				// If a new directory was created, watch it
 				if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
 					s.addWatchRecursive(event.Name)
 				}
@@ -346,7 +327,6 @@ func (s *FilesystemService) processEvents() {
 				continue
 			}
 
-			// Only emit events for Markdown files
 			if isMarkdownFile(event.Name) {
 				relPath, err := filepath.Rel(s.currentWorkspace.RootPath, event.Name)
 				if err == nil {
@@ -362,7 +342,7 @@ func (s *FilesystemService) processEvents() {
 			if !ok {
 				return
 			}
-			// Log error (in production, would use proper logging)
+
 			fmt.Printf("Filesystem watcher error: %v\n", err)
 		}
 	}
@@ -375,7 +355,7 @@ func (s *FilesystemService) shouldIgnore(path string, patterns []string) bool {
 		if matched, _ := filepath.Match(pattern, base); matched {
 			return true
 		}
-		// Also check if the base name starts with the pattern (for dotfiles)
+
 		if strings.HasPrefix(base, pattern) {
 			return true
 		}

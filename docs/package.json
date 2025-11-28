@@ -10,8 +10,11 @@
     "preview": "vitepress preview"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": {
+    "name": "Owais Jamil",
+    "email": "desertthunder.dev@gmail.com"
+  },
+  "license": "AGPL-3.0-only",
   "packageManager": "pnpm@10.20.0",
   "devDependencies": {
     "vitepress": "2.0.0-alpha.15"

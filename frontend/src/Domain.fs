@@ -9,6 +9,8 @@ type Note = {
   Path : string
   Content : string
   Frontmatter : Map<string, obj>
+  Aliases : string list
+  Type : string
   Blocks : Block list
   Links : Link list
   Tags : Tag list

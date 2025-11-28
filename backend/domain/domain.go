@@ -5,16 +5,18 @@ import "time"
 // Note represents a single note/document in the workspace.
 // Notes are stored as Markdown files on disk and may contain frontmatter, wikilinks, tags, and outline blocks.
 type Note struct {
-	ID          string         `json:"id"`          // Unique identifier (typically file path relative to workspace)
-	Title       string         `json:"title"`       // Note title (from frontmatter or first heading)
-	Path        string         `json:"path"`        // Relative path within workspace
-	Content     string         `json:"content"`     // Full Markdown content
-	Frontmatter map[string]any `json:"frontmatter"` // Optional YAML frontmatter
-	Blocks      []Block        `json:"blocks"`      // Outline-style blocks
-	Links       []Link         `json:"links"`       // Outgoing links found in content
-	Tags        []Tag          `json:"tags"`        // Tags found in content and frontmatter
-	CreatedAt   time.Time      `json:"createdAt" ts_type:"string"`   // File creation time
-	ModifiedAt  time.Time      `json:"modifiedAt" ts_type:"string"`  // Last modification time
+	ID          string         `json:"id"`                          // Unique identifier (typically file path relative to workspace)
+	Title       string         `json:"title"`                       // Note title (from frontmatter or first heading)
+	Path        string         `json:"path"`                        // Relative path within workspace
+	Content     string         `json:"content"`                     // Full Markdown content
+	Frontmatter map[string]any `json:"frontmatter"`                 // Additional YAML frontmatter fields (beyond standard fields)
+	Aliases     []string       `json:"aliases"`                     // Alternative note titles for wikilink resolution
+	Type        string         `json:"type"`                        // Note type or template identifier (e.g., "daily", "meeting", "project")
+	Blocks      []Block        `json:"blocks"`                      // Outline-style blocks
+	Links       []Link         `json:"links"`                       // Outgoing links found in content
+	Tags        []Tag          `json:"tags"`                        // Tags found in content and frontmatter
+	CreatedAt   time.Time      `json:"createdAt" ts_type:"string"`  // Note creation time (from frontmatter or file metadata)
+	ModifiedAt  time.Time      `json:"modifiedAt" ts_type:"string"` // Last modification time (auto-updated on save)
 }
 
 // Block represents an outline-style content block within a note.
@@ -72,19 +74,19 @@ type Tag struct {
 // Daily notes follow a naming convention (e.g., "2025-01-27.md")
 // and provide quick access to journaling workflows.
 type DailyNote struct {
-	Date   time.Time `json:"date" ts_type:"string"`   // Journal date
-	NoteID string    `json:"noteId"` // Associated note ID
+	Date   time.Time `json:"date" ts_type:"string"` // Journal date
+	NoteID string    `json:"noteId"`                // Associated note ID
 }
 
 // Workspace represents a workspace configuration.
 // A workspace is a directory containing Markdown notes with associated metadata, configuration, and ignore patterns.
 type Workspace struct {
-	ID             string    `json:"id"`             // Unique workspace identifier
-	Name           string    `json:"name"`           // Human-readable workspace name
-	RootPath       string    `json:"rootPath"`       // Absolute path to workspace root directory
-	IgnorePatterns []string  `json:"ignorePatterns"` // File patterns to ignore (e.g., .git, node_modules)
-	CreatedAt      time.Time `json:"createdAt" ts_type:"string"`      // Workspace creation time
-	LastOpenedAt   time.Time `json:"lastOpenedAt" ts_type:"string"`   // Last time workspace was opened
+	ID             string    `json:"id"`                            // Unique workspace identifier
+	Name           string    `json:"name"`                          // Human-readable workspace name
+	RootPath       string    `json:"rootPath"`                      // Absolute path to workspace root directory
+	IgnorePatterns []string  `json:"ignorePatterns"`                // File patterns to ignore (e.g., .git, node_modules)
+	CreatedAt      time.Time `json:"createdAt" ts_type:"string"`    // Workspace creation time
+	LastOpenedAt   time.Time `json:"lastOpenedAt" ts_type:"string"` // Last time workspace was opened
 }
 
 // WorkspaceConfig holds workspace-specific settings and preferences.

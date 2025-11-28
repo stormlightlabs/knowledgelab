@@ -2,7 +2,6 @@
 module Keybinds
 
 open Fable.Core
-open Fable.Core.JsInterop
 open Browser.Types
 open Model
 
@@ -51,7 +50,17 @@ let handleKeydown (e : KeyboardEvent) : Msg option =
   elif isCmdOrCtrl "s" e then
     None
   elif isCmdOrCtrl "b" e then
-    Some(TogglePanel Panel.Backlinks)
+    Some(TogglePanel Panel.Backlinks) // TODO: Context-aware bold formatting in editor
+  elif isCmdOrCtrl "i" e then
+    None // TODO: Format italic
+  elif isCmdOrCtrl "e" e then
+    None // TODO: Format inline code
+  elif isCmdOrCtrl "1" e then
+    None // TODO: Set heading level 1
+  elif isCmdOrCtrl "2" e then
+    None // TODO: Set heading level 2
+  elif isCmdOrCtrl "3" e then
+    None // TODO: Set heading level 3
   elif isCtrlShift "f" e then
     Some(TogglePanel Panel.SearchPanel)
   elif isCtrlShift "t" e then
@@ -119,6 +128,21 @@ let getAllShortcuts () : ShortcutHelp list =
       Keys = $"{cmdKey}+Shift+P"
       Description = "Toggle preview mode"
       Category = "Editor"
+    }
+    {
+      Keys = $"{cmdKey}+I"
+      Description = "Format italic (in editor)"
+      Category = "Formatting"
+    }
+    {
+      Keys = $"{cmdKey}+E"
+      Description = "Format inline code (in editor)"
+      Category = "Formatting"
+    }
+    {
+      Keys = $"{cmdKey}+1-6"
+      Description = "Set heading level (in editor)"
+      Category = "Formatting"
     }
     {
       Keys = "Escape"

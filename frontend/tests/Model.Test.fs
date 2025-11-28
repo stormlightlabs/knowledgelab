@@ -119,6 +119,8 @@ Jest.describe (
           Path = "/test/path"
           Content = "Old content"
           Frontmatter = Map.empty
+          Aliases = []
+          Type = ""
           Blocks = []
           Links = []
           Tags = []
@@ -614,6 +616,8 @@ Jest.describe (
           Path = "/test/note.md"
           Content = "Content"
           Frontmatter = Map.empty
+          Aliases = []
+          Type = ""
           Blocks = []
           Links = []
           Tags = []
@@ -654,6 +658,8 @@ Jest.describe (
           Path = "/test/b.md"
           Content = "Content"
           Frontmatter = Map.empty
+          Aliases = []
+          Type = ""
           Blocks = []
           Links = []
           Tags = []
@@ -695,6 +701,8 @@ Jest.describe (
           Path = "/test/path"
           Content = "Old content"
           Frontmatter = Map.empty
+          Aliases = []
+          Type = ""
           Blocks = []
           Links = []
           Tags = []

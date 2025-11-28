@@ -100,6 +100,7 @@ func (s *NoteService) ListNotes() ([]domain.NoteSummary, error) {
 }
 
 func (s *NoteService) SaveNote(note *domain.Note) error {
+	note.ModifiedAt = time.Now()
 	content := s.serializeNote(note)
 	return s.fs.WriteFile(note.Path, content)
 }
@@ -122,17 +123,20 @@ func (s *NoteService) CreateNote(title, folder string) (*domain.Note, error) {
 
 	content := "# " + title + "\n\n"
 
+	now := time.Now()
 	note := &domain.Note{
 		ID:          relPath,
 		Title:       title,
 		Path:        relPath,
 		Content:     content,
 		Frontmatter: make(map[string]any),
+		Aliases:     []string{},
+		Type:        "",
 		Blocks:      []domain.Block{},
 		Links:       []domain.Link{},
 		Tags:        []domain.Tag{},
-		CreatedAt:   time.Now(),
-		ModifiedAt:  time.Now(),
+		CreatedAt:   now,
+		ModifiedAt:  now,
 	}
 
 	if err := s.SaveNote(note); err != nil {
@@ -145,14 +149,32 @@ func (s *NoteService) CreateNote(title, folder string) (*domain.Note, error) {
 // parseNote converts raw content into a structured Note.
 // It extracts frontmatter, parses Markdown structure, and identifies blocks.
 func (s *NoteService) parseNote(id string, content []byte, info os.FileInfo) (*domain.Note, error) {
-	frontmatter, body, err := s.extractFrontmatter(content)
+	frontmatter, body, fields, err := s.extractFrontmatter(content)
 	if err != nil {
 		return nil, &domain.ErrInvalidFrontmatter{Path: id, Reason: err.Error()}
 	}
 
-	title := s.extractTitle(frontmatter, body)
+	title := fields.Title
+	if title == "" {
+		title = s.extractTitleFromContent(body)
+	}
 	if title == "" {
 		title = strings.TrimSuffix(filepath.Base(id), filepath.Ext(id))
+	}
+
+	tags := make([]domain.Tag, 0, len(fields.Tags))
+	for _, tagName := range fields.Tags {
+		tags = append(tags, domain.Tag{Name: tagName, NoteID: id})
+	}
+
+	createdAt := fields.Created
+	if createdAt.IsZero() {
+		createdAt = info.ModTime()
+	}
+
+	modifiedAt := fields.Modified
+	if modifiedAt.IsZero() {
+		modifiedAt = info.ModTime()
 	}
 
 	blocks := s.extractBlocks(id, body)
@@ -162,22 +184,23 @@ func (s *NoteService) parseNote(id string, content []byte, info os.FileInfo) (*d
 		Path:        id,
 		Content:     string(body),
 		Frontmatter: frontmatter,
+		Aliases:     fields.Aliases,
+		Type:        fields.Type,
 		Blocks:      blocks,
 		Links:       []domain.Link{},
-		Tags:        []domain.Tag{},
-		CreatedAt:   info.ModTime(),
-		ModifiedAt:  info.ModTime(),
+		Tags:        tags,
+		CreatedAt:   createdAt,
+		ModifiedAt:  modifiedAt,
 	}
 
 	return note, nil
 }
 
-// extractFrontmatter parses YAML frontmatter from content.
-// Returns frontmatter map, body content, and any error.
-// TODO: use YAML de/serialization lib
-func (s *NoteService) extractFrontmatter(content []byte) (map[string]any, []byte, error) {
+// extractFrontmatter parses YAML frontmatter from content and extracts standard fields.
+// Returns frontmatter map (without standard fields), body content, and parsed standard fields.
+func (s *NoteService) extractFrontmatter(content []byte) (map[string]any, []byte, *frontmatterFields, error) {
 	if !bytes.HasPrefix(content, []byte("---\n")) && !bytes.HasPrefix(content, []byte("---\r\n")) {
-		return make(map[string]any), content, nil
+		return make(map[string]any), content, &frontmatterFields{}, nil
 	}
 
 	lines := bytes.Split(content, []byte("\n"))
@@ -191,32 +214,117 @@ func (s *NoteService) extractFrontmatter(content []byte) (map[string]any, []byte
 	}
 
 	if endIdx == -1 {
-		return make(map[string]any), content, nil
+		return make(map[string]any), content, &frontmatterFields{}, nil
 	}
 
 	fmContent := bytes.Join(lines[1:endIdx], []byte("\n"))
 	body := bytes.Join(lines[endIdx+1:], []byte("\n"))
 
-	var frontmatter map[string]any
+	var rawFrontmatter map[string]any
 	if len(fmContent) > 0 {
-		if err := yaml.Unmarshal(fmContent, &frontmatter); err != nil {
-			return nil, nil, fmt.Errorf("failed to parse frontmatter: %w", err)
+		if err := yaml.Unmarshal(fmContent, &rawFrontmatter); err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to parse frontmatter: %w", err)
 		}
 	}
 
-	if frontmatter == nil {
-		frontmatter = make(map[string]any)
+	if rawFrontmatter == nil {
+		rawFrontmatter = make(map[string]any)
 	}
 
-	return frontmatter, body, nil
+	fields := &frontmatterFields{}
+
+	if title, ok := rawFrontmatter["title"].(string); ok {
+		fields.Title = title
+		delete(rawFrontmatter, "title")
+	}
+
+	if aliases, ok := rawFrontmatter["aliases"]; ok {
+		fields.Aliases = parseStringArray(aliases)
+		delete(rawFrontmatter, "aliases")
+	}
+
+	if noteType, ok := rawFrontmatter["type"].(string); ok {
+		fields.Type = noteType
+		delete(rawFrontmatter, "type")
+	}
+
+	if tags, ok := rawFrontmatter["tags"]; ok {
+		fields.Tags = parseStringArray(tags)
+		delete(rawFrontmatter, "tags")
+	}
+
+	if created, ok := rawFrontmatter["created"]; ok {
+		if createdTime, err := parseTime(created); err == nil {
+			fields.Created = createdTime
+			delete(rawFrontmatter, "created")
+		}
+	}
+
+	if modified, ok := rawFrontmatter["modified"]; ok {
+		if modifiedTime, err := parseTime(modified); err == nil {
+			fields.Modified = modifiedTime
+			delete(rawFrontmatter, "modified")
+		}
+	}
+
+	return rawFrontmatter, body, fields, nil
 }
 
-// extractTitle gets the title from frontmatter or first heading.
-func (s *NoteService) extractTitle(frontmatter map[string]any, content []byte) string {
-	if title, ok := frontmatter["title"].(string); ok && title != "" {
-		return title
-	}
+// frontmatterFields holds standard frontmatter fields extracted separately from generic fields
+type frontmatterFields struct {
+	Title    string
+	Aliases  []string
+	Type     string
+	Tags     []string
+	Created  time.Time
+	Modified time.Time
+}
 
+// parseStringArray converts various YAML array formats to []string
+func parseStringArray(value any) []string {
+	switch v := value.(type) {
+	case []any:
+		result := make([]string, 0, len(v))
+		for _, item := range v {
+			if str, ok := item.(string); ok {
+				result = append(result, str)
+			}
+		}
+		return result
+	case []string:
+		return v
+	case string:
+		return []string{v}
+	default:
+		return []string{}
+	}
+}
+
+// parseTime parses various time formats from frontmatter
+func parseTime(value any) (time.Time, error) {
+	switch v := value.(type) {
+	case time.Time:
+		return v, nil
+	case string:
+		formats := []string{
+			time.RFC3339,
+			"2006-01-02T15:04:05Z07:00",
+			"2006-01-02 15:04:05",
+			"2006-01-02",
+		}
+		for _, format := range formats {
+			if t, err := time.Parse(format, v); err == nil {
+				return t, nil
+			}
+		}
+		return time.Time{}, fmt.Errorf("failed to parse time: %s", v)
+	default:
+		return time.Time{}, fmt.Errorf("unsupported time type: %T", v)
+	}
+}
+
+// extractTitleFromContent gets the title from first heading.
+func (s *NoteService) extractTitleFromContent(content []byte) string {
 	doc := s.parser.Parser().Parse(text.NewReader(content))
 	var title string
 	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -236,27 +344,19 @@ func (s *NoteService) extractTitle(frontmatter map[string]any, content []byte) s
 // extractTitleAndTags quickly extracts title and tags without full parsing.
 // Used for listing notes efficiently.
 func (s *NoteService) extractTitleAndTags(content []byte) (string, []domain.Tag) {
-	frontmatter, body, err := s.extractFrontmatter(content)
+	_, body, fields, err := s.extractFrontmatter(content)
 	if err != nil {
 		return "", nil
 	}
 
-	title := s.extractTitle(frontmatter, body)
+	title := fields.Title
+	if title == "" {
+		title = s.extractTitleFromContent(body)
+	}
 
-	var tags []domain.Tag
-	if fmTags, ok := frontmatter["tags"]; ok {
-		switch t := fmTags.(type) {
-		case []any:
-			for _, tag := range t {
-				if tagStr, ok := tag.(string); ok {
-					tags = append(tags, domain.Tag{Name: tagStr})
-				}
-			}
-		case []string:
-			for _, tag := range t {
-				tags = append(tags, domain.Tag{Name: tag})
-			}
-		}
+	tags := make([]domain.Tag, 0, len(fields.Tags))
+	for _, tagName := range fields.Tags {
+		tags = append(tags, domain.Tag{Name: tagName})
 	}
 
 	return title, tags
@@ -324,14 +424,44 @@ func (s *NoteService) extractBlocks(noteID string, content []byte) []domain.Bloc
 func (s *NoteService) serializeNote(note *domain.Note) []byte {
 	var buf bytes.Buffer
 
-	if len(note.Frontmatter) > 0 {
+	completeFrontmatter := make(map[string]any)
+
+	for k, v := range note.Frontmatter {
+		completeFrontmatter[k] = v
+	}
+
+	if note.Title != "" {
+		completeFrontmatter["title"] = note.Title
+	}
+
+	if len(note.Aliases) > 0 {
+		completeFrontmatter["aliases"] = note.Aliases
+	}
+
+	if note.Type != "" {
+		completeFrontmatter["type"] = note.Type
+	}
+
+	if len(note.Tags) > 0 {
+		tagNames := make([]string, 0, len(note.Tags))
+		for _, tag := range note.Tags {
+			tagNames = append(tagNames, tag.Name)
+		}
+		completeFrontmatter["tags"] = tagNames
+	}
+
+	if !note.CreatedAt.IsZero() {
+		completeFrontmatter["created"] = note.CreatedAt.Format(time.RFC3339)
+	}
+
+	if !note.ModifiedAt.IsZero() {
+		completeFrontmatter["modified"] = note.ModifiedAt.Format(time.RFC3339)
+	}
+
+	if len(completeFrontmatter) > 0 {
 		buf.WriteString("---\n")
 
-		if note.Title != "" {
-			note.Frontmatter["title"] = note.Title
-		}
-
-		fmBytes, err := yaml.Marshal(note.Frontmatter)
+		fmBytes, err := yaml.Marshal(completeFrontmatter)
 		if err == nil {
 			buf.Write(fmBytes)
 		}

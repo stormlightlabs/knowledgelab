@@ -69,7 +69,6 @@ func TestNoteService_CreateNote(t *testing.T) {
 					t.Errorf("Note.Title = %q, want %q", note.Title, tt.title)
 				}
 
-				// Verify file was created
 				content, err := fs.ReadFile(note.Path)
 				if err != nil {
 					t.Errorf("Failed to read created note: %v", err)
@@ -101,7 +100,6 @@ func TestNoteService_GetNote(t *testing.T) {
 
 	noteService := NewNoteService(fs)
 
-	// Create a test note
 	testContent := []byte("---\ntitle: Test Note\ntags:\n  - test\n  - example\n---\n\n# Test Note\n\nThis is a test note.")
 	testPath := "test.md"
 	fs.WriteFile(testPath, testContent)
@@ -115,8 +113,12 @@ func TestNoteService_GetNote(t *testing.T) {
 		t.Errorf("Note.Title = %q, want %q", note.Title, "Test Note")
 	}
 
-	if len(note.Frontmatter) == 0 {
-		t.Error("Note.Frontmatter is empty")
+	if len(note.Tags) != 2 {
+		t.Errorf("Note.Tags length = %d, want 2", len(note.Tags))
+	}
+
+	if len(note.Tags) > 0 && note.Tags[0].Name != "test" {
+		t.Errorf("Note.Tags[0].Name = %q, want %q", note.Tags[0].Name, "test")
 	}
 
 	if len(note.Blocks) == 0 {
@@ -142,23 +144,19 @@ func TestNoteService_SaveNote(t *testing.T) {
 
 	noteService := NewNoteService(fs)
 
-	// Create a note
 	note, err := noteService.CreateNote("Save Test", "")
 	if err != nil {
 		t.Fatalf("CreateNote() error = %v", err)
 	}
 
-	// Modify note
 	note.Content = "Updated content"
 	note.Frontmatter["custom"] = "value"
 
-	// Save
 	err = noteService.SaveNote(note)
 	if err != nil {
 		t.Fatalf("SaveNote() error = %v", err)
 	}
 
-	// Read back
 	loaded, err := noteService.GetNote(note.Path)
 	if err != nil {
 		t.Fatalf("GetNote() error = %v", err)
@@ -191,19 +189,16 @@ func TestNoteService_DeleteNote(t *testing.T) {
 
 	noteService := NewNoteService(fs)
 
-	// Create a note
 	note, err := noteService.CreateNote("Delete Test", "")
 	if err != nil {
 		t.Fatalf("CreateNote() error = %v", err)
 	}
 
-	// Delete
 	err = noteService.DeleteNote(note.ID)
 	if err != nil {
 		t.Fatalf("DeleteNote() error = %v", err)
 	}
 
-	// Verify deleted
 	_, err = noteService.GetNote(note.ID)
 	if err == nil {
 		t.Error("GetNote() should fail after delete")
@@ -228,7 +223,6 @@ func TestNoteService_ListNotes(t *testing.T) {
 
 	noteService := NewNoteService(fs)
 
-	// Create multiple notes
 	titles := []string{"Note 1", "Note 2", "Note 3"}
 	for _, title := range titles {
 		_, err := noteService.CreateNote(title, "")
@@ -237,7 +231,6 @@ func TestNoteService_ListNotes(t *testing.T) {
 		}
 	}
 
-	// List notes
 	summaries, err := noteService.ListNotes()
 	if err != nil {
 		t.Fatalf("ListNotes() error = %v", err)
@@ -247,7 +240,6 @@ func TestNoteService_ListNotes(t *testing.T) {
 		t.Errorf("ListNotes() returned %d notes, want %d", len(summaries), len(titles))
 	}
 
-	// Verify summaries have required fields
 	for _, summary := range summaries {
 		if summary.ID == "" {
 			t.Error("Summary missing ID")

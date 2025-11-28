@@ -99,45 +99,45 @@ Local-first Markdown storage with wikilinks, backlinks, graph view, daily notes,
 
 #### Frontmatter (YAML)
 
-- [ ] Parse YAML frontmatter:
-  - [ ] Extract `---` delimited frontmatter block.
-  - [ ] Parse YAML to structured key-value data.
-  - [ ] Handle YAML parse errors gracefully with user feedback.
-- [ ] Preserve frontmatter on edit:
-  - [ ] Round-trip frontmatter without unintended changes.
-  - [ ] Update specific frontmatter fields programmatically.
-- [ ] Support standard fields:
-  - [ ] `aliases` (array of alternative note titles).
-  - [ ] `tags` (array of tags, supplementing inline tags).
-  - [ ] `type` (note type or template identifier).
-  - [ ] `created` and `modified` timestamps.
+- [x] Parse YAML frontmatter:
+  - [x] Extract `---` delimited frontmatter block.
+  - [x] Parse YAML to structured key-value data.
+  - [x] Handle YAML parse errors gracefully with user feedback.
+- [x] Preserve frontmatter on edit:
+  - [x] Round-trip frontmatter without unintended changes.
+  - [x] Update specific frontmatter fields programmatically.
+- [x] Support standard fields:
+  - [x] `aliases` (array of alternative note titles).
+  - [x] `tags` (array of tags, supplementing inline tags).
+  - [x] `type` (note type or template identifier).
+  - [x] `created` and `modified` timestamps.
 
 #### Editor Enhancements
 
-- [ ] Keyboard shortcuts for formatting:
-  - [ ] Bold text (`Ctrl/Cmd+B`).
-  - [ ] Italic text (`Ctrl/Cmd+I`).
-  - [ ] Inline code (`Ctrl/Cmd+E`).
-  - [ ] Insert/edit link (`Ctrl/Cmd+K`).
-  - [ ] Set heading level (`Ctrl/Cmd+1` through `Ctrl/Cmd+6`).
+- [x] Keyboard shortcuts for formatting:
+  - [x] Bold text (`Ctrl/Cmd+B`).
+  - [x] Italic text (`Ctrl/Cmd+I`).
+  - [x] Inline code (`Ctrl/Cmd+E`).
+  - [x] Insert/edit link (`Ctrl/Cmd+K`).
+  - [x] Set heading level (`Ctrl/Cmd+1` through `Ctrl/Cmd+6`).
 
 #### Dialect Specification & Documentation
 
-- [ ] Document Markdown flavor:
-  - [ ] Specify CommonMark base with Obsidian/Logseq extensions.
-  - [ ] List supported syntax (wikilinks, tags, tasks, frontmatter, block IDs).
-- [ ] Document wikilink resolution rules:
-  - [ ] Title-based resolution vs. path-based.
-  - [ ] Alias handling via frontmatter `aliases` field.
-- [ ] Define daily note conventions:
-  - [ ] Canonical location (e.g., `/daily/` or `/journal/`).
-  - [ ] Naming convention (e.g., `YYYY-MM-DD.md`).
-- [ ] Define block ID format:
-  - [ ] Syntax: `^[a-z0-9-]+` at end of line.
-  - [ ] Serialization and uniqueness constraints.
-- [ ] Write import guides:
-  - [ ] Obsidian import guide (1:1 features, degraded features, manual steps).
-  - [ ] Logseq import guide (Markdown support, Org-mode limitations, block ID handling).
+- [x] Document Markdown flavor:
+  - [x] Specify CommonMark base with Obsidian/Logseq extensions.
+  - [x] List supported syntax (wikilinks, tags, tasks, frontmatter, block IDs).
+- [x] Document wikilink resolution rules:
+  - [x] Title-based resolution vs. path-based.
+  - [x] Alias handling via frontmatter `aliases` field.
+- [x] Define daily note conventions:
+  - [x] Canonical location (e.g., `/daily/` or `/journal/`).
+  - [x] Naming convention (e.g., `YYYY-MM-DD.md`).
+- [x] Define block ID format:
+  - [x] Syntax: `^[a-z0-9-]+` at end of line.
+  - [x] Serialization and uniqueness constraints.
+- [x] Write import guides:
+  - [x] Obsidian import guide (1:1 features, degraded features, manual steps).
+  - [x] Logseq import guide (Markdown support, Org-mode limitations, block ID handling).
 
 ### Advanced Features (Deferred to Post-v1)
 

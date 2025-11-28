@@ -8,17 +8,15 @@ graph view similar to Obsidian and Logseq.
 
 ## Backend (Go + Wails)
 
-Implemented complete Go backend with domain types (Note, Block, Link, Tag, Workspace), filesystem service with file watching, note CRUD operations with frontmatter support, graph/index service for wikilink parsing and backlink queries, BM25 full-text search with tag/date/path filtering, Wails-bindable API methods with JSON DTOs for frontend interop, and unit tests covering Markdown parsing, graph construction, and search indexing.
+Note CRUD with frontmatter support, wikilink parsing, backlinks, BM25 full-text search, and comprehensive test coverage.
 
 ## Frontend (F# Fable + Elmish + React)
 
-Implemented complete F# frontend using Elmish MVU architecture with Model/Msg/update/view, routing and navigation, workspace picker UI, Markdown editor with support for headings/lists/code/wikilinks, filterable note list sidebar, backlinks panel with click-to-navigate, daily notes "Today" button, three-panel layout (sidebar/editor/right panel), minimal settings panel with theme/font controls, D3-force graph view with both SVG and Canvas renderers supporting pan/zoom/tooltips/hover highlighting/click-through navigation, and comprehensive tests for update logic, routing, backlinks, daily notes, and graph interactions.
+Elmish MVU with three-panel layout, D3-force graph view (SVG/Canvas), daily notes, and comprehensive tests.
 
 ## PKM & Data Model Parity
 
-### Completed Foundation
-
-Implemented local-first Markdown storage with workspace management, wikilink parsing and indexing, bidirectional backlinks panel, interactive D3-force graph view with SVG/Canvas rendering, daily notes with "Today" button, and BM25-powered full-text search with tag/date/path filtering.
+Local-first Markdown storage with wikilinks, backlinks, graph view, daily notes, and BM25 search.
 
 ### Obsidian-Compatible Features
 
@@ -153,6 +151,66 @@ The following features are deferred to future releases after v1 launch:
 - **Advanced task states**: Logseq-style task states beyond basic checkbox (`TODO`, `DOING`, `DONE`, `WAITING`, `CANCELLED`).
 - **Org-mode compatibility**: Optional Org-mode parsing layer for headings, TODO keywords, scheduled/deadline timestamps.
 
+## UI/UX Polish (MVP)
+
+### State Management (Model.fs)
+
+- [ ] Add search state (query, filters, results)
+- [ ] Add editor state (preview mode, cursor position, selection)
+- [ ] Add UI state (panel sizes, active modals/dialogs)
+- [ ] Add keyboard shortcut handlers in new module (`Keybinds.fs`)
+- [ ] Implement command palette state
+
+### Core Functionality (View.fs)
+
+Search & Discovery:
+
+- [ ] Search UI with fuzzy matching
+- [ ] Search input in sidebar with live results
+- [ ] Keyboard shortcuts for common actions (Cmd/Ctrl+N, Cmd/Ctrl+K, etc.)
+- [ ] Command palette for quick actions
+
+Editor:
+
+- [ ] Markdown preview mode or split view
+- [ ] Editor toolbar with preview toggle, formatting buttons, word/char count and what's in editor [enhancements](#editor-enhancements)
+    - Interop with shiki
+- [ ] Syntax highlighting for code blocks
+- [ ] Wikilink autocomplete dropdown
+
+Settings:
+
+- [ ] Settings panel with actual controls (theme picker, font size slider, editor preferences)
+- [ ] Live preview of settings changes
+
+Notes List:
+
+- [ ] Sorting options (title, date modified, date created)
+- [ ] Empty state when no notes exist
+- [ ] Virtualization for large note lists (>100 notes)
+- [ ] Note metadata display (created/modified dates in list items)
+
+### UI Polish
+
+Loading & Transitions:
+
+- [ ] Loading skeleton states instead of generic "Loading..." overlay
+- [ ] Smooth transitions for route changes and panel toggles
+- [ ] Auto-save indicator in editor
+
+Feedback & Messaging:
+
+- [ ] Toast notifications for actions instead of fixed error banner
+- [ ] Empty states with helpful messaging (no notes, no backlinks, etc.)
+- [ ] Confirmation dialogs for destructive actions (delete note)
+
+Layout & Navigation:
+
+- [ ] Resizable panels (sidebar, backlinks panel)
+- [ ] Implement recent files list in workspace snapshot
+- [ ] Focus management for keyboard navigation
+- [ ] Implement undo/redo for editor
+
 ## Parking Lot
 
 - [ ] Basic mobile-friendly layout (for small windows).
@@ -162,59 +220,4 @@ The following features are deferred to future releases after v1 launch:
 
 ## Configuration
 
-Here’s the same milestone broken down as simple task lists:
-
-### App data directories
-
-- [x] `AppDirs` struct (`ConfigRoot`, `WorkspaceRoot`, `SettingsPath`, `WorkspacePath`, `DBPath`).
-- [x] Implement `NewAppDirs(appName, workspaceName)` using `os.UserConfigDir` + `filepath.Join`.
-- [x] Add `Ensure()` method to create workspace directories with `os.MkdirAll`.
-- [x] Add unit tests for path construction (no disk IO where possible).
-
-### `settings.toml` with BurntSushi & `workspace.toml` for UI state
-
-- [x] Define v1 `settings.toml` schema (general + editor sections).
-- [x] Implement `Settings` Go struct mirroring the schema.
-- [x] Implement `DefaultSettings()` helper.
-- [x] Implement `LoadSettings(path) (Settings, error)` using `toml.DecodeFile`.
-- [x] Implement `SaveSettings(path, Settings) error` using `toml.NewEncoder`.
-- [x] Add round-trip tests for settings
-- [x] Define `workspace.toml` schema (active page, sidebar, pinned pages).
-- [x] Implement `WorkspaceSnapshot` Go struct.
-- [x] Implement `LoadWorkspaceSnapshot(path) (WorkspaceSnapshot, error)`.
-- [x] Implement `SaveWorkspaceSnapshot(path, WorkspaceSnapshot) error`.
-- [x] Debounce saves on the frontend and add documentation
-- [x] Add round-trip tests for workspace snapshot.
-- Note that these should be stored in os.UserConfigDir
-
-For tests:
-
-- [x] Create `testdata/settings_v1.toml` and `testdata/workspace_v1.toml`.
-- [x] Add tests loading fixtures into Go structs and asserting values.
-- [x] Add struct → TOML → struct round-trip tests.
-
-### SQLite graph (schema + migrations)
-
-- [x] Use `mattn/go-sqlite3`
-- [x] Implement `OpenGraphDB(dbPath) (*sql.DB, error)` + `PRAGMA foreign_keys=ON`.
-- [x] Write initial migration for `pages`, `blocks`, `links`, `schema_meta`.
-- [x] Implement `Migrate(db *sql.DB) error` with simple versioning.
-- [x] Implement basic CRUD: `CreatePage`, `GetPageByID`, `GetBlocksForPage`, `GetBacklinks`.
-- [x] Add indexes on `blocks.page_id` and `links.to_page_id`.
-- [x] Add tests using a temp DB (migrations + basic CRUD + backlinks).
-    - [x] Add DB tests using `t.TempDir()` + temp SQLite file.
-- NOTE: Migrations should be checked and applied on application load
-
-#### Repository façade for Wails & Wails bindings
-
-- [x] Implement `WorkspaceStore` (wraps `AppDirs`, calls TOML helpers).
-- [x] Implement `GraphStore` (wraps `*sql.DB`, exposes graph CRUD/query).
-- [x] Implement `NewStores(appName, workspaceName)` to construct dirs + DB + stores.
-- [ ] Bind `WorkspaceStore` and `GraphStore` in `options.App{ Bind: [...] }`.
-
-### F#/Fable integration
-
-- [ ] Define F# record types for `Settings`, `WorkspaceUi`, and root `Model`.
-- [ ] Implement `init` that calls `LoadSettings` + `LoadWorkspaceSnapshot` via bindings.
-- [ ] Add `HydrateFromDisk` message and handler in `update`.
-- [ ] Wire `SettingsChanged` and `WorkspaceChanged` messages to call save APIs (with debounce).
+TOML-based settings and workspace snapshots with SQLite graph database, debounced saves (800ms).

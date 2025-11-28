@@ -10,3 +10,5 @@ If you feel that a private symbol is complex enough for context, the doc comment
 Take advantage of F# constructs, like higher-order functions.
 
 Be mindful of React gotchas (`key` prop in rendered lists, incorrect dependency arrays, etc.)
+
+Use your best judgement when adding source files, but in general when a file is >2000 lines, its time to split it up.

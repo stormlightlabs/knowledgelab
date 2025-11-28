@@ -719,6 +719,242 @@ Jest.describe (
         let newState, _ = Update (UpdateNoteContent "New content") initialState
         Jest.expect(newState.EditorState.IsDirty).toEqual true
     )
+
+    Jest.test (
+      "FormatBold wraps selected text with bold markers",
+      fun () ->
+        let testNote = {
+          Id = "test-id"
+          Title = "Test Note"
+          Path = "/test/path"
+          Content = "Hello world"
+          Frontmatter = Map.empty
+          Aliases = []
+          Type = ""
+          Blocks = []
+          Links = []
+          Tags = []
+          CreatedAt = System.DateTime.Now
+          ModifiedAt = System.DateTime.Now
+        }
+
+        let initialState = {
+          State.Default with
+              CurrentNote = Some testNote
+              EditorState = {
+                State.Default.EditorState with
+                    SelectionStart = Some 0
+                    SelectionEnd = Some 5
+              }
+        }
+
+        let newState, _ = Update FormatBold initialState
+
+        match newState.CurrentNote with
+        | Some note -> Jest.expect(note.Content).toEqual "**Hello** world"
+        | None -> failwith "Expected note to be present"
+
+        Jest.expect(newState.EditorState.IsDirty).toEqual true
+    )
+
+    Jest.test (
+      "FormatBold inserts markers at cursor when no selection",
+      fun () ->
+        let testNote = {
+          Id = "test-id"
+          Title = "Test Note"
+          Path = "/test/path"
+          Content = "Hello world"
+          Frontmatter = Map.empty
+          Aliases = []
+          Type = ""
+          Blocks = []
+          Links = []
+          Tags = []
+          CreatedAt = System.DateTime.Now
+          ModifiedAt = System.DateTime.Now
+        }
+
+        let initialState = {
+          State.Default with
+              CurrentNote = Some testNote
+              EditorState = {
+                State.Default.EditorState with
+                    SelectionStart = Some 5
+                    SelectionEnd = Some 5
+              }
+        }
+
+        let newState, _ = Update FormatBold initialState
+
+        match newState.CurrentNote with
+        | Some note -> Jest.expect(note.Content).toEqual "Hello**** world"
+        | None -> failwith "Expected note to be present"
+    )
+
+    Jest.test (
+      "FormatItalic wraps selected text with italic markers",
+      fun () ->
+        let testNote = {
+          Id = "test-id"
+          Title = "Test Note"
+          Path = "/test/path"
+          Content = "Hello world"
+          Frontmatter = Map.empty
+          Aliases = []
+          Type = ""
+          Blocks = []
+          Links = []
+          Tags = []
+          CreatedAt = System.DateTime.Now
+          ModifiedAt = System.DateTime.Now
+        }
+
+        let initialState = {
+          State.Default with
+              CurrentNote = Some testNote
+              EditorState = {
+                State.Default.EditorState with
+                    SelectionStart = Some 6
+                    SelectionEnd = Some 11
+              }
+        }
+
+        let newState, _ = Update FormatItalic initialState
+
+        match newState.CurrentNote with
+        | Some note -> Jest.expect(note.Content).toEqual "Hello _world_"
+        | None -> failwith "Expected note to be present"
+    )
+
+    Jest.test (
+      "FormatInlineCode wraps selected text with code markers",
+      fun () ->
+        let testNote = {
+          Id = "test-id"
+          Title = "Test Note"
+          Path = "/test/path"
+          Content = "Hello world"
+          Frontmatter = Map.empty
+          Aliases = []
+          Type = ""
+          Blocks = []
+          Links = []
+          Tags = []
+          CreatedAt = System.DateTime.Now
+          ModifiedAt = System.DateTime.Now
+        }
+
+        let initialState = {
+          State.Default with
+              CurrentNote = Some testNote
+              EditorState = {
+                State.Default.EditorState with
+                    SelectionStart = Some 0
+                    SelectionEnd = Some 5
+              }
+        }
+
+        let newState, _ = Update FormatInlineCode initialState
+
+        match newState.CurrentNote with
+        | Some note -> Jest.expect(note.Content).toEqual "`Hello` world"
+        | None -> failwith "Expected note to be present"
+    )
+
+    Jest.test (
+      "SetHeadingLevel adds heading markers to current line",
+      fun () ->
+        let testNote = {
+          Id = "test-id"
+          Title = "Test Note"
+          Path = "/test/path"
+          Content = "This is a heading\nSecond line"
+          Frontmatter = Map.empty
+          Aliases = []
+          Type = ""
+          Blocks = []
+          Links = []
+          Tags = []
+          CreatedAt = System.DateTime.Now
+          ModifiedAt = System.DateTime.Now
+        }
+
+        let initialState = {
+          State.Default with
+              CurrentNote = Some testNote
+              EditorState = { State.Default.EditorState with CursorPosition = Some 5 }
+        }
+
+        let newState, _ = Update (SetHeadingLevel 2) initialState
+
+        match newState.CurrentNote with
+        | Some note -> Jest.expect(note.Content).toEqual "## This is a heading\nSecond line"
+        | None -> failwith "Expected note to be present"
+    )
+
+    Jest.test (
+      "SetHeadingLevel removes existing heading markers",
+      fun () ->
+        let testNote = {
+          Id = "test-id"
+          Title = "Test Note"
+          Path = "/test/path"
+          Content = "### Already a heading\nSecond line"
+          Frontmatter = Map.empty
+          Aliases = []
+          Type = ""
+          Blocks = []
+          Links = []
+          Tags = []
+          CreatedAt = System.DateTime.Now
+          ModifiedAt = System.DateTime.Now
+        }
+
+        let initialState = {
+          State.Default with
+              CurrentNote = Some testNote
+              EditorState = { State.Default.EditorState with CursorPosition = Some 5 }
+        }
+
+        let newState, _ = Update (SetHeadingLevel 1) initialState
+
+        match newState.CurrentNote with
+        | Some note -> Jest.expect(note.Content).toEqual "# Already a heading\nSecond line"
+        | None -> failwith "Expected note to be present"
+    )
+
+    Jest.test (
+      "FormatBold does nothing when no current note",
+      fun () ->
+        let initialState = { State.Default with CurrentNote = None }
+        let newState, _ = Update FormatBold initialState
+        Jest.expect(newState.CurrentNote).toEqual None
+    )
+
+    Jest.test (
+      "FormatItalic does nothing when no current note",
+      fun () ->
+        let initialState = { State.Default with CurrentNote = None }
+        let newState, _ = Update FormatItalic initialState
+        Jest.expect(newState.CurrentNote).toEqual None
+    )
+
+    Jest.test (
+      "FormatInlineCode does nothing when no current note",
+      fun () ->
+        let initialState = { State.Default with CurrentNote = None }
+        let newState, _ = Update FormatInlineCode initialState
+        Jest.expect(newState.CurrentNote).toEqual None
+    )
+
+    Jest.test (
+      "SetHeadingLevel does nothing when no current note",
+      fun () ->
+        let initialState = { State.Default with CurrentNote = None }
+        let newState, _ = Update (SetHeadingLevel 1) initialState
+        Jest.expect(newState.CurrentNote).toEqual None
+    )
 )
 
 Jest.describe (

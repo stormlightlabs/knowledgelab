@@ -369,31 +369,58 @@ func (s *NoteService) extractBlocks(noteID string, content []byte) []domain.Bloc
 
 	blocks := []domain.Block{}
 	blockIdx := 0
+	listDepth := 0
+	quoteDepth := 0
 
 	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		switch n.Kind() {
+		case ast.KindList:
+			if entering {
+				listDepth++
+			} else {
+				listDepth--
+			}
+		case ast.KindBlockquote:
+			if entering {
+				quoteDepth++
+			} else {
+				quoteDepth--
+			}
+		}
+
 		if !entering {
 			return ast.WalkContinue, nil
 		}
 
 		var blockType domain.BlockType
 		var shouldCreate bool
+		var level int
 
 		switch n.Kind() {
 		case ast.KindParagraph:
+			parent := n.Parent()
+			if parent != nil && (parent.Kind() == ast.KindListItem || parent.Kind() == ast.KindBlockquote) {
+				return ast.WalkContinue, nil
+			}
 			blockType = domain.BlockTypeParagraph
 			shouldCreate = true
+			level = quoteDepth
 		case ast.KindHeading:
 			blockType = domain.BlockTypeHeading
 			shouldCreate = true
+			level = 0
 		case ast.KindListItem:
 			blockType = domain.BlockTypeListItem
 			shouldCreate = true
+			level = listDepth
 		case ast.KindFencedCodeBlock, ast.KindCodeBlock:
 			blockType = domain.BlockTypeCode
 			shouldCreate = true
+			level = 0
 		case ast.KindBlockquote:
 			blockType = domain.BlockTypeQuote
 			shouldCreate = true
+			level = quoteDepth
 		}
 
 		if shouldCreate {
@@ -404,7 +431,7 @@ func (s *NoteService) extractBlocks(noteID string, content []byte) []domain.Bloc
 				ID:       blockID,
 				NoteID:   noteID,
 				Content:  blockContent,
-				Level:    0, // TODO: Calculate nesting level
+				Level:    level,
 				Parent:   "",
 				Children: []string{},
 				Position: blockIdx,

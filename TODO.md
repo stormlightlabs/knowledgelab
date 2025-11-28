@@ -115,11 +115,11 @@ Local-first Markdown storage with wikilinks, backlinks, graph view, daily notes,
 #### Editor Enhancements
 
 - [x] Keyboard shortcuts for formatting:
-  - [x] Bold text (`Ctrl/Cmd+B`).
-  - [x] Italic text (`Ctrl/Cmd+I`).
-  - [x] Inline code (`Ctrl/Cmd+E`).
-  - [x] Insert/edit link (`Ctrl/Cmd+K`).
-  - [x] Set heading level (`Ctrl/Cmd+1` through `Ctrl/Cmd+6`).
+  - [x] Bold text (`Ctrl/Cmd+B`) - wraps selection with `**text**`
+  - [x] Italic text (`Ctrl/Cmd+I`) - wraps selection with `_text_`
+  - [x] Inline code (`Ctrl/Cmd+E`) - wraps selection with `` `text` ``
+  - [x] Insert/edit link (`Ctrl/Cmd+K`) - opens search dialog
+  - [x] Set heading level (`Ctrl/Cmd+1` through `Ctrl/Cmd+6`) - formats current line as heading
 
 #### Dialect Specification & Documentation
 
@@ -170,11 +170,15 @@ Search & Discovery:
 
 Editor:
 
+- [x] Editor formatting with keyboard shortcuts (bold, italic, inline code, headings)
+- [x] Cursor position and selection tracking
 - [ ] Markdown preview mode
 - [ ] Split view
-- [ ] Editor toolbar with preview toggle, formatting buttons, word/char count and what's in editor [enhancements](#editor-enhancements)
+- [ ] Editor toolbar with preview toggle, formatting buttons
+- [ ] Status bar with save state, word/char count, position (line, column)
 - [ ] Syntax highlighting for code blocks
   - Interop with [shiki](https://shiki.style/)
+  - Use Fable JSX integration and/or create F# bindings
 - [ ] Wikilink autocomplete dropdown
 
 Settings:

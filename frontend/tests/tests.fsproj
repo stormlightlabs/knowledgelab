@@ -9,8 +9,10 @@
     <Compile Include="../src/Domain.fs" />
     <Compile Include="../src/Api.fs" />
     <Compile Include="../src/Model.fs" />
+    <Compile Include="../src/Keybinds.fs" />
     <Compile Include="../src/GraphView.fs" />
     <Compile Include="Model.Test.fs" />
+    <Compile Include="Keybinds.Test.fs" />
   </ItemGroup>
 
   <ItemGroup>

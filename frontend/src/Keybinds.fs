@@ -41,47 +41,68 @@ let isKey (key : string) (e : KeyboardEvent) : bool =
   && not e.metaKey
   && e.key.ToLower() = key.ToLower()
 
+/// Keyboard shortcut patterns
+type KeyPattern =
+  | CmdCtrl of string
+  | CtrlShift of string
+  | Plain of string
+  | NoMatch
+
+/// Extracts the key pattern from a keyboard event
+let getKeyPattern (e : KeyboardEvent) : KeyPattern =
+  let key = e.key.ToLower()
+
+  let cmdModifier =
+    try
+      if isMacOS () then e.metaKey else e.ctrlKey
+    with _ ->
+      e.ctrlKey
+
+  let hasCtrlShift = e.ctrlKey && e.shiftKey && not e.altKey && not e.metaKey
+  let noModifiers = not e.ctrlKey && not e.shiftKey && not e.altKey && not e.metaKey
+
+  if cmdModifier && not e.shiftKey && not e.altKey then
+    CmdCtrl key
+  elif hasCtrlShift then
+    CtrlShift key
+  elif noModifiers then
+    Plain key
+  else
+    NoMatch
+
 /// Handles keyboard events and returns the appropriate message if a shortcut matches
 let handleKeydown (e : KeyboardEvent) : Msg option =
-  if isCmdOrCtrl "n" e then
-    Some(ShowModal CreateNoteDialog)
-  elif isCmdOrCtrl "k" e then
-    Some(ShowModal SearchDialog)
-  elif isCmdOrCtrl "s" e then
-    None
-  elif isCmdOrCtrl "b" e then
-    Some(TogglePanel Panel.Backlinks) // TODO: Context-aware bold formatting in editor
-  elif isCmdOrCtrl "i" e then
-    None // TODO: Format italic
-  elif isCmdOrCtrl "e" e then
-    None // TODO: Format inline code
-  elif isCmdOrCtrl "1" e then
-    None // TODO: Set heading level 1
-  elif isCmdOrCtrl "2" e then
-    None // TODO: Set heading level 2
-  elif isCmdOrCtrl "3" e then
-    None // TODO: Set heading level 3
-  elif isCtrlShift "f" e then
-    Some(TogglePanel Panel.SearchPanel)
-  elif isCtrlShift "t" e then
-    Some(TogglePanel Panel.TagsPanel)
-  elif isCtrlShift "g" e then
-    Some(NavigateTo GraphViewRoute)
-  elif isCtrlShift "l" e then
-    Some(NavigateTo NoteList)
-  elif isCtrlShift "p" e then
-    Some(SetPreviewMode SplitView)
-  elif isKey "escape" e then
-    Some CloseModal
-  else
-    None
+  match getKeyPattern e with
+  | CmdCtrl "n" -> Some(ShowModal CreateNoteDialog)
+  | CmdCtrl "k" -> Some(ShowModal SearchDialog)
+  | CmdCtrl "s" -> None
+  | CmdCtrl "b" -> Some FormatBold
+  | CmdCtrl "i" -> Some FormatItalic
+  | CmdCtrl "e" -> Some FormatInlineCode
+  | CmdCtrl "1" -> Some(SetHeadingLevel 1)
+  | CmdCtrl "2" -> Some(SetHeadingLevel 2)
+  | CmdCtrl "3" -> Some(SetHeadingLevel 3)
+  | CmdCtrl "4" -> Some(SetHeadingLevel 4)
+  | CmdCtrl "5" -> Some(SetHeadingLevel 5)
+  | CmdCtrl "6" -> Some(SetHeadingLevel 6)
+  | CtrlShift "f" -> Some(TogglePanel Panel.SearchPanel)
+  | CtrlShift "t" -> Some(TogglePanel Panel.TagsPanel)
+  | CtrlShift "g" -> Some(NavigateTo GraphViewRoute)
+  | CtrlShift "l" -> Some(NavigateTo NoteList)
+  | CtrlShift "p" -> Some(SetPreviewMode SplitView)
+  | Plain "escape" -> Some CloseModal
+  | _ -> None
 
 /// Keyboard shortcut help text for UI display
 type ShortcutHelp = { Keys : string; Description : string; Category : string }
 
 /// Returns all available keyboard shortcuts for help/documentation
 let getAllShortcuts () : ShortcutHelp list =
-  let cmdKey = if isMacOS () then "Cmd" else "Ctrl"
+  let cmdKey =
+    try
+      if isMacOS () then "Cmd" else "Ctrl"
+    with _ ->
+      "Ctrl"
 
   [
     {
@@ -111,8 +132,8 @@ let getAllShortcuts () : ShortcutHelp list =
     }
     {
       Keys = $"{cmdKey}+B"
-      Description = "Toggle backlinks panel"
-      Category = "Panels"
+      Description = "Format bold (in editor)"
+      Category = "Formatting"
     }
     {
       Keys = $"{cmdKey}+Shift+F"
@@ -140,8 +161,33 @@ let getAllShortcuts () : ShortcutHelp list =
       Category = "Formatting"
     }
     {
-      Keys = $"{cmdKey}+1-6"
-      Description = "Set heading level (in editor)"
+      Keys = $"{cmdKey}+1"
+      Description = "Set heading level 1 (in editor)"
+      Category = "Formatting"
+    }
+    {
+      Keys = $"{cmdKey}+2"
+      Description = "Set heading level 2 (in editor)"
+      Category = "Formatting"
+    }
+    {
+      Keys = $"{cmdKey}+3"
+      Description = "Set heading level 3 (in editor)"
+      Category = "Formatting"
+    }
+    {
+      Keys = $"{cmdKey}+4"
+      Description = "Set heading level 4 (in editor)"
+      Category = "Formatting"
+    }
+    {
+      Keys = $"{cmdKey}+5"
+      Description = "Set heading level 5 (in editor)"
+      Category = "Formatting"
+    }
+    {
+      Keys = $"{cmdKey}+6"
+      Description = "Set heading level 6 (in editor)"
       Category = "Formatting"
     }
     {

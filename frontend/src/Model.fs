@@ -177,6 +177,10 @@ type Msg =
   | CloseModal
   | SetError of string
   | ClearError
+  | FormatBold
+  | FormatItalic
+  | FormatInlineCode
+  | SetHeadingLevel of int
 
 /// Debounce delay in milliseconds
 [<Literal>]
@@ -212,6 +216,64 @@ let private addToRecentPages (noteId : string) (recentPages : string list) : str
   let filtered = recentPages |> List.filter ((<>) noteId)
   let newList = noteId :: filtered
   newList |> List.truncate MaxRecentFiles
+
+/// Applies markdown formatting to the selected text or inserts formatting markers at cursor
+let private applyMarkdownFormat
+  (content : string)
+  (selectionStart : int option)
+  (selectionEnd : int option)
+  (prefix : string)
+  (suffix : string)
+  : string * int * int =
+  match selectionStart, selectionEnd with
+  | Some start, Some end_ when start < end_ ->
+    let selectedText = content.Substring(start, end_ - start)
+    let formattedText = prefix + selectedText + suffix
+
+    let newContent =
+      content.Substring(0, start) + formattedText + content.Substring(end_)
+
+    let newStart = start + prefix.Length
+    let newEnd = newStart + selectedText.Length
+    (newContent, newStart, newEnd)
+  | Some pos, _ ->
+    let formattedText = prefix + suffix
+    let newContent = content.Substring(0, pos) + formattedText + content.Substring(pos)
+    let newPos = pos + prefix.Length
+    (newContent, newPos, newPos)
+  | _ -> (content, 0, 0)
+
+/// Applies heading formatting to the current line
+let private applyHeadingFormat
+  (content : string)
+  (cursorPosition : int option)
+  (level : int)
+  : string * int =
+  match cursorPosition with
+  | Some pos ->
+    let lines = content.Split('\n')
+    let mutable currentPos = 0
+    let mutable lineIndex = 0
+    let mutable found = false
+
+    for i in 0 .. lines.Length - 1 do
+      if not found && currentPos + lines.[i].Length >= pos then
+        lineIndex <- i
+        found <- true
+      elif not found then
+        currentPos <- currentPos + lines.[i].Length + 1
+
+    let currentLine = lines.[lineIndex]
+    let trimmedLine = currentLine.TrimStart('#', ' ')
+    let headingPrefix = String.replicate level "#" + " "
+    let newLine = headingPrefix + trimmedLine
+
+    lines.[lineIndex] <- newLine
+    let newContent = System.String.Join("\n", lines)
+    let newPos = currentPos + headingPrefix.Length
+
+    (newContent, newPos)
+  | None -> (content, 0)
 
 /// Updates the workspace snapshot with a new recent page and triggers save
 let private updateRecentPage (noteId : string) (state : State) : State * Cmd<Msg> =
@@ -511,3 +573,97 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     Cmd.none
   | SetError err -> { state with Error = Some err }, Cmd.none
   | ClearError -> { state with Error = None }, Cmd.none
+  | FormatBold ->
+    match state.CurrentNote with
+    | Some note ->
+      let newContent, newStart, newEnd =
+        applyMarkdownFormat
+          note.Content
+          state.EditorState.SelectionStart
+          state.EditorState.SelectionEnd
+          "**"
+          "**"
+
+      let updatedNote = { note with Content = newContent }
+
+      {
+        state with
+            CurrentNote = Some updatedNote
+            EditorState = {
+              state.EditorState with
+                  SelectionStart = Some newStart
+                  SelectionEnd = Some newEnd
+                  IsDirty = true
+            }
+      },
+      Cmd.ofMsg (SaveNote updatedNote)
+    | None -> state, Cmd.none
+  | FormatItalic ->
+    match state.CurrentNote with
+    | Some note ->
+      let newContent, newStart, newEnd =
+        applyMarkdownFormat
+          note.Content
+          state.EditorState.SelectionStart
+          state.EditorState.SelectionEnd
+          "_"
+          "_"
+
+      let updatedNote = { note with Content = newContent }
+
+      {
+        state with
+            CurrentNote = Some updatedNote
+            EditorState = {
+              state.EditorState with
+                  SelectionStart = Some newStart
+                  SelectionEnd = Some newEnd
+                  IsDirty = true
+            }
+      },
+      Cmd.ofMsg (SaveNote updatedNote)
+    | None -> state, Cmd.none
+  | FormatInlineCode ->
+    match state.CurrentNote with
+    | Some note ->
+      let newContent, newStart, newEnd =
+        applyMarkdownFormat
+          note.Content
+          state.EditorState.SelectionStart
+          state.EditorState.SelectionEnd
+          "`"
+          "`"
+
+      let updatedNote = { note with Content = newContent }
+
+      {
+        state with
+            CurrentNote = Some updatedNote
+            EditorState = {
+              state.EditorState with
+                  SelectionStart = Some newStart
+                  SelectionEnd = Some newEnd
+                  IsDirty = true
+            }
+      },
+      Cmd.ofMsg (SaveNote updatedNote)
+    | None -> state, Cmd.none
+  | SetHeadingLevel level ->
+    match state.CurrentNote with
+    | Some note ->
+      let newContent, newPos =
+        applyHeadingFormat note.Content state.EditorState.CursorPosition level
+
+      let updatedNote = { note with Content = newContent }
+
+      {
+        state with
+            CurrentNote = Some updatedNote
+            EditorState = {
+              state.EditorState with
+                  CursorPosition = Some newPos
+                  IsDirty = true
+            }
+      },
+      Cmd.ofMsg (SaveNote updatedNote)
+    | None -> state, Cmd.none

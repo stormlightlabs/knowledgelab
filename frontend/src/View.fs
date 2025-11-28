@@ -131,6 +131,19 @@ let noteEditor (note : Note) (dispatch : Msg -> unit) =
             prop.value note.Content
             prop.placeholder "Start writing..."
             prop.onChange (fun (value : string) -> dispatch (UpdateNoteContent value))
+            prop.onSelect (fun (e : Browser.Types.Event) ->
+              let target = e.target :?> Browser.Types.HTMLTextAreaElement
+              let start = int target.selectionStart
+              let end_ = int target.selectionEnd
+              dispatch (UpdateSelection(Some start, Some end_)))
+            prop.onClick (fun (e : Browser.Types.MouseEvent) ->
+              let target = e.target :?> Browser.Types.HTMLTextAreaElement
+              let pos = int target.selectionStart
+              dispatch (UpdateCursorPosition(Some pos)))
+            prop.onKeyUp (fun (e : Browser.Types.KeyboardEvent) ->
+              let target = e.target :?> Browser.Types.HTMLTextAreaElement
+              let pos = int target.selectionStart
+              dispatch (UpdateCursorPosition(Some pos)))
           ]
         ]
       ]

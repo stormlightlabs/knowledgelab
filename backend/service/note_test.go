@@ -319,3 +319,138 @@ func TestNoteService_FrontmatterParsing(t *testing.T) {
 		})
 	}
 }
+
+func TestNoteService_BlockNestingLevel(t *testing.T) {
+	tmpDir := filepath.Join(os.TempDir(), "test-workspace-note-nesting")
+	os.RemoveAll(tmpDir)
+	defer os.RemoveAll(tmpDir)
+
+	fs, err := NewFilesystemService()
+	if err != nil {
+		t.Fatalf("NewFilesystemService() error = %v", err)
+	}
+	defer fs.Close()
+
+	_, err = fs.OpenWorkspace(tmpDir)
+	if err != nil {
+		t.Fatalf("OpenWorkspace() error = %v", err)
+	}
+
+	noteService := NewNoteService(fs)
+
+	tests := []struct {
+		name    string
+		content string
+		want    []struct {
+			content string
+			level   int
+		}
+	}{
+		{
+			name:    "flat list",
+			content: "- Item 1\n- Item 2\n- Item 3",
+			want: []struct {
+				content string
+				level   int
+			}{
+				{"Item 1", 1},
+				{"Item 2", 1},
+				{"Item 3", 1},
+			},
+		},
+		{
+			name:    "nested list",
+			content: "- Top level\n  - Nested level 1\n    - Nested level 2\n- Back to top",
+			want: []struct {
+				content string
+				level   int
+			}{
+				{"Top level", 1},
+				{"Nested level 1", 2},
+				{"Nested level 2", 3},
+				{"Back to top", 1},
+			},
+		},
+		{
+			name:    "blockquote nesting",
+			content: "> Quote level 1\n> > Quote level 2",
+			want: []struct {
+				content string
+				level   int
+			}{
+				{"Quote level 1", 1},
+				{"Quote level 2", 2},
+			},
+		},
+		{
+			name:    "mixed content with nesting",
+			content: "# Heading\n\nParagraph at root\n\n- List item 1\n  - Nested item\n- List item 2",
+			want: []struct {
+				content string
+				level   int
+			}{
+				{"Heading", 0},
+				{"Paragraph at root", 0},
+				{"List item 1", 1},
+				{"Nested item", 2},
+				{"List item 2", 1},
+			},
+		},
+		{
+			name:    "deeply nested list",
+			content: "- L1\n  - L2\n    - L3\n      - L4",
+			want: []struct {
+				content string
+				level   int
+			}{
+				{"L1", 1},
+				{"L2", 2},
+				{"L3", 3},
+				{"L4", 4},
+			},
+		},
+		{
+			name:    "list with paragraphs",
+			content: "Simple paragraph\n\n- List item\n  - Nested item\n\nAnother paragraph",
+			want: []struct {
+				content string
+				level   int
+			}{
+				{"Simple paragraph", 0},
+				{"List item", 1},
+				{"Nested item", 2},
+				{"Another paragraph", 0},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := tt.name + ".md"
+			fs.WriteFile(path, []byte(tt.content))
+
+			note, err := noteService.GetNote(path)
+			if err != nil {
+				t.Fatalf("GetNote() error = %v", err)
+			}
+
+			if len(note.Blocks) != len(tt.want) {
+				t.Errorf("Got %d blocks, want %d", len(note.Blocks), len(tt.want))
+				for i, block := range note.Blocks {
+					t.Logf("Block %d: content=%q, level=%d, type=%s", i, block.Content, block.Level, block.Type)
+				}
+				return
+			}
+
+			for i, want := range tt.want {
+				block := note.Blocks[i]
+				if !strings.Contains(block.Content, want.content) {
+					t.Errorf("Block %d: content = %q, want to contain %q", i, block.Content, want.content)
+				}
+				if block.Level != want.level {
+					t.Errorf("Block %d (%q): level = %d, want %d", i, want.content, block.Level, want.level)
+				}
+			}
+		})
+	}
+}

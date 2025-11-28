@@ -173,29 +173,29 @@ Here’s the same milestone broken down as simple task lists:
 
 ### `settings.toml` with BurntSushi & `workspace.toml` for UI state
 
-- [ ] Define v1 `settings.toml` schema (general + editor sections).
-- [ ] Implement `Settings` Go struct mirroring the schema.
-- [ ] Implement `DefaultSettings()` helper.
-- [ ] Implement `LoadSettings(path) (Settings, error)` using `toml.DecodeFile`.
-- [ ] Implement `SaveSettings(path, Settings) error` using `toml.NewEncoder`.
-- [ ] Add round-trip tests for settings
-- [ ] Define `workspace.toml` schema (active page, sidebar, pinned pages).
-- [ ] Implement `WorkspaceSnapshot` Go struct.
-- [ ] Implement `LoadWorkspaceSnapshot(path) (WorkspaceSnapshot, error)`.
-- [ ] Implement `SaveWorkspaceSnapshot(path, WorkspaceSnapshot) error`.
-- [ ] Debounce saves on the frontend and add documentation
-- [ ] Add round-trip tests for workspace snapshot.
+- [x] Define v1 `settings.toml` schema (general + editor sections).
+- [x] Implement `Settings` Go struct mirroring the schema.
+- [x] Implement `DefaultSettings()` helper.
+- [x] Implement `LoadSettings(path) (Settings, error)` using `toml.DecodeFile`.
+- [x] Implement `SaveSettings(path, Settings) error` using `toml.NewEncoder`.
+- [x] Add round-trip tests for settings
+- [x] Define `workspace.toml` schema (active page, sidebar, pinned pages).
+- [x] Implement `WorkspaceSnapshot` Go struct.
+- [x] Implement `LoadWorkspaceSnapshot(path) (WorkspaceSnapshot, error)`.
+- [x] Implement `SaveWorkspaceSnapshot(path, WorkspaceSnapshot) error`.
+- [x] Debounce saves on the frontend and add documentation
+- [x] Add round-trip tests for workspace snapshot.
 - Note that these should be stored in os.UserConfigDir
 
 For tests:
 
-- [ ] Create `testdata/settings_v1.toml` and `testdata/workspace_v1.toml`.
-- [ ] Add tests loading fixtures into Go structs and asserting values.
-- [ ] Add struct → TOML → struct round-trip tests.
+- [x] Create `testdata/settings_v1.toml` and `testdata/workspace_v1.toml`.
+- [x] Add tests loading fixtures into Go structs and asserting values.
+- [x] Add struct → TOML → struct round-trip tests.
 
 ### SQLite graph (schema + migrations)
 
-- [ ] Choose SQLite driver (`mattn/go-sqlite3` or `modernc.org/sqlite`).
+- [ ] Use `mattn/go-sqlite3`
 - [ ] Implement `OpenGraphDB(dbPath) (*sql.DB, error)` + `PRAGMA foreign_keys=ON`.
 - [ ] Write initial migration for `pages`, `blocks`, `links`, `schema_meta`.
 - [ ] Implement `Migrate(db *sql.DB) error` with simple versioning.
@@ -203,6 +203,7 @@ For tests:
 - [ ] Add indexes on `blocks.page_id` and `links.to_page_id`.
 - [ ] Add tests using a temp DB (migrations + basic CRUD + backlinks).
     - [ ] Add DB tests using `t.TempDir()` + temp SQLite file.
+- NOTE: Migrations should be checked and applied on application load
 
 #### Repository façade for Wails & Wails bindings
 

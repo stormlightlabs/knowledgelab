@@ -1,0 +1,13 @@
+[general]
+theme = "dark"
+language = "en"
+auto_save = true
+auto_save_interval = 60
+
+[editor]
+font_family = "JetBrains Mono"
+font_size = 16
+line_height = 1.8
+tab_size = 4
+vim_mode = true
+spell_check = false

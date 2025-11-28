@@ -1,0 +1,13 @@
+[ui]
+active_page = "notes/my-note.md"
+sidebar_visible = true
+sidebar_width = 320
+right_panel_visible = true
+right_panel_width = 400
+pinned_pages = ["daily/2025-01-15.md", "projects/important.md"]
+recent_pages = [
+  "notes/my-note.md",
+  "daily/2025-01-14.md",
+  "ideas/brainstorm.md",
+]
+graph_layout = "tree"

@@ -7,7 +7,7 @@ open Domain
 /// Renders the workspace picker screen when no workspace is open
 let workspacePicker (state : State) (dispatch : Msg -> unit) =
   Html.div [
-    prop.className "flex items-center justify-center h-screen bg-base00"
+    prop.className "flex items-center justify-center h-screen bg-base00 w-full"
     prop.children [
       Html.div [
         prop.className "text-center max-w-xl"

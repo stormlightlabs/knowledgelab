@@ -82,11 +82,11 @@ Why certain choices were made:
 4. Review the tech stack in `go.mod`, `wails.json`, `frontend/package.json`
 5. Synthesize into a clear, chronological narrative
 6. Write to `STATUS.md` in the root directory
-7. Update this timestamp in the file: `Status as of: YYYY-MM-DD HH:MM UTC`
+7. Update this timestamp in the file: `Status as of: YYYY-MM-DD HH:MM UTC` (ensure this is correct using the unix date util)
 
 ## Tone
 
-- Direct and technical
+- Direct, technical, and succinct
 - Honest about limitations and trade-offs
 - Optimistic about vision
 - Practical about current state

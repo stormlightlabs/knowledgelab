@@ -23,121 +23,121 @@ Local-first Markdown storage with wikilinks, backlinks, graph view, daily notes,
 #### Tags System
 
 - [ ] Tag parsing:
-    - [ ] Parse inline `#tags` from note body.
-    - [ ] Parse frontmatter `tags:` field (array or comma-separated).
-    - [ ] Support nested tags (`#parent/child`).
+  - [ ] Parse inline `#tags` from note body.
+  - [ ] Parse frontmatter `tags:` field (array or comma-separated).
+  - [ ] Support nested tags (`#parent/child`).
 - [ ] Tag index:
-    - [ ] Build tag index from parsed tags across all notes.
-    - [ ] Track tag occurrence counts.
-    - [ ] Update index incrementally on note changes.
+  - [ ] Build tag index from parsed tags across all notes.
+  - [ ] Track tag occurrence counts.
+  - [ ] Update index incrementally on note changes.
 - [ ] Tag browser UI:
-    - [ ] Tag list panel showing all tags with counts.
-    - [ ] Click tag to filter note list.
-    - [ ] Nested tag tree view for hierarchical tags.
+  - [ ] Tag list panel showing all tags with counts.
+  - [ ] Click tag to filter note list.
+  - [ ] Nested tag tree view for hierarchical tags.
 - [ ] Tag-based filtering:
-    - [ ] Filter note list by single tag.
-    - [ ] Multi-tag filtering with AND/OR logic.
-    - [ ] Tag search and autocomplete in search box.
+  - [ ] Filter note list by single tag.
+  - [ ] Multi-tag filtering with AND/OR logic.
+  - [ ] Tag search and autocomplete in search box.
 
 #### Templates
 
 - [ ] Template creation:
-    - [ ] Designate templates folder (e.g., `/templates/`).
-    - [ ] Parse template files with frontmatter.
+  - [ ] Designate templates folder (e.g., `/templates/`).
+  - [ ] Parse template files with frontmatter.
 - [ ] Template insertion:
-    - [ ] Insert template into current note via command/menu.
-    - [ ] Template picker UI (list available templates).
+  - [ ] Insert template into current note via command/menu.
+  - [ ] Template picker UI (list available templates).
 - [ ] Template variables:
-    - [ ] Support `{{date}}` and `{{time}}` placeholders.
-    - [ ] Support `{{title}}` for note title insertion.
-    - [ ] Integrate with daily note templates.
+  - [ ] Support `{{date}}` and `{{time}}` placeholders.
+  - [ ] Support `{{title}}` for note title insertion.
+  - [ ] Integrate with daily note templates.
 
 #### Core Plugin Architecture
 
 - [ ] Define internal extension points:
-    - [ ] Toolbar command registration API.
-    - [ ] Sidebar panel registration API.
-    - [ ] Note context menu action hooks.
+  - [ ] Toolbar command registration API.
+  - [ ] Sidebar panel registration API.
+  - [ ] Note context menu action hooks.
 - [ ] Implement plugin registry:
-    - [ ] Register built-in features (daily notes, backlinks, graph, search) as internal plugins.
-    - [ ] Enable/disable individual plugins via settings.
-    - [ ] Plugin lifecycle hooks (init, load, unload).
+  - [ ] Register built-in features (daily notes, backlinks, graph, search) as internal plugins.
+  - [ ] Enable/disable individual plugins via settings.
+  - [ ] Plugin lifecycle hooks (init, load, unload).
 - [ ] Document plugin constraints:
-    - [ ] Write internal extension API documentation.
-    - [ ] Define plugin security and sandbox model.
-    - [ ] Plan future public plugin API roadmap.
+  - [ ] Write internal extension API documentation.
+  - [ ] Define plugin security and sandbox model.
+  - [ ] Plan future public plugin API roadmap.
 
 ### Logseq-Compatible Features
 
 #### Block-Based Outliner (Light)
 
 - [ ] Block ID support:
-    - [ ] Parse Logseq-style block IDs (`^block-id` at end of line).
-    - [ ] Generate unique block IDs on demand.
-    - [ ] Preserve block IDs round-trip on note edit.
+  - [ ] Parse Logseq-style block IDs (`^block-id` at end of line).
+  - [ ] Generate unique block IDs on demand.
+  - [ ] Preserve block IDs round-trip on note edit.
 - [ ] Block operations:
-    - [ ] Block indentation with Tab key.
-    - [ ] Block outdentation with Shift+Tab.
-    - [ ] Block-level navigation with Up/Down arrow keys.
-    - [ ] Block focus/zoom (collapse siblings, show only focused branch).
+  - [ ] Block indentation with Tab key.
+  - [ ] Block outdentation with Shift+Tab.
+  - [ ] Block-level navigation with Up/Down arrow keys.
+  - [ ] Block focus/zoom (collapse siblings, show only focused branch).
 
 #### Task Management (Basic)
 
 - [ ] Task parsing:
-    - [ ] Parse `- [ ]` unchecked task syntax.
-    - [ ] Parse `- [x]` completed task syntax.
-    - [ ] Distinguish tasks from regular list items.
+  - [ ] Parse `- [ ]` unchecked task syntax.
+  - [ ] Parse `- [x]` completed task syntax.
+  - [ ] Distinguish tasks from regular list items.
 - [ ] Task state tracking:
-    - [ ] Toggle task completion in editor (click checkbox or keyboard shortcut).
-    - [ ] Track task metadata (created date, completed date).
+  - [ ] Toggle task completion in editor (click checkbox or keyboard shortcut).
+  - [ ] Track task metadata (created date, completed date).
 - [ ] Task views:
-    - [ ] Task aggregation panel showing all open tasks across notes.
-    - [ ] Filter tasks by completion status.
-    - [ ] Filter tasks by note or date range.
+  - [ ] Task aggregation panel showing all open tasks across notes.
+  - [ ] Filter tasks by completion status.
+  - [ ] Filter tasks by note or date range.
 
 ### Markdown Dialect & Syntax
 
 #### Frontmatter (YAML)
 
 - [ ] Parse YAML frontmatter:
-    - [ ] Extract `---` delimited frontmatter block.
-    - [ ] Parse YAML to structured key-value data.
-    - [ ] Handle YAML parse errors gracefully with user feedback.
+  - [ ] Extract `---` delimited frontmatter block.
+  - [ ] Parse YAML to structured key-value data.
+  - [ ] Handle YAML parse errors gracefully with user feedback.
 - [ ] Preserve frontmatter on edit:
-    - [ ] Round-trip frontmatter without unintended changes.
-    - [ ] Update specific frontmatter fields programmatically.
+  - [ ] Round-trip frontmatter without unintended changes.
+  - [ ] Update specific frontmatter fields programmatically.
 - [ ] Support standard fields:
-    - [ ] `aliases` (array of alternative note titles).
-    - [ ] `tags` (array of tags, supplementing inline tags).
-    - [ ] `type` (note type or template identifier).
-    - [ ] `created` and `modified` timestamps.
+  - [ ] `aliases` (array of alternative note titles).
+  - [ ] `tags` (array of tags, supplementing inline tags).
+  - [ ] `type` (note type or template identifier).
+  - [ ] `created` and `modified` timestamps.
 
 #### Editor Enhancements
 
 - [ ] Keyboard shortcuts for formatting:
-    - [ ] Bold text (`Ctrl/Cmd+B`).
-    - [ ] Italic text (`Ctrl/Cmd+I`).
-    - [ ] Inline code (`Ctrl/Cmd+E`).
-    - [ ] Insert/edit link (`Ctrl/Cmd+K`).
-    - [ ] Set heading level (`Ctrl/Cmd+1` through `Ctrl/Cmd+6`).
+  - [ ] Bold text (`Ctrl/Cmd+B`).
+  - [ ] Italic text (`Ctrl/Cmd+I`).
+  - [ ] Inline code (`Ctrl/Cmd+E`).
+  - [ ] Insert/edit link (`Ctrl/Cmd+K`).
+  - [ ] Set heading level (`Ctrl/Cmd+1` through `Ctrl/Cmd+6`).
 
 #### Dialect Specification & Documentation
 
 - [ ] Document Markdown flavor:
-    - [ ] Specify CommonMark base with Obsidian/Logseq extensions.
-    - [ ] List supported syntax (wikilinks, tags, tasks, frontmatter, block IDs).
+  - [ ] Specify CommonMark base with Obsidian/Logseq extensions.
+  - [ ] List supported syntax (wikilinks, tags, tasks, frontmatter, block IDs).
 - [ ] Document wikilink resolution rules:
-    - [ ] Title-based resolution vs. path-based.
-    - [ ] Alias handling via frontmatter `aliases` field.
+  - [ ] Title-based resolution vs. path-based.
+  - [ ] Alias handling via frontmatter `aliases` field.
 - [ ] Define daily note conventions:
-    - [ ] Canonical location (e.g., `/daily/` or `/journal/`).
-    - [ ] Naming convention (e.g., `YYYY-MM-DD.md`).
+  - [ ] Canonical location (e.g., `/daily/` or `/journal/`).
+  - [ ] Naming convention (e.g., `YYYY-MM-DD.md`).
 - [ ] Define block ID format:
-    - [ ] Syntax: `^[a-z0-9-]+` at end of line.
-    - [ ] Serialization and uniqueness constraints.
+  - [ ] Syntax: `^[a-z0-9-]+` at end of line.
+  - [ ] Serialization and uniqueness constraints.
 - [ ] Write import guides:
-    - [ ] Obsidian import guide (1:1 features, degraded features, manual steps).
-    - [ ] Logseq import guide (Markdown support, Org-mode limitations, block ID handling).
+  - [ ] Obsidian import guide (1:1 features, degraded features, manual steps).
+  - [ ] Logseq import guide (Markdown support, Org-mode limitations, block ID handling).
 
 ### Advanced Features (Deferred to Post-v1)
 
@@ -159,7 +159,6 @@ The following features are deferred to future releases after v1 launch:
 - [ ] Add editor state (preview mode, cursor position, selection)
 - [ ] Add UI state (panel sizes, active modals/dialogs)
 - [ ] Add keyboard shortcut handlers in new module (`Keybinds.fs`)
-- [ ] Implement command palette state
 
 ### Core Functionality (View.fs)
 
@@ -168,13 +167,12 @@ Search & Discovery:
 - [ ] Search UI with fuzzy matching
 - [ ] Search input in sidebar with live results
 - [ ] Keyboard shortcuts for common actions (Cmd/Ctrl+N, Cmd/Ctrl+K, etc.)
-- [ ] Command palette for quick actions
 
 Editor:
 
 - [ ] Markdown preview mode or split view
 - [ ] Editor toolbar with preview toggle, formatting buttons, word/char count and what's in editor [enhancements](#editor-enhancements)
-    - Interop with shiki
+  - Interop with shiki
 - [ ] Syntax highlighting for code blocks
 - [ ] Wikilink autocomplete dropdown
 
@@ -187,7 +185,6 @@ Notes List:
 
 - [ ] Sorting options (title, date modified, date created)
 - [ ] Empty state when no notes exist
-- [ ] Virtualization for large note lists (>100 notes)
 - [ ] Note metadata display (created/modified dates in list items)
 
 ### UI Polish
@@ -217,6 +214,12 @@ Layout & Navigation:
 - [ ] Benchmarks for graph build on large workspaces.
 - [ ] Add `go test ./...` CI job.
 - [ ] Test serialization/deserialization of models used in Wails calls.
+- [ ] Virtualization for large note lists (>100 notes)
+
+### Command Palette
+
+- [ ] Command palette for quick actions
+- [ ] Implement command palette state
 
 ## Configuration
 

@@ -9,11 +9,11 @@ Prior to starting work, review existing `STATUS.md` files in the root of the pro
 ## System Overview
 
 - **Domain**
-    - Personal Knowledge Management (PKM)/Zettlekasten local Markdown + graph views similar to Obsidian core/community plugins and Logseq’s graph/database approach.
+  - Personal Knowledge Management (PKM)/Zettlekasten local Markdown + graph views similar to Obsidian core/community plugins and Logseq’s graph/database approach.
 - **Frontend**:
-    - F# compiled to JS via **Fable**, using **Elmish** MVU (Model–View–Update) with React components.
+  - F# compiled to JS via **Fable**, using **Elmish** MVU (Model–View–Update) with React components.
 - **Desktop Shell / Backend**:
-    - **Wails** Go app hosting the frontend UI and providing native capabilities (file access, windowing, system APIs) via Go bindings.
+  - **Wails** Go app hosting the frontend UI and providing native capabilities (file access, windowing, system APIs) via Go bindings.
 
 High-level responsibilities:
 
@@ -66,18 +66,18 @@ Design constraints:
 - **No cloud by default**: all features must work offline and store data locally.
 - Never silently change or migrate user data without an explicit, versioned migration step.
 - Any "plugin-like" feature must be:
-    - Local-first.
-    - Reversible (easy to disable or uninstall).
+  - Local-first.
+  - Reversible (easy to disable or uninstall).
 
 ## Frontend (F# Fable + Elmish + React)
 
 Key patterns:
 
 - Single source of truth via MVU (TEA):
-    - `Model` = app state
-    - `Msg` = events
-    - `update` = pure state transition
-    - `view` = React/JSX or Fable.React components
+  - `Model` = app state
+  - `Msg` = events
+  - `update` = pure state transition
+  - `view` = React/JSX or Fable.React components
 
 Contribution rules:
 
@@ -120,6 +120,5 @@ cd frontend
 pnpm test
 ```
 
-Tests use Fable.Jester (Jest bindings for F#) and cover: MVU update logic, State transitions, Routing behavior
-
+Tests use Fable.Jester (Jest bindings for F#) and cover: MVU update logic, State transitions, Routing behavior.
 The Wails API is mocked for testing, so tests run without the Go backend.

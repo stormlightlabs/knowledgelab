@@ -9,7 +9,7 @@ type Route =
   | WorkspacePicker
   | NoteList
   | NoteEditor of noteId : string
-  | GraphView
+  | GraphViewRoute
   | Settings
 
 /// Panel represents optional side panels that can be shown
@@ -132,7 +132,9 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     { state with Loading = true },
     Cmd.OfPromise.either Api.saveNote note (fun _ -> NoteSaved(Ok())) (fun ex ->
       NoteSaved(Error ex.Message))
-  | NoteSaved(Ok()) -> { state with Loading = false; Error = None }, Cmd.ofMsg LoadNotes
+  | NoteSaved(Ok()) ->
+    { state with Loading = false; Error = None },
+    Cmd.batch [ Cmd.ofMsg LoadNotes; Cmd.ofMsg LoadGraph ]
   | NoteSaved(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | CreateNote(title, folder) ->
     { state with Loading = true },

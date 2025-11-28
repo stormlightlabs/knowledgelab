@@ -18,10 +18,10 @@
 }
 
 @theme {
-  --default-font-family: 'Satoshi Variable', sans-serif;
-  --font-display: 'Satoshi Variable', sans-serif;
+  --default-font-family: "Satoshi Variable", sans-serif;
+  --font-display: "Satoshi Variable", sans-serif;
   --font-mono: "JetBrains Mono Variable", monospace;
-  --font-sans: 'Public Sans Variable', sans-serif;
+  --font-sans: "Public Sans Variable", sans-serif;
 
   --color-bg: #161821;
   --color-fg: #c6c8d1;
@@ -67,7 +67,8 @@ body {
   @apply font-sans bg-base00 text-base05;
 }
 
-pre, code {
+pre,
+code {
   @apply font-mono;
 }
 
@@ -169,4 +170,62 @@ pre, code {
 
 .editor-placeholder {
   @apply absolute top-4.5 left-4.5 opacity-50 text-base03;
+}
+
+/* Graph View Styles */
+.graph-node {
+  @apply default-transition cursor-pointer;
+}
+
+.graph-node:hover {
+  @apply stroke-blue-bright;
+  stroke-width: 2.5;
+}
+
+.graph-node.selected {
+  @apply fill-blue-bright stroke-yellow;
+  stroke-width: 2.5;
+}
+
+.graph-node.dimmed {
+  fill-opacity: 0.2;
+  stroke-opacity: 0.2;
+}
+
+.graph-link {
+  @apply default-transition;
+}
+
+.graph-link.dimmed {
+  stroke-opacity: 0.1;
+}
+
+.graph-link.highlighted {
+  @apply stroke-blue-bright;
+  stroke-width: 2.5;
+  stroke-opacity: 1;
+}
+
+.graph-label {
+  @apply default-transition;
+  pointer-events: none;
+}
+
+.graph-label.dimmed {
+  opacity: 0.2;
+}
+
+.graph-label.highlighted {
+  @apply fill-blue-bright font-bold;
+  font-size: 12px;
+}
+
+.graph-tooltip {
+  @apply absolute bg-base01 border border-base02 rounded px-3 py-2 text-sm text-base05 pointer-events-none;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+}
+
+.graph-container {
+  @apply relative flex-1;
 }

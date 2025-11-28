@@ -224,7 +224,7 @@ let mainContent (state : State) (dispatch : Msg -> unit) =
         prop.className "flex-1 flex items-center justify-center bg-base00 text-base05"
         prop.text "Loading..."
       ]
-  | GraphView -> GraphView.render state dispatch
+  | GraphViewRoute -> GraphView.render state dispatch
   | Settings -> settingsPanel state dispatch
 
 /// Renders error notification if present
@@ -259,7 +259,7 @@ let navigationBar (state : State) (dispatch : Msg -> unit) =
         prop.className
           "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 transition-all"
         prop.text "Graph"
-        prop.onClick (fun _ -> dispatch (NavigateTo GraphView))
+        prop.onClick (fun _ -> dispatch (NavigateTo GraphViewRoute))
       ]
       Html.button [
         prop.className

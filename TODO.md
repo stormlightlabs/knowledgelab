@@ -94,15 +94,15 @@ graph view similar to Obsidian and Logseq.
     - [x] Implement an `SvgGraph.view` that:
         - [x] Renders links as `<line>` elements from `source.x, source.y` to `target.x, target.y`.
         - [x] Renders nodes as `<circle>` (or similar) with `cx, cy` from simulation positions.
-        - [ ] Uses CSS classes to style nodes/edges based on state (selected, hovered, dimmed).
+        - [x] Uses CSS classes to style nodes/edges based on state (selected, hovered, dimmed).
     - [x] Implement hover & click:
-        - [ ] Hover: show note title in a tooltip/overlay; highlight node and its neighbors.
+        - [x] Hover: show note title in a tooltip/overlay; highlight node and its neighbors.
         - [x] Click: dispatch a message to open the note in the editor and center it in the graph.
-- [ ] Pan / zoom:
-    - [ ] Wrap the SVG in a `<g>` with a transform and use a D3 zoom behavior to:
-        - [ ] Support mouse wheel zoom.
-        - [ ] Support click-and-drag panning.
-    - [ ] Keep zoom state (scale, translation) in the Elmish model or in a small JS module with messages to sync if needed.
+- [x] Pan / zoom:
+    - [x] Wrap the SVG in a `<g>` with a transform and use a D3 zoom behavior to:
+        - [x] Support mouse wheel zoom.
+        - [x] Support click-and-drag panning.
+    - [x] Keep zoom state (scale, translation) in the Elmish model or in a small JS module with messages to sync if needed.
 - [x] Wiring (Elmish):
     - [x] `Model`:
         - [x] Add `GraphData` and `GraphState` (e.g. selected node id, hovered node id, zoom state, engine = Svg|Canvas).
@@ -116,12 +116,12 @@ graph view similar to Obsidian and Logseq.
         - [x] Handle graph-related messages:
             - [x] Update selection/hover state.
             - [x] Trigger note opening when a node is clicked.
-            - [ ] Refresh graph when backend graph data changes (e.g. on note save).
+            - [x] Refresh graph when backend graph data changes (e.g. on note save).
     - [x] `view`:
         - [x] Route to `SvgGraph.view` (and later `CanvasGraph.view`) based on `model.GraphEngine`.
-- [ ] Canvas renderer:
-    - [ ] Add a `CanvasGraph.view` that reuses the same D3-force simulation but draws nodes/links on `<canvas>`.
-    - [ ] Expose a user setting to switch between SVG and Canvas for large graphs.
+- [x] Canvas renderer:
+    - [x] Add a `CanvasGraph.view` that reuses the same D3-force simulation but draws nodes/links on `<canvas>`.
+    - [x] Expose a user setting to switch between SVG and Canvas for large graphs.
 
 ### Frontend Testing
 
@@ -129,17 +129,88 @@ graph view similar to Obsidian and Logseq.
     - [x] `update` logic (pure Elmish tests).
     - [x] Routing behavior.
     - [x] Backlinks and daily notes features.
-    - [x] Graph view functionality (load, hover, zoom, engine switching).
+    - [x] Graph view functionality (load, hover, zoom, engine switching, neighbor highlighting).
     - [ ] Serialization/deserialization of models used in Wails calls.
 
 ## PKM & Data Model Parity
 
-- [ ] Analyze core Obsidian features: local Markdown, links, plugins, graph, daily notes.
-    - [ ] Map each to "must-have" vs "later".
-- [ ] Analyze core Logseq features: local outliner, daily journals, backlinks, graph.
-    - [ ] Decide how much outliner behavior to support in v1.
-- [ ] Define canonical Markdown / outline dialect for this app:
-    - [ ] Wikilinks, tags, fenced code, tasks (`[ ]` / `[x]`), headings, blocks.
+### Obsidian Feature Parity
+
+Obsidian is a local-first knowledge base built on a folder of Markdown files, with links as first-class citizens and a highly extensible core+plugin model.
+
+| Feature           | Obsidian Behavior / Reference                                                                      | Priority      | Implementation Notes                                                                             |
+| ----------------- | -------------------------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------ |
+| Local Markdown    | Vault = local folder of plain-text `.md` files; editor is "just" a Markdown editor on top of that. | **Must-have** | Directly mirror: vault = directory on disk; no DB required for v1.                               |
+| Links / Wikilinks | Links and backlinks are core; graph + backlinks pane treat links as first-class.                   | **Must-have** | Support `[[Note Title]]` and standard Markdown links; index links for backlinks + graph.         |
+| Backlinks Pane    | Core plugin shows "links from other notes to current one".                                         | **Must-have** | Backlinks panel in UI; powered by graph index.                                                   |
+| Graph View        | Built-in graph view shows network of linked notes.                                                 | **Must-have** | D3-based SVG graph (nodes = notes, edges = links) with pan/zoom and click-through.               |
+| Daily Notes       | Core plugin opens/creates note for today’s date for journals/to-dos.                               | **Must-have** | "Today" note pattern; configurable date template; stored under `/daily/` or similar.             |
+| Tags              | Tag pane shows tags & counts across the vault.                                                     | **Must-have** | `#tag` and frontmatter tags; tag index + simple tag browser.                                     |
+| Core Plugins      | Features like search, outline, backlinks, daily notes, graph, templates are "core plugins".        | **Must-have** | Implement as built-ins but architect as "internal extensions" to prepare for a plugin API later. |
+| Community Plugins | Large ecosystem for extra workflows (AI, Zotero, etc.).                                            | **Later**     | Provide internal extension points in v1; public plugin API + marketplace is a post-MVP goal.     |
+| Sync / Publish    | Obsidian Sync & Publish are paid, cloud-enabled features.                                          | **Later**     | Keep design local-first; future optional sync/export story must be explicit & opt-in.            |
+
+### Logseq Feature Parity
+
+Logseq is a local-first, block-based outliner that stores notes as a graph of Markdown/Org-mode files, with daily journals, backlinks, and graph view.
+
+#### Logseq Core Features vs This App
+
+| Feature                | Logseq Behavior / Reference                                                      | Priority              | Implementation Notes                                                                                    |
+| ---------------------- | -------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------- |
+| Local-first storage    | All data stored locally in Markdown/Org-mode files; no cloud required.           | **Must-have**         | Same as Obsidian parity: local files only; DB is an optimization, not a requirement, for v1.            |
+| Block-based outliner   | Every line is a "block" in a bulleted outliner; pages are collections of blocks. | **Must-have (light)** | Support block IDs and basic nested blocks in Markdown; full Logseq-style block operations can be later. |
+| Daily Journals         | Daily journal page is the primary entry point for notes.                         | **Must-have**         | Mirror Obsidian daily notes but allow block-centric journaling; treat journals as first-class.          |
+| Backlinks              | Bi-directional links & backlink view across blocks/pages.                        | **Must-have**         | Backlinks index should work for both page and block targets where IDs exist.                            |
+| Graph View             | Interactive graph of pages/blocks and their links.                               | **Must-have**         | Same graph engine as Obsidian parity; later allow block-level nodes when block granularity matures.     |
+| Tasks / TODOs          | Treats tasks as first-class (`TODO`, `DOING`, `DONE`, etc.).                     | **Must-have (basic)** | Support `[ ]` / `[x]` tasks with simple filters; advanced task states and agenda views can be later.    |
+| Queries (Datalog-like) | Advanced DB/graph queries over blocks, tags, properties.                         | **Later**             | Defer Datalog/DB-style queries; start with simple search + tag filtering in v1.                         |
+| Whiteboards            | Visual whiteboard space for arranging blocks/notes.                              | **Later**             | Align with plugin/extensibility phase; not necessary for core parity at launch.                         |
+| Plugins & Themes       | Plugin and theme ecosystem (PDF, Zotero, etc)                                    | **Later**             | Expose theming hooks early; full plugin API when internal extension points are stable.                  |
+
+#### Outliner Behavior Target for v1
+
+| Aspect              | Logseq Style                                   | v1 Target for This App                                                                           |
+| ------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Structure           | Everything is a bullet "block", deeply nested. | Mixed model: standard Markdown documents with support for nested lists + optional block IDs.     |
+| Primary entry point | Daily journal page as main landing surface.    | Daily note/journal view that can act as the default home screen.                                 |
+| Block references    | Re-use and reference blocks across pages.      | Defer true block references; v1 only needs stable note-level links + block anchors for headings. |
+| Queries over blocks | Query language for tasks/blocks/tags.          | Out of scope for v1; design data model so queries can be bolted on later.                        |
+
+### Canonical Markdown / Outline Dialect
+
+The app should define a clear, Obsidian- and Logseq-compatible Markdown dialect (with room for Org-style constructs later).
+Obsidian uses standard Markdown plus wikilinks and frontmatter.
+Logseq supports Markdown and Org-mode ("Orgdown") for outlining and tasks.
+
+#### Syntax Surface (v1 vs Later)
+
+| Syntax / Feature        | Example                           | Semantics in This App                                              | Priority                   |
+| ----------------------- | --------------------------------- | ------------------------------------------------------------------ | -------------------------- |
+| Headings                | `# Title`, `## Section`           | Standard Markdown headings; define document structure and anchors. | **Must-have**              |
+| Paragraphs              | Blank-line-separated text         | Base unit of freeform writing.                                     | **Must-have**              |
+| Wikilinks               | `[[Note Title]]`                  | Internal links resolved to notes by title / alias.                 | **Must-have**              |
+| Standard links          | `[label](url)`                    | External links or explicit relative links within vault.            | **Must-have**              |
+| Tags                    | `#tag`, frontmatter `tags:`       | Used for tag index, search filters, and simple saved views.        | **Must-have**              |
+| Tasks (checkbox syntax) | `- [ ] todo`, `- [x] done`        | Basic TODOs with completed state; logseq-style states later.       | **Must-have** (basic)      |
+| Lists / Outlines        | `- item`, `- nested`              | Nested bullets; foundation for light outliner behaviors.           | **Must-have**              |
+| Code fences             | ` `lang                           | Syntax-highlighted code; preserved round-trip.                     | **Must-have**              |
+| Inline code             | `` `code` ``                      | Literal inline snippets.                                           | **Must-have**              |
+| Frontmatter (YAML)      | `---` … `---`                     | Per-note metadata (aliases, tags, type, etc.).                     | **Must-have**              |
+| Block IDs               | `- item ^block-id` (Logseq style) | Stable block identifiers for future block refs and queries.        | **Later, but model-ready** |
+| Properties / attributes | `key:: value`                     | Structured per-block metadata; basis for queries.                  | **Later**                  |
+| Org-mode compatibility  | `* Heading`, `TODO`, `SCHEDULED`  | Optional Org-like parsing layer for Org users.                     | **Later**                  |
+
+#### Dialect Decisions Checklist
+
+| Task                                                                              | Status |
+| --------------------------------------------------------------------------------- | ------ |
+| Specify Markdown flavor (CommonMark + Obsidian/Logseq extensions) in docs.        | [ ]    |
+| Document supported wikilink resolution rules (title vs path, aliases).            | [ ]    |
+| Define canonical locations for daily notes/journals and naming convention.        | [ ]    |
+| Decide on block ID format and how it’s serialized (even if not fully used in v1). | [ ]    |
+| Write import notes for Obsidian vaults (what’s 1:1, what’s degraded).             | [ ]    |
+| Write import notes for Logseq graphs (Markdown only at first; Org later).         | [ ]    |
 
 ## Plugin & Extensibility
 

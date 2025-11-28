@@ -20,6 +20,44 @@ type Panel =
   | TagsPanel
   | SearchPanel
 
+/// Search filters for advanced search functionality
+type SearchFilters = {
+  Tags : string list
+  PathPrefix : string
+  DateFrom : DateTime option
+  DateTo : DateTime option
+}
+
+/// Editor preview mode
+type PreviewMode =
+  | EditOnly
+  | PreviewOnly
+  | SplitView
+
+/// Editor state including preview mode, cursor position, and selection
+type EditorState = {
+  PreviewMode : PreviewMode
+  CursorPosition : int option
+  SelectionStart : int option
+  SelectionEnd : int option
+  IsDirty : bool
+}
+
+/// Modal dialog types that can be shown
+type ModalDialog =
+  | CreateNoteDialog
+  | DeleteConfirmDialog of noteId : string
+  | SettingsDialog
+  | SearchDialog
+  | NoModal
+
+/// UI state for panel sizes and modals
+type UIState = {
+  SidebarWidth : int
+  RightPanelWidth : int
+  ActiveModal : ModalDialog
+}
+
 /// App state holds all application data and UI state
 type State = {
   Workspace : WorkspaceInfo option
@@ -28,6 +66,7 @@ type State = {
   CurrentRoute : Route
   VisiblePanels : Set<Panel>
   SearchQuery : string
+  SearchFilters : SearchFilters
   SearchResults : SearchResult list
   Graph : Graph option
   SelectedNode : string option
@@ -40,6 +79,8 @@ type State = {
   WorkspaceSnapshot : WorkspaceSnapshot option
   SettingsSaveTimer : int option
   SnapshotSaveTimer : int option
+  EditorState : EditorState
+  UIState : UIState
   Loading : bool
   Error : string option
 } with
@@ -51,6 +92,12 @@ type State = {
     CurrentRoute = WorkspacePicker
     VisiblePanels = Set.ofList [ Backlinks ]
     SearchQuery = ""
+    SearchFilters = {
+      Tags = []
+      PathPrefix = ""
+      DateFrom = None
+      DateTo = None
+    }
     SearchResults = []
     Graph = None
     SelectedNode = None
@@ -63,6 +110,18 @@ type State = {
     WorkspaceSnapshot = None
     SettingsSaveTimer = None
     SnapshotSaveTimer = None
+    EditorState = {
+      PreviewMode = EditOnly
+      CursorPosition = None
+      SelectionStart = None
+      SelectionEnd = None
+      IsDirty = false
+    }
+    UIState = {
+      SidebarWidth = 280
+      RightPanelWidth = 300
+      ActiveModal = NoModal
+    }
     Loading = false
     Error = None
   }
@@ -107,6 +166,15 @@ type Msg =
   | WorkspaceSnapshotChanged of WorkspaceSnapshot
   | DebouncedSnapshotSave
   | WorkspaceSnapshotSaved of Result<unit, string>
+  | UpdateSearchFilters of SearchFilters
+  | SetPreviewMode of PreviewMode
+  | UpdateCursorPosition of int option
+  | UpdateSelection of start : int option * end_ : int option
+  | MarkEditorDirty of bool
+  | SetSidebarWidth of int
+  | SetRightPanelWidth of int
+  | ShowModal of ModalDialog
+  | CloseModal
   | SetError of string
   | ClearError
 
@@ -134,6 +202,32 @@ let private cancelTimer (timerId : int option) : unit =
   match timerId with
   | Some id -> clearTimeout id
   | None -> ()
+
+/// Maximum number of recent files to track
+[<Literal>]
+let private MaxRecentFiles = 20
+
+/// Adds a note ID to the recent pages list, maintaining max size and moving duplicates to front
+let private addToRecentPages (noteId : string) (recentPages : string list) : string list =
+  let filtered = recentPages |> List.filter ((<>) noteId)
+  let newList = noteId :: filtered
+  newList |> List.truncate MaxRecentFiles
+
+/// Updates the workspace snapshot with a new recent page and triggers save
+let private updateRecentPage (noteId : string) (state : State) : State * Cmd<Msg> =
+  match state.WorkspaceSnapshot with
+  | Some snapshot ->
+    let updatedUI = {
+      snapshot.UI with
+          RecentPages = addToRecentPages noteId snapshot.UI.RecentPages
+          ActivePage = noteId
+    }
+
+    let updatedSnapshot = { snapshot with UI = updatedUI }
+
+    { state with WorkspaceSnapshot = Some updatedSnapshot },
+    Cmd.ofMsg (WorkspaceSnapshotChanged updatedSnapshot)
+  | None -> state, Cmd.none
 
 let Init () =
   State.Default, Cmd.ofMsg HydrateFromDisk
@@ -176,14 +270,17 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     Cmd.OfPromise.either Api.getNote noteId (Ok >> NoteLoaded) (fun ex ->
       NoteLoaded(Error ex.Message))
   | NoteLoaded(Ok note) ->
-    {
+    let stateWithNote = {
       state with
           CurrentNote = Some note
           CurrentRoute = NoteEditor note.Id
           Loading = false
           Error = None
-    },
-    Cmd.ofMsg (LoadBacklinks note.Id)
+          EditorState = { state.EditorState with IsDirty = false }
+    }
+
+    let stateWithRecent, recentCmd = updateRecentPage note.Id stateWithNote
+    stateWithRecent, Cmd.batch [ Cmd.ofMsg (LoadBacklinks note.Id); recentCmd ]
   | NoteLoaded(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | SaveNote note ->
     { state with Loading = true },
@@ -198,14 +295,17 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     Cmd.OfPromise.either (Api.createNote title) folder (Ok >> NoteCreated) (fun ex ->
       NoteCreated(Error ex.Message))
   | NoteCreated(Ok note) ->
-    {
+    let stateWithNote = {
       state with
           CurrentNote = Some note
           CurrentRoute = NoteEditor note.Id
           Loading = false
           Error = None
-    },
-    Cmd.ofMsg LoadNotes
+          EditorState = { state.EditorState with IsDirty = false }
+    }
+
+    let stateWithRecent, recentCmd = updateRecentPage note.Id stateWithNote
+    stateWithRecent, Cmd.batch [ Cmd.ofMsg LoadNotes; recentCmd ]
   | NoteCreated(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | DeleteNote noteId ->
     { state with Loading = true },
@@ -234,10 +334,10 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   | PerformSearch ->
     let query = {
       Query = state.SearchQuery
-      Tags = []
-      PathPrefix = ""
-      DateFrom = None
-      DateTo = None
+      Tags = state.SearchFilters.Tags
+      PathPrefix = state.SearchFilters.PathPrefix
+      DateFrom = state.SearchFilters.DateFrom
+      DateTo = state.SearchFilters.DateTo
       Limit = 50
     }
 
@@ -301,7 +401,12 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     | Some note ->
       let updatedNote = { note with Content = content }
 
-      { state with CurrentNote = Some updatedNote }, Cmd.ofMsg (SaveNote updatedNote)
+      {
+        state with
+            CurrentNote = Some updatedNote
+            EditorState = { state.EditorState with IsDirty = true }
+      },
+      Cmd.ofMsg (SaveNote updatedNote)
     | None -> state, Cmd.none
   | GraphNodeHovered nodeId -> { state with HoveredNode = nodeId }, Cmd.none
   | GraphZoomChanged zoomState -> { state with ZoomState = zoomState }, Cmd.none
@@ -351,5 +456,58 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     | None -> state, Cmd.none
   | WorkspaceSnapshotSaved(Ok()) -> { state with Error = None }, Cmd.none
   | WorkspaceSnapshotSaved(Error err) -> { state with Error = Some err }, Cmd.none
+  | UpdateSearchFilters filters -> { state with SearchFilters = filters }, Cmd.none
+  | SetPreviewMode mode ->
+    {
+      state with
+          EditorState = { state.EditorState with PreviewMode = mode }
+    },
+    Cmd.none
+  | UpdateCursorPosition pos ->
+    {
+      state with
+          EditorState = { state.EditorState with CursorPosition = pos }
+    },
+    Cmd.none
+  | UpdateSelection(start, end_) ->
+    {
+      state with
+          EditorState = {
+            state.EditorState with
+                SelectionStart = start
+                SelectionEnd = end_
+          }
+    },
+    Cmd.none
+  | MarkEditorDirty isDirty ->
+    {
+      state with
+          EditorState = { state.EditorState with IsDirty = isDirty }
+    },
+    Cmd.none
+  | SetSidebarWidth width ->
+    {
+      state with
+          UIState = { state.UIState with SidebarWidth = width }
+    },
+    Cmd.none
+  | SetRightPanelWidth width ->
+    {
+      state with
+          UIState = { state.UIState with RightPanelWidth = width }
+    },
+    Cmd.none
+  | ShowModal modal ->
+    {
+      state with
+          UIState = { state.UIState with ActiveModal = modal }
+    },
+    Cmd.none
+  | CloseModal ->
+    {
+      state with
+          UIState = { state.UIState with ActiveModal = NoModal }
+    },
+    Cmd.none
   | SetError err -> { state with Error = Some err }, Cmd.none
   | ClearError -> { state with Error = None }, Cmd.none

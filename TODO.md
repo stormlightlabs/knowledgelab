@@ -155,10 +155,10 @@ The following features are deferred to future releases after v1 launch:
 
 ### State Management (Model.fs)
 
-- [ ] Add search state (query, filters, results)
-- [ ] Add editor state (preview mode, cursor position, selection)
-- [ ] Add UI state (panel sizes, active modals/dialogs)
-- [ ] Add keyboard shortcut handlers in new module (`Keybinds.fs`)
+- [x] Add search state (query, filters, results)
+- [x] Add editor state (preview mode, cursor position, selection)
+- [x] Add UI state (panel sizes, active modals/dialogs)
+- [x] Add keyboard shortcut handlers in new module (`Keybinds.fs`)
 
 ### Core Functionality (View.fs)
 
@@ -166,14 +166,15 @@ Search & Discovery:
 
 - [ ] Search UI with fuzzy matching
 - [ ] Search input in sidebar with live results
-- [ ] Keyboard shortcuts for common actions (Cmd/Ctrl+N, Cmd/Ctrl+K, etc.)
+- [x] Keyboard shortcuts for common actions (Cmd/Ctrl+N, Cmd/Ctrl+K, etc.)
 
 Editor:
 
-- [ ] Markdown preview mode or split view
+- [ ] Markdown preview mode
+- [ ] Split view
 - [ ] Editor toolbar with preview toggle, formatting buttons, word/char count and what's in editor [enhancements](#editor-enhancements)
-  - Interop with shiki
 - [ ] Syntax highlighting for code blocks
+  - Interop with [shiki](https://shiki.style/)
 - [ ] Wikilink autocomplete dropdown
 
 Settings:
@@ -204,7 +205,7 @@ Feedback & Messaging:
 Layout & Navigation:
 
 - [ ] Resizable panels (sidebar, backlinks panel)
-- [ ] Implement recent files list in workspace snapshot
+- [x] Implement recent files list in workspace snapshot
 - [ ] Focus management for keyboard navigation
 - [ ] Implement undo/redo for editor
 

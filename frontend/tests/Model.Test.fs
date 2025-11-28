@@ -514,6 +514,203 @@ Jest.describe (
         let newState, _ = Update (WorkspaceSnapshotChanged testSnapshot) initialState
         Jest.expect(newState.WorkspaceSnapshot).toEqual (Some testSnapshot)
     )
+
+    Jest.test (
+      "UpdateSearchFilters updates search filters",
+      fun () ->
+        let initialState = State.Default
+
+        let filters = {
+          Tags = [ "tag1"; "tag2" ]
+          PathPrefix = "notes/"
+          DateFrom = Some(System.DateTime(2025, 1, 1))
+          DateTo = Some(System.DateTime(2025, 12, 31))
+        }
+
+        let newState, _ = Update (UpdateSearchFilters filters) initialState
+        Jest.expect(newState.SearchFilters.Tags.Length).toEqual 2
+        Jest.expect(newState.SearchFilters.PathPrefix).toEqual "notes/"
+        Jest.expect(newState.SearchFilters.DateFrom.IsSome).toEqual true
+    )
+
+    Jest.test (
+      "SetPreviewMode updates editor preview mode",
+      fun () ->
+        let initialState = State.Default
+        let newState, _ = Update (SetPreviewMode SplitView) initialState
+        Jest.expect(newState.EditorState.PreviewMode).toEqual SplitView
+    )
+
+    Jest.test (
+      "UpdateCursorPosition updates editor cursor position",
+      fun () ->
+        let initialState = State.Default
+        let newState, _ = Update (UpdateCursorPosition(Some 42)) initialState
+        Jest.expect(newState.EditorState.CursorPosition).toEqual (Some 42)
+    )
+
+    Jest.test (
+      "UpdateSelection updates editor selection",
+      fun () ->
+        let initialState = State.Default
+        let newState, _ = Update (UpdateSelection(Some 10, Some 20)) initialState
+        Jest.expect(newState.EditorState.SelectionStart).toEqual (Some 10)
+        Jest.expect(newState.EditorState.SelectionEnd).toEqual (Some 20)
+    )
+
+    Jest.test (
+      "MarkEditorDirty updates editor dirty flag",
+      fun () ->
+        let initialState = State.Default
+        let newState, _ = Update (MarkEditorDirty true) initialState
+        Jest.expect(newState.EditorState.IsDirty).toEqual true
+    )
+
+    Jest.test (
+      "SetSidebarWidth updates UI sidebar width",
+      fun () ->
+        let initialState = State.Default
+        let newState, _ = Update (SetSidebarWidth 350) initialState
+        Jest.expect(newState.UIState.SidebarWidth).toEqual 350
+    )
+
+    Jest.test (
+      "SetRightPanelWidth updates UI right panel width",
+      fun () ->
+        let initialState = State.Default
+        let newState, _ = Update (SetRightPanelWidth 450) initialState
+        Jest.expect(newState.UIState.RightPanelWidth).toEqual 450
+    )
+
+    Jest.test (
+      "ShowModal updates active modal",
+      fun () ->
+        let initialState = State.Default
+        let newState, _ = Update (ShowModal CreateNoteDialog) initialState
+        Jest.expect(newState.UIState.ActiveModal).toEqual CreateNoteDialog
+    )
+
+    Jest.test (
+      "CloseModal clears active modal",
+      fun () ->
+        let initialState = {
+          State.Default with
+              UIState = {
+                State.Default.UIState with
+                    ActiveModal = CreateNoteDialog
+              }
+        }
+
+        let newState, _ = Update CloseModal initialState
+        Jest.expect(newState.UIState.ActiveModal).toEqual NoModal
+    )
+
+    Jest.test (
+      "NoteLoaded updates recent pages in workspace snapshot",
+      fun () ->
+        let testNote = {
+          Id = "note-123"
+          Title = "Test Note"
+          Path = "/test/note.md"
+          Content = "Content"
+          Frontmatter = Map.empty
+          Blocks = []
+          Links = []
+          Tags = []
+          CreatedAt = System.DateTime.Now
+          ModifiedAt = System.DateTime.Now
+        }
+
+        let testSnapshot = {
+          UI = {
+            ActivePage = ""
+            SidebarVisible = true
+            SidebarWidth = 280
+            RightPanelVisible = false
+            RightPanelWidth = 300
+            PinnedPages = []
+            RecentPages = []
+            GraphLayout = "force"
+          }
+        }
+
+        let initialState = { State.Default with WorkspaceSnapshot = Some testSnapshot }
+        let newState, _ = Update (NoteLoaded(Ok testNote)) initialState
+
+        match newState.WorkspaceSnapshot with
+        | Some snapshot ->
+          Jest.expect(snapshot.UI.ActivePage).toEqual testNote.Id
+          Jest.expect(snapshot.UI.RecentPages.Length).toEqual 1
+          Jest.expect(snapshot.UI.RecentPages.[0]).toEqual testNote.Id
+        | None -> failwith "Expected workspace snapshot to be present"
+    )
+
+    Jest.test (
+      "NoteLoaded with existing recent pages moves duplicate to front",
+      fun () ->
+        let testNote = {
+          Id = "note-b"
+          Title = "Test Note B"
+          Path = "/test/b.md"
+          Content = "Content"
+          Frontmatter = Map.empty
+          Blocks = []
+          Links = []
+          Tags = []
+          CreatedAt = System.DateTime.Now
+          ModifiedAt = System.DateTime.Now
+        }
+
+        let testSnapshot = {
+          UI = {
+            ActivePage = "note-a"
+            SidebarVisible = true
+            SidebarWidth = 280
+            RightPanelVisible = false
+            RightPanelWidth = 300
+            PinnedPages = []
+            RecentPages = [ "note-a"; "note-b"; "note-c" ]
+            GraphLayout = "force"
+          }
+        }
+
+        let initialState = { State.Default with WorkspaceSnapshot = Some testSnapshot }
+        let newState, _ = Update (NoteLoaded(Ok testNote)) initialState
+
+        match newState.WorkspaceSnapshot with
+        | Some snapshot ->
+          Jest.expect(snapshot.UI.RecentPages.[0]).toEqual "note-b"
+          Jest.expect(snapshot.UI.RecentPages.[1]).toEqual "note-a"
+          Jest.expect(snapshot.UI.RecentPages.[2]).toEqual "note-c"
+          Jest.expect(snapshot.UI.RecentPages.Length).toEqual 3
+        | None -> failwith "Expected workspace snapshot to be present"
+    )
+
+    Jest.test (
+      "UpdateNoteContent marks editor as dirty",
+      fun () ->
+        let testNote = {
+          Id = "test-id"
+          Title = "Test Note"
+          Path = "/test/path"
+          Content = "Old content"
+          Frontmatter = Map.empty
+          Blocks = []
+          Links = []
+          Tags = []
+          CreatedAt = System.DateTime.Now
+          ModifiedAt = System.DateTime.Now
+        }
+
+        let initialState = {
+          State.Default with
+              CurrentNote = Some testNote
+              EditorState = { State.Default.EditorState with IsDirty = false }
+        }
+
+        let newState, _ = Update (UpdateNoteContent "New content") initialState
+        Jest.expect(newState.EditorState.IsDirty).toEqual true
+    )
 )
 
 Jest.describe (

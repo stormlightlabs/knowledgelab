@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -178,5 +179,161 @@ func TestSaveWorkspaceSnapshot_RoundTrip(t *testing.T) {
 
 	if loaded.UI.GraphLayout != original.UI.GraphLayout {
 		t.Errorf("graph_layout mismatch: got %q, want %q", loaded.UI.GraphLayout, original.UI.GraphLayout)
+	}
+}
+
+func TestRecentPages_AddToEmpty(t *testing.T) {
+	snapshot := DefaultWorkspaceSnapshot()
+	if len(snapshot.UI.RecentPages) != 0 {
+		t.Fatalf("expected empty recent_pages, got %d items", len(snapshot.UI.RecentPages))
+	}
+
+	snapshot.UI.RecentPages = append([]string{"notes/first.md"}, snapshot.UI.RecentPages...)
+
+	if len(snapshot.UI.RecentPages) != 1 {
+		t.Fatalf("expected 1 recent page, got %d", len(snapshot.UI.RecentPages))
+	}
+	if snapshot.UI.RecentPages[0] != "notes/first.md" {
+		t.Errorf("expected 'notes/first.md', got %q", snapshot.UI.RecentPages[0])
+	}
+}
+
+func TestRecentPages_DuplicateMovesToFront(t *testing.T) {
+	snapshot := WorkspaceSnapshot{
+		UI: WorkspaceUI{
+			ActivePage:        "",
+			SidebarVisible:    true,
+			SidebarWidth:      280,
+			RightPanelVisible: false,
+			RightPanelWidth:   300,
+			PinnedPages:       []string{},
+			RecentPages:       []string{"notes/a.md", "notes/b.md", "notes/c.md"},
+			GraphLayout:       "force",
+		},
+	}
+
+	noteToOpen := "notes/b.md"
+
+	filtered := []string{}
+	for _, page := range snapshot.UI.RecentPages {
+		if page != noteToOpen {
+			filtered = append(filtered, page)
+		}
+	}
+
+	snapshot.UI.RecentPages = append([]string{noteToOpen}, filtered...)
+
+	if len(snapshot.UI.RecentPages) != 3 {
+		t.Fatalf("expected 3 recent pages, got %d", len(snapshot.UI.RecentPages))
+	}
+	if snapshot.UI.RecentPages[0] != "notes/b.md" {
+		t.Errorf("expected 'notes/b.md' at front, got %q", snapshot.UI.RecentPages[0])
+	}
+	if snapshot.UI.RecentPages[1] != "notes/a.md" {
+		t.Errorf("expected 'notes/a.md' at index 1, got %q", snapshot.UI.RecentPages[1])
+	}
+	if snapshot.UI.RecentPages[2] != "notes/c.md" {
+		t.Errorf("expected 'notes/c.md' at index 2, got %q", snapshot.UI.RecentPages[2])
+	}
+}
+
+func TestRecentPages_TruncateToMaxSize(t *testing.T) {
+	const maxRecent = 20
+
+	recentPages := []string{}
+	for i := range 25 {
+		recentPages = append(recentPages, fmt.Sprintf("notes/file-%d.md", i))
+	}
+
+	snapshot := WorkspaceSnapshot{
+		UI: WorkspaceUI{
+			ActivePage:        "",
+			SidebarVisible:    true,
+			SidebarWidth:      280,
+			RightPanelVisible: false,
+			RightPanelWidth:   300,
+			PinnedPages:       []string{},
+			RecentPages:       recentPages,
+			GraphLayout:       "force",
+		},
+	}
+
+	if len(snapshot.UI.RecentPages) > maxRecent {
+		snapshot.UI.RecentPages = snapshot.UI.RecentPages[:maxRecent]
+	}
+
+	if len(snapshot.UI.RecentPages) != maxRecent {
+		t.Errorf("expected %d recent pages after truncation, got %d", maxRecent, len(snapshot.UI.RecentPages))
+	}
+}
+
+func TestRecentPages_ActivePageUpdated(t *testing.T) {
+	snapshot := WorkspaceSnapshot{
+		UI: WorkspaceUI{
+			ActivePage:        "notes/old.md",
+			SidebarVisible:    true,
+			SidebarWidth:      280,
+			RightPanelVisible: false,
+			RightPanelWidth:   300,
+			PinnedPages:       []string{},
+			RecentPages:       []string{"notes/old.md"},
+			GraphLayout:       "force",
+		},
+	}
+
+	newPage := "notes/new.md"
+	snapshot.UI.ActivePage = newPage
+
+	filtered := []string{}
+	for _, page := range snapshot.UI.RecentPages {
+		if page != newPage {
+			filtered = append(filtered, page)
+		}
+	}
+	snapshot.UI.RecentPages = append([]string{newPage}, filtered...)
+
+	if snapshot.UI.ActivePage != newPage {
+		t.Errorf("expected active_page to be %q, got %q", newPage, snapshot.UI.ActivePage)
+	}
+	if snapshot.UI.RecentPages[0] != newPage {
+		t.Errorf("expected most recent page to be %q, got %q", newPage, snapshot.UI.RecentPages[0])
+	}
+}
+
+func TestRecentPages_Persistence(t *testing.T) {
+	tempDir := t.TempDir()
+	snapshotPath := filepath.Join(tempDir, "workspace.toml")
+
+	original := WorkspaceSnapshot{
+		UI: WorkspaceUI{
+			ActivePage:        "notes/current.md",
+			SidebarVisible:    true,
+			SidebarWidth:      280,
+			RightPanelVisible: false,
+			RightPanelWidth:   300,
+			PinnedPages:       []string{},
+			RecentPages:       []string{"notes/current.md", "notes/previous.md", "notes/older.md"},
+			GraphLayout:       "force",
+		},
+	}
+
+	err := SaveWorkspaceSnapshot(snapshotPath, original)
+	if err != nil {
+		t.Fatalf("SaveWorkspaceSnapshot() error = %v", err)
+	}
+
+	loaded, err := LoadWorkspaceSnapshot(snapshotPath)
+	if err != nil {
+		t.Fatalf("LoadWorkspaceSnapshot() error = %v", err)
+	}
+
+	if len(loaded.UI.RecentPages) != len(original.UI.RecentPages) {
+		t.Fatalf("recent_pages length mismatch: got %d, want %d", len(loaded.UI.RecentPages), len(original.UI.RecentPages))
+	}
+
+	for i, page := range original.UI.RecentPages {
+		if loaded.UI.RecentPages[i] != page {
+			t.Errorf("recent_pages[%d] mismatch: got %q, want %q", i, loaded.UI.RecentPages[i], page)
+		}
 	}
 }

@@ -6,13 +6,26 @@ open Model
 open Domain
 open StatusBar
 
+/// Renders a recent file item in the workspace picker
+let recentFileItem (noteId : string) (dispatch : Msg -> unit) =
+  Html.div [
+    prop.key noteId
+    prop.className
+      "p-3 hover:bg-base02 cursor-pointer border-b border-base02 default-transition rounded"
+    prop.onClick (fun _ -> dispatch (SelectNote noteId))
+    prop.children [
+      Html.div [ prop.className "font-medium text-base05"; prop.text noteId ]
+      Html.div [ prop.className "text-xs text-base03 mt-1"; prop.text "Recent file" ]
+    ]
+  ]
+
 /// Renders the workspace picker screen when no workspace is open
 let workspacePicker (state : State) (dispatch : Msg -> unit) =
   Html.div [
     prop.className "flex items-center justify-center h-screen bg-base00 w-full"
     prop.children [
       Html.div [
-        prop.className "text-center max-w-xl"
+        prop.className "text-center max-w-2xl w-full px-4"
         prop.children [
           Html.div [
             prop.className "mb-8"
@@ -46,12 +59,33 @@ let workspacePicker (state : State) (dispatch : Msg -> unit) =
               ]
               Html.button [
                 prop.className
-                  "w-full bg-blue hover:bg-blue-bright text-base00 font-bold py-3 px-6 rounded transition-all shadow-md hover:shadow-lg"
+                  "w-full bg-blue hover:bg-blue-bright text-base00 font-bold py-3 px-6 rounded default-transition shadow-md hover:shadow-lg"
                 prop.text "Open Folder"
                 prop.onClick (fun _ -> dispatch SelectWorkspaceFolder)
               ]
             ]
           ]
+
+          match state.WorkspaceSnapshot with
+          | Some snapshot when not (List.isEmpty snapshot.UI.RecentPages) ->
+            Html.div [
+              prop.className "mt-6 bg-base01 p-6 rounded-lg shadow-xl border border-base02"
+              prop.children [
+                Html.h3 [
+                  prop.className "text-lg font-semibold mb-4 text-base05"
+                  prop.text "Recent Files"
+                ]
+                Html.div [
+                  prop.className "space-y-2 max-h-60 overflow-y-auto"
+                  prop.children (
+                    snapshot.UI.RecentPages
+                    |> List.truncate 10
+                    |> List.map (fun noteId -> recentFileItem noteId dispatch)
+                  )
+                ]
+              ]
+            ]
+          | _ -> Html.none
         ]
       ]
     ]
@@ -84,28 +118,28 @@ let noteListItem (note : NoteSummary) (dispatch : Msg -> unit) =
 /// Renders the notes list sidebar
 let notesList (state : State) (dispatch : Msg -> unit) =
   Html.div [
-    prop.className "w-64 bg-base01 border-r border-base02 flex flex-col"
+    prop.className "w-64 bg-base01 border-r border-base02 flex flex-col h-full"
     prop.children [
       Html.div [
-        prop.className "p-4 border-b border-base02"
+        prop.className "p-4 border-b border-base02 shrink-0"
         prop.children [
           Html.h2 [ prop.className "font-bold text-lg text-base05"; prop.text "Notes" ]
           Html.button [
             prop.className
-              "mt-2 w-full bg-blue hover:bg-blue-bright text-base00 text-sm font-bold py-1 px-2 rounded transition-all"
+              "mt-2 w-full bg-blue hover:bg-blue-bright text-base00 text-sm font-bold py-1 px-2 rounded default-transition"
             prop.text "New Note"
             prop.onClick (fun _ -> dispatch (CreateNote("Untitled", "")))
           ]
           Html.button [
             prop.className
-              "mt-2 w-full bg-green hover:bg-green-bright text-base00 text-sm font-bold py-1 px-2 rounded transition-all"
+              "mt-2 w-full bg-green hover:bg-green-bright text-base00 text-sm font-bold py-1 px-2 rounded default-transition"
             prop.text "Today's Note"
             prop.onClick (fun _ -> dispatch OpenDailyNote)
           ]
         ]
       ]
       Html.div [
-        prop.className "flex-1 overflow-y-auto"
+        prop.className "flex-1 overflow-y-auto min-h-0"
         prop.children (state.Notes |> List.map (fun note -> noteListItem note dispatch))
       ]
     ]
@@ -233,10 +267,10 @@ let statusBar (content : string) (cursorPosition : int option) (isDirty : bool) 
 /// Renders the note editor
 let noteEditor (note : Note) (state : State) (dispatch : Msg -> unit) =
   Html.div [
-    prop.className "flex-1 flex flex-col bg-base00"
+    prop.className "flex-1 flex flex-col bg-base00 h-full overflow-hidden"
     prop.children [
       Html.div [
-        prop.className "p-4 border-b border-base02"
+        prop.className "p-4 border-b border-base02 shrink-0"
         prop.children [
           Html.h1 [ prop.className "text-2xl font-bold text-base05"; prop.text note.Title ]
           Html.div [ prop.className "text-sm text-base03 mt-1"; prop.text note.Path ]
@@ -248,11 +282,11 @@ let noteEditor (note : Note) (state : State) (dispatch : Msg -> unit) =
       match state.EditorState.PreviewMode with
       | EditOnly ->
         Html.div [
-          prop.className "flex-1 p-6 overflow-y-auto"
+          prop.className "flex-1 flex flex-col overflow-hidden min-h-0"
           prop.children [
             Html.textarea [
               prop.className
-                "w-full h-full font-mono text-sm bg-base00 text-base05 border border-base02 rounded p-4 focus:outline-none focus:border-blue resize-none"
+                "flex-1 w-full font-mono text-sm bg-base00 text-base05 border border-base02 rounded m-6 p-4 focus:outline-none focus:border-blue resize-none default-transition"
               prop.value note.Content
               prop.placeholder "Start writing..."
               prop.onChange (fun (value : string) -> dispatch (UpdateNoteContent value))
@@ -275,14 +309,14 @@ let noteEditor (note : Note) (state : State) (dispatch : Msg -> unit) =
       | PreviewOnly -> previewPanel state.EditorState.RenderedPreview
       | SplitView ->
         Html.div [
-          prop.className "flex-1 flex overflow-hidden"
+          prop.className "flex-1 flex overflow-hidden min-h-0"
           prop.children [
             Html.div [
-              prop.className "flex-1 p-6 overflow-y-auto border-r border-base02"
+              prop.className "flex-1 flex flex-col overflow-hidden border-r border-base02 min-h-0"
               prop.children [
                 Html.textarea [
                   prop.className
-                    "w-full h-full font-mono text-sm bg-base00 text-base05 border border-base02 rounded p-4 focus:outline-none focus:border-blue resize-none"
+                    "flex-1 w-full font-mono text-sm bg-base00 text-base05 border border-base02 rounded m-6 p-4 focus:outline-none focus:border-blue resize-none default-transition"
                   prop.value note.Content
                   prop.placeholder "Start writing..."
                   prop.onChange (fun (value : string) -> dispatch (UpdateNoteContent value))
@@ -325,10 +359,10 @@ let backlinkItem (link : Link) (dispatch : Msg -> unit) =
 /// Renders the backlinks panel
 let backlinksPanel (state : State) (dispatch : Msg -> unit) =
   Html.div [
-    prop.className "w-64 bg-base01 border-l border-base02 flex flex-col"
+    prop.className "w-64 bg-base01 border-l border-base02 flex flex-col h-full default-transition"
     prop.children [
       Html.div [
-        prop.className "p-4 border-b border-base02"
+        prop.className "p-4 border-b border-base02 shrink-0"
         prop.children [
           Html.h2 [ prop.className "font-bold text-lg text-base05"; prop.text "Backlinks" ]
           Html.div [
@@ -339,7 +373,7 @@ let backlinksPanel (state : State) (dispatch : Msg -> unit) =
       ]
       if state.Backlinks.IsEmpty then
         Html.div [
-          prop.className "flex-1 overflow-y-auto"
+          prop.className "flex-1 overflow-y-auto min-h-0"
           prop.children [
             Html.div [
               prop.className "p-4 text-center text-base03 text-sm"
@@ -349,7 +383,7 @@ let backlinksPanel (state : State) (dispatch : Msg -> unit) =
         ]
       else
         Html.div [
-          prop.className "flex-1 overflow-y-auto"
+          prop.className "flex-1 overflow-y-auto min-h-0"
           prop.children (state.Backlinks |> List.map (fun link -> backlinkItem link dispatch))
         ]
     ]
@@ -399,33 +433,38 @@ let settingsPanel (state : State) (dispatch : Msg -> unit) =
 
 /// Renders the main content area based on current route
 let mainContent (state : State) (dispatch : Msg -> unit) =
-  match state.CurrentRoute with
-  | WorkspacePicker -> workspacePicker state dispatch
-  | NoteList ->
-    Html.div [
-      prop.className "flex-1 flex items-center justify-center bg-base00"
-      prop.children [
+  Html.div [
+    prop.className "flex-1 flex flex-col h-full overflow-hidden default-transition"
+    prop.children [
+      match state.CurrentRoute with
+      | WorkspacePicker -> workspacePicker state dispatch
+      | NoteList ->
         Html.div [
-          prop.className "text-center"
+          prop.className "flex-1 flex items-center justify-center bg-base00"
           prop.children [
-            Html.h2 [
-              prop.className "text-xl font-semibold text-base03"
-              prop.text "Select a note to begin"
+            Html.div [
+              prop.className "text-center"
+              prop.children [
+                Html.h2 [
+                  prop.className "text-xl font-semibold text-base03"
+                  prop.text "Select a note to begin"
+                ]
+              ]
             ]
           ]
         ]
-      ]
+      | NoteEditor _ ->
+        match state.CurrentNote with
+        | Some note -> noteEditor note state dispatch
+        | None ->
+          Html.div [
+            prop.className "flex-1 flex items-center justify-center bg-base00 text-base05"
+            prop.text "Loading..."
+          ]
+      | GraphViewRoute -> GraphView.render state dispatch
+      | Settings -> settingsPanel state dispatch
     ]
-  | NoteEditor _ ->
-    match state.CurrentNote with
-    | Some note -> noteEditor note state dispatch
-    | None ->
-      Html.div [
-        prop.className "flex-1 flex items-center justify-center bg-base00 text-base05"
-        prop.text "Loading..."
-      ]
-  | GraphViewRoute -> GraphView.render state dispatch
-  | Settings -> settingsPanel state dispatch
+  ]
 
 /// Renders error notification if present
 let errorNotification (error : string option) (dispatch : Msg -> unit) =
@@ -447,30 +486,30 @@ let errorNotification (error : string option) (dispatch : Msg -> unit) =
 /// Renders the top navigation bar
 let navigationBar (state : State) (dispatch : Msg -> unit) =
   Html.div [
-    prop.className "h-12 bg-base01 border-b border-base02 flex items-center px-4 gap-2"
+    prop.className "h-12 bg-base01 border-b border-base02 flex items-center px-4 gap-2 shrink-0"
     prop.children [
       Html.button [
         prop.className
-          "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 transition-all"
+          "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
         prop.text "Notes"
         prop.onClick (fun _ -> dispatch (NavigateTo NoteList))
       ]
       Html.button [
         prop.className
-          "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 transition-all"
+          "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
         prop.text "Graph"
         prop.onClick (fun _ -> dispatch (NavigateTo GraphViewRoute))
       ]
       Html.button [
         prop.className
-          "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 transition-all"
+          "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
         prop.text "Settings"
         prop.onClick (fun _ -> dispatch (NavigateTo Settings))
       ]
       Html.div [ prop.className "flex-1" ]
       Html.button [
         prop.className
-          "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 transition-all"
+          "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
         prop.text (
           if state.VisiblePanels.Contains Backlinks then
             "Hide Backlinks"
@@ -492,12 +531,16 @@ let appContent (state : State) (dispatch : Msg -> unit) =
 
       Html.div [
         prop.key "main-content-container"
-        prop.className "flex-1 flex overflow-hidden"
+        prop.className "flex-1 flex overflow-hidden min-h-0"
         prop.children [
           if state.Workspace.IsSome && state.CurrentRoute <> WorkspacePicker then
-            Html.div [ prop.key "notes-list"; prop.children [ notesList state dispatch ] ]
+            Html.div [
+              prop.key "notes-list"
+              prop.className "default-transition"
+              prop.children [ notesList state dispatch ]
+            ]
 
-          Html.div [ prop.key "main-content"; prop.children [ mainContent state dispatch ] ]
+          mainContent state dispatch
 
           if
             state.VisiblePanels.Contains Backlinks
@@ -506,6 +549,7 @@ let appContent (state : State) (dispatch : Msg -> unit) =
           then
             Html.div [
               prop.key "backlinks-panel"
+              prop.className "default-transition"
               prop.children [ backlinksPanel state dispatch ]
             ]
         ]
@@ -519,7 +563,8 @@ let appContent (state : State) (dispatch : Msg -> unit) =
       if state.Loading then
         Html.div [
           prop.key "loading-overlay"
-          prop.className "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+          prop.className
+            "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center default-transition"
           prop.children [
             Html.div [
               prop.className "bg-base01 text-base05 p-6 rounded-lg shadow-xl"

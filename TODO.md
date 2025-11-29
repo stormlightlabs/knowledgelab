@@ -196,7 +196,7 @@ Notes List:
 Loading & Transitions:
 
 - [ ] Loading skeleton states instead of generic "Loading..." overlay
-- [ ] Smooth transitions for route changes and panel toggles
+- [x] Smooth transitions for route changes and panel toggles
 - [ ] Auto-save indicator in editor
 
 Feedback & Messaging:

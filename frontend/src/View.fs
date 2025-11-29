@@ -1,6 +1,7 @@
 module View
 
 open Feliz
+open Feliz.Router
 open Model
 open Domain
 
@@ -57,8 +58,6 @@ let workspacePicker (state : State) (dispatch : Msg -> unit) =
 
 /// Renders a note list item
 let noteListItem (note : NoteSummary) (dispatch : Msg -> unit) =
-  Browser.Dom.console.log ("noteListItem rendering:", note.id, "tags:", box note.tags)
-
   Html.div [
     prop.key $"{note.id}"
     prop.className "p-3 hover:bg-base02 cursor-pointer border-b border-base02 transition-all"
@@ -69,27 +68,20 @@ let noteListItem (note : NoteSummary) (dispatch : Msg -> unit) =
       Html.div [
         prop.className "flex gap-2 mt-1"
         prop.children (
-          let tags =
-            if isNull (box note.tags) then [] else note.tags
-            |> List.map (fun t ->
-              Html.span [
-                prop.key $"#{t.NoteId}:{t.Name}"
-                prop.className "text-xs bg-blue text-base00 px-2 py-1 rounded"
-                prop.text $"#{t.Name}"
-              ])
-
-          Browser.Dom.console.log ("noteListItem tags for", note.id, "count:", tags.Length)
-          tags
+          if isNull (box note.tags) then [] else note.tags
+          |> List.map (fun t ->
+            Html.span [
+              prop.key $"#{t.NoteId}:{t.Name}"
+              prop.className "text-xs bg-blue text-base00 px-2 py-1 rounded"
+              prop.text $"#{t.Name}"
+            ])
         )
-
       ]
     ]
   ]
 
 /// Renders the notes list sidebar
 let notesList (state : State) (dispatch : Msg -> unit) =
-  Browser.Dom.console.log ("notesList rendering with", state.Notes.Length, "notes")
-
   Html.div [
     prop.className "w-64 bg-base01 border-r border-base02 flex flex-col"
     prop.children [
@@ -113,11 +105,7 @@ let notesList (state : State) (dispatch : Msg -> unit) =
       ]
       Html.div [
         prop.className "flex-1 overflow-y-auto"
-        prop.children (
-          let items = state.Notes |> List.map (fun note -> noteListItem note dispatch)
-          Browser.Dom.console.log ("notesList children count:", items.Length)
-          items
-        )
+        prop.children (state.Notes |> List.map (fun note -> noteListItem note dispatch))
       ]
     ]
   ]
@@ -176,8 +164,6 @@ let backlinkItem (link : Link) (dispatch : Msg -> unit) =
 
 /// Renders the backlinks panel
 let backlinksPanel (state : State) (dispatch : Msg -> unit) =
-  Browser.Dom.console.log ("backlinksPanel rendering with", state.Backlinks.Length, "backlinks")
-
   Html.div [
     prop.className "w-64 bg-base01 border-l border-base02 flex flex-col"
     prop.children [
@@ -204,11 +190,7 @@ let backlinksPanel (state : State) (dispatch : Msg -> unit) =
       else
         Html.div [
           prop.className "flex-1 overflow-y-auto"
-          prop.children (
-            let items = state.Backlinks |> List.map (fun link -> backlinkItem link dispatch)
-            Browser.Dom.console.log ("backlinksPanel children count:", items.Length)
-            items
-          )
+          prop.children (state.Backlinks |> List.map (fun link -> backlinkItem link dispatch))
         ]
     ]
   ]
@@ -340,15 +322,8 @@ let navigationBar (state : State) (dispatch : Msg -> unit) =
     ]
   ]
 
-/// Main application view
-let render (state : State) (dispatch : Msg -> unit) =
-  Browser.Dom.console.log (
-    "Main render - Route:",
-    state.CurrentRoute,
-    "Workspace:",
-    state.Workspace.IsSome
-  )
-
+/// Main application content
+let appContent (state : State) (dispatch : Msg -> unit) =
   Html.div [
     prop.className "h-screen w-full bg-base00 flex flex-col overflow-hidden"
     prop.children [
@@ -393,4 +368,11 @@ let render (state : State) (dispatch : Msg -> unit) =
           ]
         ]
     ]
+  ]
+
+/// Main application view with router
+let Render (state : State) (dispatch : Msg -> unit) =
+  React.router [
+    router.onUrlChanged (UrlChanged >> dispatch)
+    router.children [ appContent state dispatch ]
   ]

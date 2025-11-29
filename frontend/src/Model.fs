@@ -4,6 +4,7 @@ open Elmish
 open System
 open Domain
 open Fable.Core
+open Feliz.Router
 
 /// Route represents the current view/page in the application
 type Route =
@@ -63,6 +64,7 @@ type State = {
   Notes : NoteSummary list
   CurrentNote : Note option
   CurrentRoute : Route
+  CurrentUrl : string list
   VisiblePanels : Set<Panel>
   SearchQuery : string
   SearchFilters : SearchFilters
@@ -89,6 +91,7 @@ type State = {
     Notes = []
     CurrentNote = None
     CurrentRoute = WorkspacePicker
+    CurrentUrl = []
     VisiblePanels = Set.ofList [ Backlinks ]
     SearchQuery = ""
     SearchFilters = {
@@ -127,6 +130,7 @@ type State = {
 
 /// Messages represent all possible user actions and events
 type Msg =
+  | UrlChanged of string list
   | SelectWorkspaceFolder
   | OpenWorkspace of path : string
   | WorkspaceOpened of Result<WorkspaceInfo, string>
@@ -196,6 +200,25 @@ let private clearTimeout (timerId : int) : unit = jsNative
 /// Safely converts an array to a list, handling null/undefined cases
 let private safeArrayToList (arr : 'a array) : 'a list =
   if isNull (box arr) then [] else Array.toList arr
+
+/// Converts URL segments to a Route
+let parseUrl (segments : string list) : Route =
+  match segments with
+  | [] -> WorkspacePicker
+  | [ "notes" ] -> NoteList
+  | [ "notes"; noteId ] -> NoteEditor noteId
+  | [ "graph" ] -> GraphViewRoute
+  | [ "settings" ] -> Settings
+  | _ -> WorkspacePicker
+
+/// Converts a Route to URL segments for navigation
+let routeToUrl (route : Route) : string list =
+  match route with
+  | WorkspacePicker -> []
+  | NoteList -> [ "notes" ]
+  | NoteEditor noteId -> [ "notes"; noteId ]
+  | GraphViewRoute -> [ "graph" ]
+  | Settings -> [ "settings" ]
 
 /// Creates a debounced command that dispatches a message after a delay
 let private debounceCmd (msg : Msg) : Cmd<Msg> =
@@ -295,10 +318,21 @@ let private updateRecentPage (noteId : string) (state : State) : State * Cmd<Msg
   | None -> state, Cmd.none
 
 let Init () =
-  State.Default, Cmd.ofMsg HydrateFromDisk
+  let currentUrl = Router.currentUrl ()
+  let currentRoute = parseUrl currentUrl
+
+  {
+    State.Default with
+        CurrentUrl = currentUrl
+        CurrentRoute = currentRoute
+  },
+  Cmd.ofMsg HydrateFromDisk
 
 let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   match msg with
+  | UrlChanged segments ->
+    let route = parseUrl segments
+    { state with CurrentUrl = segments; CurrentRoute = route }, Cmd.none
   | SelectWorkspaceFolder ->
     state,
     Cmd.OfPromise.either
@@ -396,7 +430,16 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     },
     Cmd.ofMsg LoadNotes
   | NoteDeleted(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
-  | NavigateTo route -> { state with CurrentRoute = route }, Cmd.none
+  | NavigateTo route ->
+    let urlSegments = routeToUrl route
+    Router.navigate (urlSegments |> List.toArray)
+
+    {
+      state with
+          CurrentRoute = route
+          CurrentUrl = urlSegments
+    },
+    Cmd.none
   | TogglePanel panel ->
     let newPanels =
       if state.VisiblePanels.Contains panel then

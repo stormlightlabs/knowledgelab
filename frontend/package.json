@@ -43,8 +43,8 @@
     "@iconify-json/noto": "^1.2.7",
     "@iconify-json/ri": "^1.2.6",
     "d3": "^7.9.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "shiki": "^3.17.0",
     "use-sync-external-store": "^1.4.0"
   }

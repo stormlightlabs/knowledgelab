@@ -8,6 +8,6 @@ importSideEffects "@fontsource-variable/public-sans"
 importSideEffects "@fontsource-variable/jetbrains-mono"
 importSideEffects "./index.css"
 
-Program.mkProgram Model.Init Model.Update View.render
+Program.mkProgram Model.Init Model.Update View.Render
 |> Program.withReactSynchronous "fable-root"
 |> Program.run

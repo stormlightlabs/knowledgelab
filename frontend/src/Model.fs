@@ -4,7 +4,6 @@ open Elmish
 open System
 open Domain
 open Fable.Core
-open Fable.Core.JsInterop
 
 /// Route represents the current view/page in the application
 type Route =
@@ -194,6 +193,10 @@ let private setTimeout (callback : unit -> unit) (delay : int) : int = jsNative
 [<Emit("clearTimeout($0)")>]
 let private clearTimeout (timerId : int) : unit = jsNative
 
+/// Safely converts an array to a list, handling null/undefined cases
+let private safeArrayToList (arr : 'a array) : 'a list =
+  if isNull (box arr) then [] else Array.toList arr
+
 /// Creates a debounced command that dispatches a message after a delay
 let private debounceCmd (msg : Msg) : Cmd<Msg> =
   let delayedDispatch (dispatch : Msg -> unit) =
@@ -323,9 +326,19 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   | WorkspaceOpened(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | LoadNotes ->
     { state with Loading = true },
-    Cmd.OfPromise.either Api.listNotes () (List.ofArray >> Ok >> NotesLoaded) (fun ex ->
+    Cmd.OfPromise.either Api.listNotes () (safeArrayToList >> Ok >> NotesLoaded) (fun ex ->
       NotesLoaded(Error ex.Message))
-  | NotesLoaded(Ok notes) -> { state with Notes = notes; Loading = false; Error = None }, Cmd.none
+  | NotesLoaded(Ok notes) ->
+    Browser.Dom.console.log ("NotesLoaded - count:", notes.Length)
+
+    notes
+    |> List.iteri (fun i note ->
+      Browser.Dom.console.log ($"Note {i}:", note)
+      Browser.Dom.console.log ($"  id:", note.id)
+      Browser.Dom.console.log ($"  title:", note.title)
+      Browser.Dom.console.log ($"  path:", note.path))
+
+    { state with Notes = notes; Loading = false; Error = None }, Cmd.none
   | NotesLoaded(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | SelectNote noteId ->
     { state with Loading = true },
@@ -404,7 +417,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     }
 
     { state with Loading = true },
-    Cmd.OfPromise.either Api.search query (List.ofArray >> Ok >> SearchCompleted) (fun ex ->
+    Cmd.OfPromise.either Api.search query (safeArrayToList >> Ok >> SearchCompleted) (fun ex ->
       SearchCompleted(Error ex.Message))
   | SearchCompleted(Ok results) ->
     {
@@ -430,14 +443,17 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   | GraphLoaded(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | LoadTags ->
     { state with Loading = true },
-    Cmd.OfPromise.either Api.getAllTags () (List.ofArray >> Ok >> TagsLoaded) (fun ex ->
+    Cmd.OfPromise.either Api.getAllTags () (safeArrayToList >> Ok >> TagsLoaded) (fun ex ->
       TagsLoaded(Error ex.Message))
   | TagsLoaded(Ok tags) -> { state with Tags = tags; Loading = false; Error = None }, Cmd.none
   | TagsLoaded(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | LoadBacklinks noteId ->
     { state with Loading = true },
-    Cmd.OfPromise.either Api.getBacklinks noteId (Array.toList >> Ok >> BacklinksLoaded) (fun ex ->
-      BacklinksLoaded(Error ex.Message))
+    Cmd.OfPromise.either
+      Api.getBacklinks
+      noteId
+      (safeArrayToList >> Ok >> BacklinksLoaded)
+      (fun ex -> BacklinksLoaded(Error ex.Message))
   | BacklinksLoaded(Ok links) ->
     {
       state with

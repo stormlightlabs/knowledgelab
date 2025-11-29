@@ -57,23 +57,29 @@ let workspacePicker (state : State) (dispatch : Msg -> unit) =
 
 /// Renders a note list item
 let noteListItem (note : NoteSummary) (dispatch : Msg -> unit) =
+  Browser.Dom.console.log ("noteListItem rendering:", note.id, "tags:", box note.tags)
+
   Html.div [
-    prop.key $"{note.Id}"
+    prop.key $"{note.id}"
     prop.className "p-3 hover:bg-base02 cursor-pointer border-b border-base02 transition-all"
-    prop.onClick (fun _ -> dispatch (SelectNote note.Id))
+    prop.onClick (fun _ -> dispatch (SelectNote note.id))
     prop.children [
-      Html.div [ prop.className "font-semibold text-base05"; prop.text note.Title ]
-      Html.div [ prop.className "text-sm text-base03"; prop.text note.Path ]
+      Html.div [ prop.className "font-semibold text-base05"; prop.text note.title ]
+      Html.div [ prop.className "text-sm text-base03"; prop.text note.path ]
       Html.div [
         prop.className "flex gap-2 mt-1"
         prop.children (
-          note.Tags
-          |> List.map (fun t ->
-            Html.span [
-              prop.key $"#{t.NoteId}:{t.Name}"
-              prop.className "text-xs bg-blue text-base00 px-2 py-1 rounded"
-              prop.text $"#{t.Name}"
-            ])
+          let tags =
+            if isNull (box note.tags) then [] else note.tags
+            |> List.map (fun t ->
+              Html.span [
+                prop.key $"#{t.NoteId}:{t.Name}"
+                prop.className "text-xs bg-blue text-base00 px-2 py-1 rounded"
+                prop.text $"#{t.Name}"
+              ])
+
+          Browser.Dom.console.log ("noteListItem tags for", note.id, "count:", tags.Length)
+          tags
         )
 
       ]
@@ -82,6 +88,8 @@ let noteListItem (note : NoteSummary) (dispatch : Msg -> unit) =
 
 /// Renders the notes list sidebar
 let notesList (state : State) (dispatch : Msg -> unit) =
+  Browser.Dom.console.log ("notesList rendering with", state.Notes.Length, "notes")
+
   Html.div [
     prop.className "w-64 bg-base01 border-r border-base02 flex flex-col"
     prop.children [
@@ -105,7 +113,11 @@ let notesList (state : State) (dispatch : Msg -> unit) =
       ]
       Html.div [
         prop.className "flex-1 overflow-y-auto"
-        prop.children (state.Notes |> List.map (fun note -> noteListItem note dispatch))
+        prop.children (
+          let items = state.Notes |> List.map (fun note -> noteListItem note dispatch)
+          Browser.Dom.console.log ("notesList children count:", items.Length)
+          items
+        )
       ]
     ]
   ]
@@ -164,6 +176,8 @@ let backlinkItem (link : Link) (dispatch : Msg -> unit) =
 
 /// Renders the backlinks panel
 let backlinksPanel (state : State) (dispatch : Msg -> unit) =
+  Browser.Dom.console.log ("backlinksPanel rendering with", state.Backlinks.Length, "backlinks")
+
   Html.div [
     prop.className "w-64 bg-base01 border-l border-base02 flex flex-col"
     prop.children [
@@ -190,7 +204,11 @@ let backlinksPanel (state : State) (dispatch : Msg -> unit) =
       else
         Html.div [
           prop.className "flex-1 overflow-y-auto"
-          prop.children (state.Backlinks |> List.map (fun link -> backlinkItem link dispatch))
+          prop.children (
+            let items = state.Backlinks |> List.map (fun link -> backlinkItem link dispatch)
+            Browser.Dom.console.log ("backlinksPanel children count:", items.Length)
+            items
+          )
         ]
     ]
   ]
@@ -324,33 +342,48 @@ let navigationBar (state : State) (dispatch : Msg -> unit) =
 
 /// Main application view
 let render (state : State) (dispatch : Msg -> unit) =
+  Browser.Dom.console.log (
+    "Main render - Route:",
+    state.CurrentRoute,
+    "Workspace:",
+    state.Workspace.IsSome
+  )
+
   Html.div [
     prop.className "h-screen w-full bg-base00 flex flex-col overflow-hidden"
     prop.children [
       if state.Workspace.IsSome && state.CurrentRoute <> WorkspacePicker then
-        navigationBar state dispatch
+        Html.div [ prop.key "navigation-bar"; prop.children [ navigationBar state dispatch ] ]
 
       Html.div [
+        prop.key "main-content-container"
         prop.className "flex-1 flex overflow-hidden"
         prop.children [
           if state.Workspace.IsSome && state.CurrentRoute <> WorkspacePicker then
-            notesList state dispatch
+            Html.div [ prop.key "notes-list"; prop.children [ notesList state dispatch ] ]
 
-          mainContent state dispatch
+          Html.div [ prop.key "main-content"; prop.children [ mainContent state dispatch ] ]
 
           if
             state.VisiblePanels.Contains Backlinks
             && state.CurrentRoute <> WorkspacePicker
             && state.CurrentRoute <> Settings
           then
-            backlinksPanel state dispatch
+            Html.div [
+              prop.key "backlinks-panel"
+              prop.children [ backlinksPanel state dispatch ]
+            ]
         ]
       ]
 
-      errorNotification state.Error dispatch
+      Html.div [
+        prop.key "error-notification"
+        prop.children [ errorNotification state.Error dispatch ]
+      ]
 
       if state.Loading then
         Html.div [
+          prop.key "loading-overlay"
           prop.className "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
           prop.children [
             Html.div [

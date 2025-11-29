@@ -57,11 +57,11 @@ and Tag = { Name : string; NoteId : string }
 
 /// NoteSummary provides a lightweight note representation for lists
 type NoteSummary = {
-  Id : string
-  Title : string
-  Path : string
-  Tags : Tag list
-  ModifiedAt : DateTime
+  id : string
+  title : string
+  path : string
+  tags : Tag list
+  modifiedAt : DateTime
 }
 
 /// Workspace represents a workspace configuration

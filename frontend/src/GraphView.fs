@@ -41,8 +41,11 @@ module D3 =
 
 /// Convert backend Graph to frontend GraphData
 let graphToGraphData (graph : Graph) : GraphData =
+  let safeEdges = if isNull (box graph.Edges) then [] else graph.Edges
+  let safeNodes = if isNull (box graph.Nodes) then [] else graph.Nodes
+
   let nodeDegrees =
-    graph.Edges
+    safeEdges
     |> List.fold
       (fun acc edge ->
         acc
@@ -51,7 +54,7 @@ let graphToGraphData (graph : Graph) : GraphData =
       Map.empty
 
   let nodes =
-    graph.Nodes
+    safeNodes
     |> List.mapi (fun i id -> {
       Id = id
       Label = id
@@ -64,7 +67,7 @@ let graphToGraphData (graph : Graph) : GraphData =
     })
 
   let links =
-    graph.Edges
+    safeEdges
     |> List.map (fun edge -> { Source = edge.Source; Target = edge.Target; Value = 1.0 })
 
   { Nodes = nodes; Links = links }
@@ -277,6 +280,7 @@ let svgGraph (state : State) (dispatch : Msg -> unit) =
                             Interop.reactApi.createElement (
                               "line",
                               createObj [
+                                "key" ==> $"{link.Source}-{link.Target}"
                                 "className" ==> getLinkClass link
                                 "stroke" ==> "#6b7089"
                                 "strokeWidth" ==> 1.5
@@ -289,6 +293,7 @@ let svgGraph (state : State) (dispatch : Msg -> unit) =
                             Interop.reactApi.createElement (
                               "circle",
                               createObj [
+                                "key" ==> $"node-{node.Id}"
                                 "className" ==> getNodeClass node.Id
                                 "r" ==> (5.0 + float node.Degree)
                                 "fill" ==> "#84a0c6"
@@ -321,6 +326,7 @@ let svgGraph (state : State) (dispatch : Msg -> unit) =
                             Interop.reactApi.createElement (
                               "text",
                               createObj [
+                                "key" ==> $"label-{node.Id}"
                                 "className" ==> getLabelClass node.Id
                                 "fill" ==> "#c6c8d1"
                                 "fontSize" ==> "10px"

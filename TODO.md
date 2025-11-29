@@ -218,7 +218,7 @@ Layout & Navigation:
 - [ ] Basic mobile-friendly layout (for small windows).
 - [ ] Benchmarks for graph build on large workspaces.
 - [ ] Add `go test ./...` CI job.
-- [ ] Test serialization/deserialization of models used in Wails calls.
+- [x] Test serialization/deserialization of models used in Wails calls.
 - [ ] Virtualization for large note lists (>100 notes)
 
 ### Command Palette

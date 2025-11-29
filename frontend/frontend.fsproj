@@ -8,6 +8,7 @@
   <ItemGroup>
     <Compile Include="src/Domain.fs" />
     <Compile Include="src/Api.fs" />
+    <Compile Include="src/Syntax.fs" />
     <Compile Include="src/Model.fs" />
     <Compile Include="src/Keybinds.fs" />
     <Compile Include="src/GraphView.fs" />

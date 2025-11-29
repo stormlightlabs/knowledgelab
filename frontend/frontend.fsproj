@@ -10,6 +10,7 @@
     <Compile Include="src/Json.fs" />
     <Compile Include="src/Api.fs" />
     <Compile Include="src/Syntax.fs" />
+    <Compile Include="src/SyntaxHighlighter.fs" />
     <Compile Include="src/Model.fs" />
     <Compile Include="src/Keybinds.fs" />
     <Compile Include="src/StatusBar.fs" />

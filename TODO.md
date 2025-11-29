@@ -176,7 +176,7 @@ Editor:
 - [x] Split view
 - [x] Editor toolbar with preview toggle, formatting buttons
 - [x] Status bar with save state, word/char count, position (line, column)
-- [ ] Syntax highlighting for markdown AND code blocks
+- [x] Syntax highlighting for markdown AND code blocks
   - Interop with [shiki](https://shiki.style/)
 - [ ] Wikilink autocomplete dropdown
 

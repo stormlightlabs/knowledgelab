@@ -188,6 +188,7 @@ type Msg =
   | SetHeadingLevel of int
   | RenderPreview of markdown : string
   | PreviewRendered of Result<string, string>
+  | SyntaxHighlightingApplied of Result<string, string>
 
 /// Debounce delay in milliseconds
 [<Literal>]
@@ -742,9 +743,17 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     Cmd.OfPromise.either Api.renderMarkdown markdown (Ok >> PreviewRendered) (fun err ->
       PreviewRendered(Error(string err)))
   | PreviewRendered(Ok html) ->
+    state,
+    Cmd.OfPromise.either
+      SyntaxHighlighter.highlightCodeBlocks
+      html
+      (Ok >> SyntaxHighlightingApplied)
+      (fun err -> SyntaxHighlightingApplied(Error(string err)))
+  | PreviewRendered(Error err) -> { state with Error = Some err }, Cmd.none
+  | SyntaxHighlightingApplied(Ok html) ->
     {
       state with
           EditorState = { state.EditorState with RenderedPreview = Some html }
     },
     Cmd.none
-  | PreviewRendered(Error err) -> { state with Error = Some err }, Cmd.none
+  | SyntaxHighlightingApplied(Error err) -> { state with Error = Some err }, Cmd.none

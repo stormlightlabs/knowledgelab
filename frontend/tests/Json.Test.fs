@@ -129,6 +129,36 @@ Jest.describe (
     )
 
     Jest.test (
+      "Note decoder treats null aliases as an empty list",
+      fun () ->
+        let json =
+          """
+    {
+      "id": "note-1",
+      "title": "Alias Test",
+      "path": "/alias/test.md",
+      "content": "Content",
+      "frontmatter": {},
+      "aliases": null,
+      "type": "note",
+      "blocks": [],
+      "links": [],
+      "tags": [],
+      "createdAt": "2025-01-28T12:00:00Z",
+      "modifiedAt": "2025-01-28T12:05:00Z"
+    }
+    """
+
+        let result = Decode.fromString noteDecoder json
+
+        match result with
+        | Ok note ->
+          Jest.expect(note.Id).toEqual "note-1"
+          Jest.expect(note.Aliases.Length).toEqual 0
+        | Error err -> failwith $"Decode failed: {err}"
+    )
+
+    Jest.test (
       "SearchResult decoder handles valid JSON",
       fun () ->
         let json =

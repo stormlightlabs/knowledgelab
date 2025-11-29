@@ -96,6 +96,7 @@ let areNeighbors
   |> Option.defaultValue false
 
 /// SVG graph view component
+[<ReactComponent>]
 let svgGraph (state : State) (dispatch : Msg -> unit) =
   let graphData =
     match state.Graph with
@@ -358,6 +359,7 @@ let svgGraph (state : State) (dispatch : Msg -> unit) =
   ]
 
 /// Canvas graph view component for large graphs
+[<ReactComponent>]
 let canvasGraph (state : State) (dispatch : Msg -> unit) =
   let graphData =
     match state.Graph with

@@ -1,3 +1,4 @@
+/** @type {import('jest').Config} */
 export default {
   moduleFileExtensions: ["js"],
   roots: ["<rootDir>/dist/tests"],
@@ -8,4 +9,5 @@ export default {
   moduleNameMapper: {
     "^@wailsjs/go/main/App$": "<rootDir>/__mocks__/@wailsjs/go/main/App.js",
   },
+  silent: true,
 };

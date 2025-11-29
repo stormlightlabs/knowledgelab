@@ -1,5 +1,6 @@
 module View
 
+open System
 open Feliz
 open Feliz.Router
 open Model
@@ -67,25 +68,31 @@ let workspacePicker (state : State) (dispatch : Msg -> unit) =
           ]
 
           match state.WorkspaceSnapshot with
-          | Some snapshot when not (List.isEmpty snapshot.UI.RecentPages) ->
-            Html.div [
-              prop.className "mt-6 bg-base01 p-6 rounded-lg shadow-xl border border-base02"
-              prop.children [
-                Html.h3 [
-                  prop.className "text-lg font-semibold mb-4 text-base05"
-                  prop.text "Recent Files"
-                ]
-                Html.div [
-                  prop.className "space-y-2 max-h-60 overflow-y-auto"
-                  prop.children (
-                    snapshot.UI.RecentPages
-                    |> List.truncate 10
-                    |> List.map (fun noteId -> recentFileItem noteId dispatch)
-                  )
+          | Some snapshot ->
+            let recentPages =
+              snapshot.UI.RecentPages |> List.filter (String.IsNullOrWhiteSpace >> not)
+
+            if List.isEmpty recentPages then
+              Html.none
+            else
+              Html.div [
+                prop.className "mt-6 bg-base01 p-6 rounded-lg shadow-xl border border-base02"
+                prop.children [
+                  Html.h3 [
+                    prop.className "text-lg font-semibold mb-4 text-base05"
+                    prop.text "Recent Files"
+                  ]
+                  Html.div [
+                    prop.className "space-y-2 max-h-60 overflow-y-auto"
+                    prop.children (
+                      recentPages
+                      |> List.truncate 10
+                      |> List.map (fun noteId -> recentFileItem noteId dispatch)
+                    )
+                  ]
                 ]
               ]
-            ]
-          | _ -> Html.none
+          | None -> Html.none
         ]
       ]
     ]
@@ -236,13 +243,15 @@ let previewPanel (html : string option) =
     ]
   ]
 
-/// Renders the status bar with save state, word/char count, and cursor position
-let statusBar (content : string) (cursorPosition : int option) (isDirty : bool) =
-  let stats = StatusBar.calculateStats content cursorPosition isDirty
+/// Renders the status bar with save state, word/char count, cursor position, and filename
+[<ReactComponent>]
+let statusBar (note : Note) (cursorPosition : int option) (isDirty : bool) =
+  let stats = StatusBar.calculateStats note.Content cursorPosition isDirty
+  let showFullPath, setShowFullPath = React.useState false
 
   Html.div [
     prop.className
-      "h-6 bg-base01 border-t border-base02 flex items-center justify-between px-4 text-xs text-base04"
+      "h-6 bg-base01 border-t border-base02 flex items-center justify-between px-4 text-xs text-base04 shrink-0"
     prop.children [
       Html.div [
         prop.className "flex items-center gap-4"
@@ -250,6 +259,27 @@ let statusBar (content : string) (cursorPosition : int option) (isDirty : bool) 
           Html.span [
             prop.className (if stats.IsSaved then "text-green" else "text-yellow")
             prop.text (if stats.IsSaved then "Saved" else "Unsaved")
+          ]
+          Html.span [
+            prop.className "cursor-pointer hover:text-blue default-transition"
+            prop.title (
+              if showFullPath then
+                note.Path
+              else
+                "Click to show full path"
+            )
+            prop.onClick (fun _ -> setShowFullPath (not showFullPath))
+            prop.text (
+              if showFullPath then
+                note.Path
+              else
+                let parts = note.Path.Split('/')
+
+                if parts.Length > 0 then
+                  parts.[parts.Length - 1]
+                else
+                  note.Path
+            )
           ]
         ]
       ]
@@ -340,7 +370,7 @@ let noteEditor (note : Note) (state : State) (dispatch : Msg -> unit) =
           ]
         ]
 
-      statusBar note.Content state.EditorState.CursorPosition state.EditorState.IsDirty
+      statusBar note state.EditorState.CursorPosition state.EditorState.IsDirty
     ]
   ]
 
@@ -522,62 +552,63 @@ let navigationBar (state : State) (dispatch : Msg -> unit) =
   ]
 
 /// Main application content
-let appContent (state : State) (dispatch : Msg -> unit) =
-  Html.div [
-    prop.className "h-screen w-full bg-base00 flex flex-col overflow-hidden"
-    prop.children [
-      if state.Workspace.IsSome && state.CurrentRoute <> WorkspacePicker then
-        Html.div [ prop.key "navigation-bar"; prop.children [ navigationBar state dispatch ] ]
+module App =
+  let Render (state : State) (dispatch : Msg -> unit) =
+    Html.div [
+      prop.className "h-screen w-full bg-base00 flex flex-col overflow-hidden"
+      prop.children [
+        if state.Workspace.IsSome && state.CurrentRoute <> WorkspacePicker then
+          Html.div [ prop.key "navigation-bar"; prop.children [ navigationBar state dispatch ] ]
 
-      Html.div [
-        prop.key "main-content-container"
-        prop.className "flex-1 flex overflow-hidden min-h-0"
-        prop.children [
-          if state.Workspace.IsSome && state.CurrentRoute <> WorkspacePicker then
-            Html.div [
-              prop.key "notes-list"
-              prop.className "default-transition"
-              prop.children [ notesList state dispatch ]
-            ]
-
-          mainContent state dispatch
-
-          if
-            state.VisiblePanels.Contains Backlinks
-            && state.CurrentRoute <> WorkspacePicker
-            && state.CurrentRoute <> Settings
-          then
-            Html.div [
-              prop.key "backlinks-panel"
-              prop.className "default-transition"
-              prop.children [ backlinksPanel state dispatch ]
-            ]
-        ]
-      ]
-
-      Html.div [
-        prop.key "error-notification"
-        prop.children [ errorNotification state.Error dispatch ]
-      ]
-
-      if state.Loading then
         Html.div [
-          prop.key "loading-overlay"
-          prop.className
-            "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center default-transition"
+          prop.key "main-content-container"
+          prop.className "flex-1 flex overflow-hidden min-h-0"
           prop.children [
-            Html.div [
-              prop.className "bg-base01 text-base05 p-6 rounded-lg shadow-xl"
-              prop.text "Loading..."
-            ]
+            if state.Workspace.IsSome && state.CurrentRoute <> WorkspacePicker then
+              Html.div [
+                prop.key "notes-list"
+                prop.className "default-transition"
+                prop.children [ notesList state dispatch ]
+              ]
+
+            mainContent state dispatch
+
+            if
+              state.VisiblePanels.Contains Backlinks
+              && state.CurrentRoute <> WorkspacePicker
+              && state.CurrentRoute <> Settings
+            then
+              Html.div [
+                prop.key "backlinks-panel"
+                prop.className "default-transition"
+                prop.children [ backlinksPanel state dispatch ]
+              ]
           ]
         ]
+
+        Html.div [
+          prop.key "error-notification"
+          prop.children [ errorNotification state.Error dispatch ]
+        ]
+
+        if state.Loading then
+          Html.div [
+            prop.key "loading-overlay"
+            prop.className
+              "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center default-transition"
+            prop.children [
+              Html.div [
+                prop.className "bg-base01 text-base05 p-6 rounded-lg shadow-xl"
+                prop.text "Loading..."
+              ]
+            ]
+          ]
+      ]
     ]
-  ]
 
 /// Main application view with router
 let Render (state : State) (dispatch : Msg -> unit) =
   React.router [
     router.onUrlChanged (UrlChanged >> dispatch)
-    router.children [ appContent state dispatch ]
+    router.children [ App.Render state dispatch ]
   ]

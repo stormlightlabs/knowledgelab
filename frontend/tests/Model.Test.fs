@@ -284,6 +284,31 @@ Jest.describe (
     )
 
     Jest.test (
+      "WorkspaceSnapshotLoaded filters out blank recent entries",
+      fun () ->
+        let snapshotWithBlanks = {
+          UI = {
+            ActivePage = ""
+            SidebarVisible = true
+            SidebarWidth = 280
+            RightPanelVisible = false
+            RightPanelWidth = 300
+            PinnedPages = []
+            RecentPages = [ ""; "note-a.md"; " " ]
+            GraphLayout = "force"
+          }
+        }
+
+        let newState, _ = Update (WorkspaceSnapshotLoaded(Ok snapshotWithBlanks)) State.Default
+
+        match newState.WorkspaceSnapshot with
+        | Some s ->
+          Jest.expect(s.UI.RecentPages.Length).toEqual 1
+          Jest.expect(s.UI.RecentPages.[0]).toEqual "note-a.md"
+        | None -> failwith "Expected workspace snapshot to be present"
+    )
+
+    Jest.test (
       "WorkspaceSnapshotLoaded error sets error message",
       fun () ->
         let initialState = State.Default
@@ -627,6 +652,47 @@ Jest.describe (
           Jest.expect(snapshot.UI.ActivePage).toEqual testNote.Id
           Jest.expect(snapshot.UI.RecentPages.Length).toEqual 1
           Jest.expect(snapshot.UI.RecentPages.[0]).toEqual testNote.Id
+        | None -> failwith "Expected workspace snapshot to be present"
+    )
+
+    Jest.test (
+      "NoteLoaded ignores blank note IDs when updating recent pages",
+      fun () ->
+        let testNote = {
+          Id = ""
+          Title = "Invalid Note"
+          Path = "/invalid.md"
+          Content = "Content"
+          Frontmatter = Map.empty
+          Aliases = []
+          Type = ""
+          Blocks = []
+          Links = []
+          Tags = []
+          CreatedAt = System.DateTime.Now
+          ModifiedAt = System.DateTime.Now
+        }
+
+        let testSnapshot = {
+          UI = {
+            ActivePage = "existing.md"
+            SidebarVisible = true
+            SidebarWidth = 280
+            RightPanelVisible = false
+            RightPanelWidth = 300
+            PinnedPages = []
+            RecentPages = [ "existing.md" ]
+            GraphLayout = "force"
+          }
+        }
+
+        let initialState = { State.Default with WorkspaceSnapshot = Some testSnapshot }
+        let newState, _ = Update (NoteLoaded(Ok testNote)) initialState
+
+        match newState.WorkspaceSnapshot with
+        | Some snapshot ->
+          Jest.expect(snapshot.UI.RecentPages.Length).toEqual 1
+          Jest.expect(snapshot.UI.RecentPages.[0]).toEqual "existing.md"
         | None -> failwith "Expected workspace snapshot to be present"
     )
 

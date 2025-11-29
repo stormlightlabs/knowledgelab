@@ -73,6 +73,12 @@ export const RenderMarkdown = (markdown) => Promise.resolve(`<p>${markdown}</p>`
 
 export const SelectDirectory = () => Promise.resolve("/mock/workspace/directory");
 
+export const SelectFile = () => Promise.resolve("/mock/file.md");
+
+export const SelectFiles = () => Promise.resolve(["/mock/file-a.md", "/mock/file-b.md"]);
+
+export const SaveFile = () => Promise.resolve("/mock/saved.md");
+
 export const LoadSettings = () =>
   Promise.resolve({
     General: {
@@ -92,6 +98,8 @@ export const LoadSettings = () =>
   });
 
 export const SaveSettings = () => Promise.resolve();
+
+export const ShowMessage = () => Promise.resolve("ok");
 
 export const LoadWorkspaceSnapshot = () =>
   Promise.resolve({

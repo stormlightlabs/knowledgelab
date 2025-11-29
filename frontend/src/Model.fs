@@ -242,11 +242,19 @@ let private cancelTimer (timerId : int option) : unit =
 [<Literal>]
 let private MaxRecentFiles = 20
 
+/// Removes blank or whitespace-only entries from the recent files list
+let private sanitizeRecentPages (recentPages : string list) =
+  recentPages |> List.filter (String.IsNullOrWhiteSpace >> not)
+
 /// Adds a note ID to the recent pages list, maintaining max size and moving duplicates to front
 let private addToRecentPages (noteId : string) (recentPages : string list) : string list =
-  let filtered = recentPages |> List.filter ((<>) noteId)
-  let newList = noteId :: filtered
-  newList |> List.truncate MaxRecentFiles
+  if String.IsNullOrWhiteSpace noteId then
+    sanitizeRecentPages recentPages
+  else
+    let filtered = recentPages |> sanitizeRecentPages |> List.filter ((<>) noteId)
+
+    let newList = noteId :: filtered
+    newList |> List.truncate MaxRecentFiles
 
 /// Applies markdown formatting to the selected text or inserts formatting markers at cursor
 let private applyMarkdownFormat
@@ -308,19 +316,22 @@ let private applyHeadingFormat
 
 /// Updates the workspace snapshot with a new recent page and triggers save
 let private updateRecentPage (noteId : string) (state : State) : State * Cmd<Msg> =
-  match state.WorkspaceSnapshot with
-  | Some snapshot ->
-    let updatedUI = {
-      snapshot.UI with
-          RecentPages = addToRecentPages noteId snapshot.UI.RecentPages
-          ActivePage = noteId
-    }
+  if String.IsNullOrWhiteSpace noteId then
+    state, Cmd.none
+  else
+    match state.WorkspaceSnapshot with
+    | Some snapshot ->
+      let updatedUI = {
+        snapshot.UI with
+            RecentPages = addToRecentPages noteId snapshot.UI.RecentPages
+            ActivePage = noteId
+      }
 
-    let updatedSnapshot = { snapshot with UI = updatedUI }
+      let updatedSnapshot = { snapshot with UI = updatedUI }
 
-    { state with WorkspaceSnapshot = Some updatedSnapshot },
-    Cmd.ofMsg (WorkspaceSnapshotChanged updatedSnapshot)
-  | None -> state, Cmd.none
+      { state with WorkspaceSnapshot = Some updatedSnapshot },
+      Cmd.ofMsg (WorkspaceSnapshotChanged updatedSnapshot)
+    | None -> state, Cmd.none
 
 let Init () =
   let currentUrl = Router.currentUrl ()
@@ -380,10 +391,23 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     { state with Notes = notes; Loading = false; Error = None }, Cmd.none
   | NotesLoaded(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | SelectNote noteId ->
+    Browser.Dom.console.log ("SelectNote - Requesting note:", noteId)
+
     { state with Loading = true },
     Cmd.OfPromise.either Api.getNote noteId (Ok >> NoteLoaded) (fun ex ->
       NoteLoaded(Error ex.Message))
   | NoteLoaded(Ok note) ->
+    Browser.Dom.console.log ("NoteLoaded - Note data:", note)
+    Browser.Dom.console.log ("  Id:", note.Id)
+    Browser.Dom.console.log ("  Title:", note.Title)
+    Browser.Dom.console.log ("  Path:", note.Path)
+    Browser.Dom.console.log ("  Content length:", note.Content.Length)
+
+    Browser.Dom.console.log (
+      "  Content preview:",
+      note.Content.Substring(0, min 100 note.Content.Length)
+    )
+
     let stateWithNote = {
       state with
           CurrentNote = Some note
@@ -395,7 +419,9 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
 
     let stateWithRecent, recentCmd = updateRecentPage note.Id stateWithNote
     stateWithRecent, Cmd.batch [ Cmd.ofMsg (LoadBacklinks note.Id); recentCmd ]
-  | NoteLoaded(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
+  | NoteLoaded(Error err) ->
+    Browser.Dom.console.error ("NoteLoaded Error:", err)
+    { state with Loading = false; Error = Some err }, Cmd.none
   | SaveNote note ->
     { state with Loading = true },
     Cmd.OfPromise.either Api.saveNote note (fun _ -> NoteSaved(Ok())) (fun ex ->
@@ -548,9 +574,22 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   | SettingsLoaded(Ok settings) -> { state with Settings = Some settings; Error = None }, Cmd.none
   | SettingsLoaded(Error err) -> { state with Error = Some err }, Cmd.none
   | WorkspaceSnapshotLoaded(Ok snapshot) ->
+    let sanitizedSnapshot =
+      let sanitizedUI = {
+        snapshot.UI with
+            RecentPages = sanitizeRecentPages snapshot.UI.RecentPages
+      }
+
+      { snapshot with UI = sanitizedUI }
+
+    Browser.Dom.console.log ("WorkspaceSnapshotLoaded - Snapshot data:", sanitizedSnapshot)
+    Browser.Dom.console.log ("  ActivePage:", sanitizedSnapshot.UI.ActivePage)
+    Browser.Dom.console.log ("  RecentPages:", sanitizedSnapshot.UI.RecentPages)
+    Browser.Dom.console.log ("  RecentPages count:", sanitizedSnapshot.UI.RecentPages.Length)
+
     {
       state with
-          WorkspaceSnapshot = Some snapshot
+          WorkspaceSnapshot = Some sanitizedSnapshot
           Error = None
     },
     Cmd.none

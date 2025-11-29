@@ -1,3 +1,26 @@
+/// JSON deserialization for Wails API responses.
+///
+/// ### Wails/Go backend JSON serialization:
+/// - Domain types (Note, Link, Tag, etc.) use camelCase: "id", "content", "title"
+/// - Settings types use PascalCase: "General", "Editor", "Theme"
+/// - Workspace types use PascalCase: "UI", "ActivePage", "RecentPages"
+/// - Go often sends `null` instead of empty slices; decoders must coerce `null` to sensible defaults.
+///
+/// Fable's default JSON deserialization expects exact property name matches, so we use
+/// Thoth.Json decoders that correctly map Go's JSON (camelCase OR PascalCase) to F#'s PascalCase types.
+///
+/// ### Guidelines that prevent regressions:
+/// - ALL Wails API responses returning complex types MUST use these decoders; never consume raw
+///   records from `jsNative`.
+/// - Wrap every backend call as `JS.Promise<obj>` in `Api.fs` and decode using `decodeResponse`.
+/// - When a Go slice/map could be `null`, decode with `Decode.oneOf` + `Decode.nil []` (or `{}`) to
+///   coerce nulls into safe defaults—see `noteDecoder`'s `aliases` field.
+/// - When adding/updating domain types, extend this module first, then cover the decoder with
+///   `frontend/tests/Json.Test.fs`.
+/// - Keep `frontend/__mocks__/@wailsjs/go/main/App.js` in sync with the APIs you import so Jest does
+///   not load stale exports.
+///
+/// See module Api (`Api.fs`) for complete examples of proper API wrapper implementation.
 module Json
 
 open Thoth.Json
@@ -73,7 +96,8 @@ let noteDecoder : Decoder<Note> =
       Path = get.Required.Field "path" Decode.string
       Content = get.Required.Field "content" Decode.string
       Frontmatter = frontmatterDict |> Seq.map (fun kvp -> (kvp.Key, kvp.Value)) |> Map.ofSeq
-      Aliases = get.Required.Field "aliases" (Decode.list Decode.string)
+      Aliases =
+        get.Required.Field "aliases" (Decode.oneOf [ Decode.list Decode.string; Decode.nil [] ])
       Type = get.Required.Field "type" Decode.string
       Blocks = get.Required.Field "blocks" (Decode.list blockDecoder)
       Links = get.Required.Field "links" (Decode.list linkDecoder)
@@ -135,3 +159,47 @@ let workspaceInfoDecoder : Decoder<WorkspaceInfo> =
     NoteCount = get.Required.Field "noteCount" Decode.int
     TotalBlocks = get.Required.Field "totalBlocks" Decode.int
   })
+
+/// Decodes GeneralSettings from JSON (Go sends PascalCase for Settings fields)
+let generalSettingsDecoder : Decoder<GeneralSettings> =
+  Decode.object (fun get -> {
+    Theme = get.Required.Field "Theme" Decode.string
+    Language = get.Required.Field "Language" Decode.string
+    AutoSave = get.Required.Field "AutoSave" Decode.bool
+    AutoSaveInterval = get.Required.Field "AutoSaveInterval" Decode.int
+  })
+
+/// Decodes EditorSettings from JSON (Go sends PascalCase for Settings fields)
+let editorSettingsDecoder : Decoder<EditorSettings> =
+  Decode.object (fun get -> {
+    FontFamily = get.Required.Field "FontFamily" Decode.string
+    FontSize = get.Required.Field "FontSize" Decode.int
+    LineHeight = get.Required.Field "LineHeight" Decode.float
+    TabSize = get.Required.Field "TabSize" Decode.int
+    VimMode = get.Required.Field "VimMode" Decode.bool
+    SpellCheck = get.Required.Field "SpellCheck" Decode.bool
+  })
+
+/// Decodes Settings from JSON (Go sends PascalCase for Settings)
+let settingsDecoder : Decoder<Settings> =
+  Decode.object (fun get -> {
+    General = get.Required.Field "General" generalSettingsDecoder
+    Editor = get.Required.Field "Editor" editorSettingsDecoder
+  })
+
+/// Decodes WorkspaceUI from JSON (Go sends PascalCase for WorkspaceUI)
+let workspaceUIDecoder : Decoder<WorkspaceUI> =
+  Decode.object (fun get -> {
+    ActivePage = get.Required.Field "ActivePage" Decode.string
+    SidebarVisible = get.Required.Field "SidebarVisible" Decode.bool
+    SidebarWidth = get.Required.Field "SidebarWidth" Decode.int
+    RightPanelVisible = get.Required.Field "RightPanelVisible" Decode.bool
+    RightPanelWidth = get.Required.Field "RightPanelWidth" Decode.int
+    PinnedPages = get.Required.Field "PinnedPages" (Decode.list Decode.string)
+    RecentPages = get.Required.Field "RecentPages" (Decode.list Decode.string)
+    GraphLayout = get.Required.Field "GraphLayout" Decode.string
+  })
+
+/// Decodes WorkspaceSnapshot from JSON (Go sends PascalCase for WorkspaceSnapshot)
+let workspaceSnapshotDecoder : Decoder<WorkspaceSnapshot> =
+  Decode.object (fun get -> { UI = get.Required.Field "UI" workspaceUIDecoder })

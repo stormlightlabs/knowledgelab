@@ -2,9 +2,10 @@
 
 This project is a local-first, graph-based notes application inspired by Obsidian and Logseq, built with **F# (Fable + React/Elmish)** on the frontend and **Wails (Go)** on the desktop/backend side.
 
-Between this & [CONTRIBUTING](./CONTRIBUTING.md), these are canonical guidelines for working on this project
+Between this & [CONTRIBUTING](./CONTRIBUTING.md), these are canonical guidelines for working on this project.
 
-Prior to starting work, review existing `STATUS.md` files in the root of the project or in `sandbox/`
+**Before touching any code** (agentic or human), read `CONTRIBUTING.md` the latest `STATUS.md` in the project root.
+These files are updated frequently and contain task-specific constraints.
 
 ## System Overview
 

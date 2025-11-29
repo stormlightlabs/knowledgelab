@@ -175,10 +175,9 @@ Editor:
 - [x] Markdown preview mode
 - [x] Split view
 - [x] Editor toolbar with preview toggle, formatting buttons
-- [ ] Status bar with save state, word/char count, position (line, column)
-- [ ] Syntax highlighting for code blocks
+- [x] Status bar with save state, word/char count, position (line, column)
+- [ ] Syntax highlighting for markdown AND code blocks
   - Interop with [shiki](https://shiki.style/)
-  - Use Fable JSX integration and/or create F# bindings
 - [ ] Wikilink autocomplete dropdown
 
 Settings:

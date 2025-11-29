@@ -69,6 +69,8 @@ export const GetNotesWithTag = () => Promise.resolve([]);
 
 export const GetAllTags = () => Promise.resolve([]);
 
+export const RenderMarkdown = (markdown) => Promise.resolve(`<p>${markdown}</p>`);
+
 export const SelectDirectory = () => Promise.resolve("/mock/workspace/directory");
 
 export const LoadSettings = () =>

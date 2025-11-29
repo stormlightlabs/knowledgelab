@@ -4,6 +4,7 @@ open Feliz
 open Feliz.Router
 open Model
 open Domain
+open StatusBar
 
 /// Renders the workspace picker screen when no workspace is open
 let workspacePicker (state : State) (dispatch : Msg -> unit) =
@@ -201,6 +202,34 @@ let previewPanel (html : string option) =
     ]
   ]
 
+/// Renders the status bar with save state, word/char count, and cursor position
+let statusBar (content : string) (cursorPosition : int option) (isDirty : bool) =
+  let stats = StatusBar.calculateStats content cursorPosition isDirty
+
+  Html.div [
+    prop.className
+      "h-6 bg-base01 border-t border-base02 flex items-center justify-between px-4 text-xs text-base04"
+    prop.children [
+      Html.div [
+        prop.className "flex items-center gap-4"
+        prop.children [
+          Html.span [
+            prop.className (if stats.IsSaved then "text-green" else "text-yellow")
+            prop.text (if stats.IsSaved then "Saved" else "Unsaved")
+          ]
+        ]
+      ]
+      Html.div [
+        prop.className "flex items-center gap-4"
+        prop.children [
+          Html.span [ prop.text $"Words: {stats.WordCount}" ]
+          Html.span [ prop.text $"Characters: {stats.CharCount}" ]
+          Html.span [ prop.text $"Line {stats.LineNumber}, Column {stats.ColumnNumber}" ]
+        ]
+      ]
+    ]
+  ]
+
 /// Renders the note editor
 let noteEditor (note : Note) (state : State) (dispatch : Msg -> unit) =
   Html.div [
@@ -276,6 +305,8 @@ let noteEditor (note : Note) (state : State) (dispatch : Msg -> unit) =
             previewPanel state.EditorState.RenderedPreview
           ]
         ]
+
+      statusBar note.Content state.EditorState.CursorPosition state.EditorState.IsDirty
     ]
   ]
 

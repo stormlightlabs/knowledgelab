@@ -12,6 +12,7 @@
     <Compile Include="src/Syntax.fs" />
     <Compile Include="src/Model.fs" />
     <Compile Include="src/Keybinds.fs" />
+    <Compile Include="src/StatusBar.fs" />
     <Compile Include="src/GraphView.fs" />
     <Compile Include="src/View.fs" />
     <Compile Include="src/Program.fs" />

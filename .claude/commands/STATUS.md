@@ -83,6 +83,7 @@ Why certain choices were made:
 5. Synthesize into a clear, chronological narrative
 6. Write to `STATUS.md` in the root directory
 7. Update this timestamp in the file: `Status as of: YYYY-MM-DD HH:MM UTC` (ensure this is correct using the unix date util)
+8. Include the hash for the repository's latest commit in the format `Status at sha: {{commit-hash}}`
 
 ## Tone
 

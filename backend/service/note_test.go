@@ -454,3 +454,113 @@ func TestNoteService_BlockNestingLevel(t *testing.T) {
 		})
 	}
 }
+
+func TestNoteService_RenderMarkdown(t *testing.T) {
+	tmpDir := filepath.Join(os.TempDir(), "test-workspace-render-md")
+	os.RemoveAll(tmpDir)
+	defer os.RemoveAll(tmpDir)
+
+	fs, err := NewFilesystemService()
+	if err != nil {
+		t.Fatalf("NewFilesystemService() error = %v", err)
+	}
+	defer fs.Close()
+
+	_, err = fs.OpenWorkspace(tmpDir)
+	if err != nil {
+		t.Fatalf("OpenWorkspace() error = %v", err)
+	}
+
+	noteService := NewNoteService(fs)
+
+	tests := []struct {
+		name     string
+		markdown string
+		wantHTML string
+	}{
+		{
+			name:     "simple text",
+			markdown: "Hello, world!",
+			wantHTML: "<p>Hello, world!</p>",
+		},
+		{
+			name:     "heading",
+			markdown: "# Heading 1",
+			wantHTML: "<h1>Heading 1</h1>",
+		},
+		{
+			name:     "bold text",
+			markdown: "This is **bold** text",
+			wantHTML: "<strong>bold</strong>",
+		},
+		{
+			name:     "italic text",
+			markdown: "This is _italic_ text",
+			wantHTML: "<em>italic</em>",
+		},
+		{
+			name:     "inline code",
+			markdown: "This is `code` text",
+			wantHTML: "<code>code</code>",
+		},
+		{
+			name:     "link",
+			markdown: "[Link text](https://example.com)",
+			wantHTML: "<a href=\"https://example.com\">Link text</a>",
+		},
+		{
+			name:     "unordered list",
+			markdown: "- Item 1\n- Item 2\n- Item 3",
+			wantHTML: "<ul>",
+		},
+		{
+			name:     "ordered list",
+			markdown: "1. First\n2. Second\n3. Third",
+			wantHTML: "<ol>",
+		},
+		{
+			name:     "code block",
+			markdown: "```\ncode block\n```",
+			wantHTML: "<pre><code>code block",
+		},
+		{
+			name:     "multiple paragraphs",
+			markdown: "First paragraph\n\nSecond paragraph",
+			wantHTML: "<p>First paragraph</p>\n<p>Second paragraph</p>",
+		},
+		{
+			name:     "empty string",
+			markdown: "",
+			wantHTML: "",
+		},
+		{
+			name:     "whitespace only",
+			markdown: "   \n  \n  ",
+			wantHTML: "",
+		},
+		{
+			name:     "special characters",
+			markdown: "Text with <special> & \"characters\"",
+			wantHTML: "&amp;",
+		},
+		{
+			name:     "nested formatting",
+			markdown: "**Bold with _italic_ inside**",
+			wantHTML: "<strong>Bold with <em>italic</em> inside</strong>",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			html, err := noteService.RenderMarkdown(tt.markdown)
+			if err != nil {
+				t.Errorf("RenderMarkdown() error = %v", err)
+				return
+			}
+
+			if !strings.Contains(html, tt.wantHTML) {
+				t.Errorf("RenderMarkdown() = %q, want to contain %q", html, tt.wantHTML)
+			}
+		})
+	}
+}

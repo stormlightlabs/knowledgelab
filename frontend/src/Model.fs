@@ -41,6 +41,7 @@ type EditorState = {
   SelectionStart : int option
   SelectionEnd : int option
   IsDirty : bool
+  RenderedPreview : string option
 }
 
 /// Modal dialog types that can be shown
@@ -118,6 +119,7 @@ type State = {
       SelectionStart = None
       SelectionEnd = None
       IsDirty = false
+      RenderedPreview = None
     }
     UIState = {
       SidebarWidth = 280
@@ -184,6 +186,8 @@ type Msg =
   | FormatItalic
   | FormatInlineCode
   | SetHeadingLevel of int
+  | RenderPreview of markdown : string
+  | PreviewRendered of Result<string, string>
 
 /// Debounce delay in milliseconds
 [<Literal>]
@@ -579,11 +583,18 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   | WorkspaceSnapshotSaved(Error err) -> { state with Error = Some err }, Cmd.none
   | UpdateSearchFilters filters -> { state with SearchFilters = filters }, Cmd.none
   | SetPreviewMode mode ->
-    {
+    let newState = {
       state with
           EditorState = { state.EditorState with PreviewMode = mode }
-    },
-    Cmd.none
+    }
+
+    let cmd =
+      match mode, state.CurrentNote with
+      | PreviewOnly, Some note
+      | SplitView, Some note -> Cmd.ofMsg (RenderPreview note.Content)
+      | _ -> Cmd.none
+
+    newState, cmd
   | UpdateCursorPosition pos ->
     {
       state with
@@ -726,3 +737,14 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
       },
       Cmd.ofMsg (SaveNote updatedNote)
     | None -> state, Cmd.none
+  | RenderPreview markdown ->
+    state,
+    Cmd.OfPromise.either Api.renderMarkdown markdown (Ok >> PreviewRendered) (fun err ->
+      PreviewRendered(Error(string err)))
+  | PreviewRendered(Ok html) ->
+    {
+      state with
+          EditorState = { state.EditorState with RenderedPreview = Some html }
+    },
+    Cmd.none
+  | PreviewRendered(Error err) -> { state with Error = Some err }, Cmd.none

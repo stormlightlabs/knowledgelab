@@ -185,6 +185,16 @@ func (a *App) GetAllTags() ([]string, error) {
 	return tags, nil
 }
 
+// RenderMarkdown converts markdown content to HTML.
+// Used by the frontend for preview mode rendering.
+func (a *App) RenderMarkdown(markdown string) (string, error) {
+	html, err := a.notes.RenderMarkdown(markdown)
+	if err != nil {
+		return "", a.wrapError("failed to render markdown", err)
+	}
+	return html, nil
+}
+
 // buildInitialIndex loads all notes and builds graph and search indexes.
 // Runs asynchronously after workspace is opened.
 func (a *App) buildInitialIndex() {

@@ -37,6 +37,9 @@ let getNotesWithTag (tagName : string) : JS.Promise<string array> = jsNative
 [<Import("GetAllTags", from = "@wailsjs/go/main/App")>]
 let getAllTags () : JS.Promise<string array> = jsNative
 
+[<Import("RenderMarkdown", from = "@wailsjs/go/main/App")>]
+let renderMarkdown (markdown : string) : JS.Promise<string> = jsNative
+
 [<Import("SelectDirectory", from = "@wailsjs/go/main/App")>]
 let selectDirectory (title : string) : JS.Promise<string> = jsNative
 

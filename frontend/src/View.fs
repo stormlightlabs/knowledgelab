@@ -110,8 +110,99 @@ let notesList (state : State) (dispatch : Msg -> unit) =
     ]
   ]
 
+/// Renders a toolbar button with hover state and optional active state
+let toolbarButton (label : string) (title : string) (isActive : bool) (onClick : unit -> unit) =
+  Html.button [
+    prop.className (
+      "px-3 py-1.5 rounded text-sm font-medium transition-all "
+      + if isActive then
+          "bg-blue text-base00"
+        else
+          "text-base05 hover:bg-base02"
+    )
+    prop.title title
+    prop.text label
+    prop.onClick (fun _ -> onClick ())
+  ]
+
+/// Renders the editor toolbar with formatting buttons and preview toggles
+let editorToolbar (state : State) (dispatch : Msg -> unit) =
+  Html.div [
+    prop.className "flex items-center gap-2 px-4 py-2 bg-base01 border-b border-base02"
+    prop.children [
+      Html.div [
+        prop.className "flex items-center gap-1"
+        prop.children [
+          toolbarButton "B" "Bold (Ctrl/Cmd+B)" false (fun () -> dispatch FormatBold)
+          toolbarButton "I" "Italic (Ctrl/Cmd+I)" false (fun () -> dispatch FormatItalic)
+          toolbarButton "</>" "Code (Ctrl/Cmd+E)" false (fun () -> dispatch FormatInlineCode)
+
+          Html.div [ prop.className "w-px h-6 bg-base02 mx-1" ]
+
+          Html.select [
+            prop.className
+              "px-2 py-1 rounded text-sm bg-base00 text-base05 border border-base02 hover:border-blue transition-all"
+            prop.title "Heading Level (Ctrl/Cmd+1-6)"
+            prop.onChange (fun (value : string) ->
+              match System.Int32.TryParse(value) with
+              | true, level when level >= 1 && level <= 6 -> dispatch (SetHeadingLevel level)
+              | _ -> ())
+            prop.children [
+              Html.option [ prop.value "0"; prop.text "Paragraph" ]
+              Html.option [ prop.value "1"; prop.text "Heading 1" ]
+              Html.option [ prop.value "2"; prop.text "Heading 2" ]
+              Html.option [ prop.value "3"; prop.text "Heading 3" ]
+              Html.option [ prop.value "4"; prop.text "Heading 4" ]
+              Html.option [ prop.value "5"; prop.text "Heading 5" ]
+              Html.option [ prop.value "6"; prop.text "Heading 6" ]
+            ]
+          ]
+        ]
+      ]
+
+      Html.div [ prop.className "flex-1" ]
+
+      Html.div [
+        prop.className "flex items-center gap-1"
+        prop.children [
+          toolbarButton
+            "Edit"
+            "Edit Only Mode"
+            (state.EditorState.PreviewMode = EditOnly)
+            (fun () -> dispatch (SetPreviewMode EditOnly))
+          toolbarButton
+            "Preview"
+            "Preview Only Mode"
+            (state.EditorState.PreviewMode = PreviewOnly)
+            (fun () -> dispatch (SetPreviewMode PreviewOnly))
+          toolbarButton
+            "Split"
+            "Split View Mode (Ctrl/Cmd+Shift+P)"
+            (state.EditorState.PreviewMode = SplitView)
+            (fun () -> dispatch (SetPreviewMode SplitView))
+        ]
+      ]
+    ]
+  ]
+
+/// Renders the markdown preview panel
+let previewPanel (html : string option) =
+  Html.div [
+    prop.className "flex-1 p-6 overflow-y-auto prose prose-invert max-w-none"
+    prop.children [
+      match html with
+      | Some content ->
+        Html.div [ prop.className "rendered-markdown"; prop.dangerouslySetInnerHTML content ]
+      | None ->
+        Html.div [
+          prop.className "text-base03 text-center mt-8"
+          prop.text "Loading preview..."
+        ]
+    ]
+  ]
+
 /// Renders the note editor
-let noteEditor (note : Note) (dispatch : Msg -> unit) =
+let noteEditor (note : Note) (state : State) (dispatch : Msg -> unit) =
   Html.div [
     prop.className "flex-1 flex flex-col bg-base00"
     prop.children [
@@ -122,31 +213,69 @@ let noteEditor (note : Note) (dispatch : Msg -> unit) =
           Html.div [ prop.className "text-sm text-base03 mt-1"; prop.text note.Path ]
         ]
       ]
-      Html.div [
-        prop.className "flex-1 p-6 overflow-y-auto"
-        prop.children [
-          Html.textarea [
-            prop.className
-              "w-full h-full font-mono text-sm bg-base00 text-base05 border border-base02 rounded p-4 focus:outline-none focus:border-blue resize-none"
-            prop.value note.Content
-            prop.placeholder "Start writing..."
-            prop.onChange (fun (value : string) -> dispatch (UpdateNoteContent value))
-            prop.onSelect (fun (e : Browser.Types.Event) ->
-              let target = e.target :?> Browser.Types.HTMLTextAreaElement
-              let start = int target.selectionStart
-              let end_ = int target.selectionEnd
-              dispatch (UpdateSelection(Some start, Some end_)))
-            prop.onClick (fun (e : Browser.Types.MouseEvent) ->
-              let target = e.target :?> Browser.Types.HTMLTextAreaElement
-              let pos = int target.selectionStart
-              dispatch (UpdateCursorPosition(Some pos)))
-            prop.onKeyUp (fun (e : Browser.Types.KeyboardEvent) ->
-              let target = e.target :?> Browser.Types.HTMLTextAreaElement
-              let pos = int target.selectionStart
-              dispatch (UpdateCursorPosition(Some pos)))
+
+      editorToolbar state dispatch
+
+      match state.EditorState.PreviewMode with
+      | EditOnly ->
+        Html.div [
+          prop.className "flex-1 p-6 overflow-y-auto"
+          prop.children [
+            Html.textarea [
+              prop.className
+                "w-full h-full font-mono text-sm bg-base00 text-base05 border border-base02 rounded p-4 focus:outline-none focus:border-blue resize-none"
+              prop.value note.Content
+              prop.placeholder "Start writing..."
+              prop.onChange (fun (value : string) -> dispatch (UpdateNoteContent value))
+              prop.onSelect (fun (e : Browser.Types.Event) ->
+                let target = e.target :?> Browser.Types.HTMLTextAreaElement
+                let start = int target.selectionStart
+                let end_ = int target.selectionEnd
+                dispatch (UpdateSelection(Some start, Some end_)))
+              prop.onClick (fun (e : Browser.Types.MouseEvent) ->
+                let target = e.target :?> Browser.Types.HTMLTextAreaElement
+                let pos = int target.selectionStart
+                dispatch (UpdateCursorPosition(Some pos)))
+              prop.onKeyUp (fun (e : Browser.Types.KeyboardEvent) ->
+                let target = e.target :?> Browser.Types.HTMLTextAreaElement
+                let pos = int target.selectionStart
+                dispatch (UpdateCursorPosition(Some pos)))
+            ]
           ]
         ]
-      ]
+      | PreviewOnly -> previewPanel state.EditorState.RenderedPreview
+      | SplitView ->
+        Html.div [
+          prop.className "flex-1 flex overflow-hidden"
+          prop.children [
+            Html.div [
+              prop.className "flex-1 p-6 overflow-y-auto border-r border-base02"
+              prop.children [
+                Html.textarea [
+                  prop.className
+                    "w-full h-full font-mono text-sm bg-base00 text-base05 border border-base02 rounded p-4 focus:outline-none focus:border-blue resize-none"
+                  prop.value note.Content
+                  prop.placeholder "Start writing..."
+                  prop.onChange (fun (value : string) -> dispatch (UpdateNoteContent value))
+                  prop.onSelect (fun (e : Browser.Types.Event) ->
+                    let target = e.target :?> Browser.Types.HTMLTextAreaElement
+                    let start = int target.selectionStart
+                    let end_ = int target.selectionEnd
+                    dispatch (UpdateSelection(Some start, Some end_)))
+                  prop.onClick (fun (e : Browser.Types.MouseEvent) ->
+                    let target = e.target :?> Browser.Types.HTMLTextAreaElement
+                    let pos = int target.selectionStart
+                    dispatch (UpdateCursorPosition(Some pos)))
+                  prop.onKeyUp (fun (e : Browser.Types.KeyboardEvent) ->
+                    let target = e.target :?> Browser.Types.HTMLTextAreaElement
+                    let pos = int target.selectionStart
+                    dispatch (UpdateCursorPosition(Some pos)))
+                ]
+              ]
+            ]
+            previewPanel state.EditorState.RenderedPreview
+          ]
+        ]
     ]
   ]
 
@@ -258,7 +387,7 @@ let mainContent (state : State) (dispatch : Msg -> unit) =
     ]
   | NoteEditor _ ->
     match state.CurrentNote with
-    | Some note -> noteEditor note dispatch
+    | Some note -> noteEditor note state dispatch
     | None ->
       Html.div [
         prop.className "flex-1 flex items-center justify-center bg-base00 text-base05"

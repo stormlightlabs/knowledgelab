@@ -172,9 +172,9 @@ Editor:
 
 - [x] Editor formatting with keyboard shortcuts (bold, italic, inline code, headings)
 - [x] Cursor position and selection tracking
-- [ ] Markdown preview mode
-- [ ] Split view
-- [ ] Editor toolbar with preview toggle, formatting buttons
+- [x] Markdown preview mode
+- [x] Split view
+- [x] Editor toolbar with preview toggle, formatting buttons
 - [ ] Status bar with save state, word/char count, position (line, column)
 - [ ] Syntax highlighting for code blocks
   - Interop with [shiki](https://shiki.style/)

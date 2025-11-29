@@ -146,6 +146,15 @@ func (s *NoteService) CreateNote(title, folder string) (*domain.Note, error) {
 	return note, nil
 }
 
+// RenderMarkdown converts markdown content to HTML using goldmark.
+func (s *NoteService) RenderMarkdown(markdown string) (string, error) {
+	var buf bytes.Buffer
+	if err := s.parser.Convert([]byte(markdown), &buf); err != nil {
+		return "", fmt.Errorf("failed to render markdown: %w", err)
+	}
+	return buf.String(), nil
+}
+
 // parseNote converts raw content into a structured Note.
 // It extracts frontmatter, parses Markdown structure, and identifies blocks.
 func (s *NoteService) parseNote(id string, content []byte, info os.FileInfo) (*domain.Note, error) {

@@ -17,8 +17,7 @@ type CodeBlock = {
 let private createDOMParser () : obj = jsNative
 
 [<Emit("$0.parseFromString($1, $2)")>]
-let private parseFromString (parser : obj) (html : string) (contentType : string) : Document =
-  jsNative
+let private parseFromString (parser : obj) (html : string) (contentType : string) : Document = jsNative
 
 /// Extracts code blocks from HTML content
 let private findCodeBlocks (html : string) : CodeBlock list =
@@ -121,8 +120,7 @@ let highlightCodeBlocksWithTheme (html : string) (theme : string) : JS.Promise<s
           try
             let lang = block.Language |> Option.defaultValue "plaintext"
 
-            let! html =
-              Syntax.codeToHtml block.Code { Syntax.CodeToHtmlOptions.lang = lang; theme = theme }
+            let! html = Syntax.codeToHtml block.Code { Syntax.CodeToHtmlOptions.lang = lang; theme = theme }
 
             return html
           with ex ->

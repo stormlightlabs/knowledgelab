@@ -85,11 +85,7 @@ let buildNeighborMap (links : GraphLink list) : Map<string, Set<string>> =
     Map.empty
 
 /// Check if two nodes are neighbors
-let areNeighbors
-  (neighborMap : Map<string, Set<string>>)
-  (nodeA : string)
-  (nodeB : string)
-  : bool =
+let areNeighbors (neighborMap : Map<string, Set<string>>) (nodeA : string) (nodeB : string) : bool =
   neighborMap
   |> Map.tryFind nodeA
   |> Option.map (fun neighbors -> neighbors.Contains nodeB)
@@ -120,8 +116,7 @@ let svgGraph (state : State) (dispatch : Msg -> unit) =
   /// Determine if a link should be dimmed or highlighted
   let getLinkClass (link : GraphLink) : string =
     match state.HoveredNode with
-    | Some hoveredId when link.Source = hoveredId || link.Target = hoveredId ->
-      "graph-link highlighted"
+    | Some hoveredId when link.Source = hoveredId || link.Target = hoveredId -> "graph-link highlighted"
     | Some _ -> "graph-link dimmed"
     | None -> "graph-link"
 
@@ -141,8 +136,7 @@ let svgGraph (state : State) (dispatch : Msg -> unit) =
 
     let highlightClass =
       match state.HoveredNode with
-      | Some hoveredId when hoveredId = nodeId || areNeighbors neighborMap hoveredId nodeId ->
-        " highlighted"
+      | Some hoveredId when hoveredId = nodeId || areNeighbors neighborMap hoveredId nodeId -> " highlighted"
       | _ -> ""
 
     let dimmedClass = if isNodeDimmed nodeId then " dimmed" else ""
@@ -244,15 +238,13 @@ let svgGraph (state : State) (dispatch : Msg -> unit) =
         prop.children [
           if graphData.Nodes.IsEmpty then
             Html.div [
-              prop.className
-                "text-center text-base03 absolute inset-0 flex items-center justify-center"
+              prop.className "text-center text-base03 absolute inset-0 flex items-center justify-center"
               prop.children [
                 Html.div [
                   prop.children [
                     Html.p [ prop.text "No graph data available" ]
                     Html.button [
-                      prop.className
-                        "mt-4 px-4 py-2 bg-blue hover:bg-blue-bright text-base00 rounded transition-all"
+                      prop.className "mt-4 px-4 py-2 bg-blue hover:bg-blue-bright text-base00 rounded transition-all"
                       prop.text "Load Graph"
                       prop.onClick (fun _ -> dispatch LoadGraph)
                     ]
@@ -346,10 +338,7 @@ let svgGraph (state : State) (dispatch : Msg -> unit) =
               if tooltipVisible then
                 Html.div [
                   prop.className "graph-tooltip"
-                  prop.style [
-                    style.left (int (tooltipX + 10.0))
-                    style.top (int (tooltipY + 10.0))
-                  ]
+                  prop.style [ style.left (int (tooltipX + 10.0)); style.top (int (tooltipY + 10.0)) ]
                   prop.text tooltipContent
                 ]
             ]
@@ -442,8 +431,7 @@ let canvasGraph (state : State) (dispatch : Msg -> unit) =
 
         let isDimmed =
           match state.HoveredNode with
-          | Some hoveredId when hoveredId <> node.Id ->
-            not (areNeighbors neighborMap hoveredId node.Id)
+          | Some hoveredId when hoveredId <> node.Id -> not (areNeighbors neighborMap hoveredId node.Id)
           | _ -> false
 
         let radius = 5.0 + float node.Degree
@@ -468,8 +456,7 @@ let canvasGraph (state : State) (dispatch : Msg -> unit) =
 
         let isLabelHighlighted =
           match state.HoveredNode with
-          | Some hoveredId when hoveredId = node.Id || areNeighbors neighborMap hoveredId node.Id ->
-            true
+          | Some hoveredId when hoveredId = node.Id || areNeighbors neighborMap hoveredId node.Id -> true
           | _ -> false
 
         ctx.font <-
@@ -543,13 +530,10 @@ let canvasGraph (state : State) (dispatch : Msg -> unit) =
               Html.span [ prop.className "mx-2"; prop.text "•" ]
 
               Html.button [
-                prop.className
-                  "text-blue hover:text-blue-bright default-transition cursor-pointer underline"
+                prop.className "text-blue hover:text-blue-bright default-transition cursor-pointer underline"
                 prop.text $"Switch to {targetEngine}"
                 prop.onClick (fun _ ->
-                  dispatch (
-                    GraphEngineChanged(if state.GraphEngine = Canvas then Svg else Canvas)
-                  ))
+                  dispatch (GraphEngineChanged(if state.GraphEngine = Canvas then Svg else Canvas)))
               ]
             ]
           ]
@@ -560,15 +544,13 @@ let canvasGraph (state : State) (dispatch : Msg -> unit) =
         prop.children [
           if graphData.Nodes.IsEmpty then
             Html.div [
-              prop.className
-                "text-center text-base03 absolute inset-0 flex items-center justify-center"
+              prop.className "text-center text-base03 absolute inset-0 flex items-center justify-center"
               prop.children [
                 Html.div [
                   prop.children [
                     Html.p [ prop.text "No graph data available" ]
                     Html.button [
-                      prop.className
-                        "mt-4 px-4 py-2 bg-blue hover:bg-blue-bright text-base00 rounded transition-all"
+                      prop.className "mt-4 px-4 py-2 bg-blue hover:bg-blue-bright text-base00 rounded transition-all"
                       prop.text "Load Graph"
                       prop.onClick (fun _ -> dispatch LoadGraph)
                     ]
@@ -626,10 +608,7 @@ let canvasGraph (state : State) (dispatch : Msg -> unit) =
               if tooltipVisible then
                 Html.div [
                   prop.className "graph-tooltip"
-                  prop.style [
-                    style.left (int (tooltipX + 10.0))
-                    style.top (int (tooltipY + 10.0))
-                  ]
+                  prop.style [ style.left (int (tooltipX + 10.0)); style.top (int (tooltipY + 10.0)) ]
                   prop.text tooltipContent
                 ]
             ]

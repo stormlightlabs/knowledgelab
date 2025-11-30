@@ -454,8 +454,7 @@ Jest.describe (
         let newState, _ = Update (WorkspaceOpened(Ok workspaceInfo)) initialState
 
         match newState.WorkspaceSnapshot with
-        | Some updatedSnapshot ->
-          Jest.expect(updatedSnapshot.UI.LastWorkspacePath).toEqual "/workspace"
+        | Some updatedSnapshot -> Jest.expect(updatedSnapshot.UI.LastWorkspacePath).toEqual "/workspace"
         | None -> failwith "Expected workspace snapshot to be present"
 
         Jest.expect(newState.PendingWorkspacePath).toEqual None

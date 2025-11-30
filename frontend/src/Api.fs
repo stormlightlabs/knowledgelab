@@ -51,20 +51,13 @@ module Raw =
   let selectFile (title : string) (filters : FileFilter array) : JS.Promise<string> = jsNative
 
   [<Import("SelectFiles", from = "@wailsjs/go/main/App")>]
-  let selectFiles (title : string) (filters : FileFilter array) : JS.Promise<string array> =
-    jsNative
+  let selectFiles (title : string) (filters : FileFilter array) : JS.Promise<string array> = jsNative
 
   [<Import("SaveFile", from = "@wailsjs/go/main/App")>]
-  let saveFile
-    (title : string)
-    (defaultFilename : string)
-    (filters : FileFilter array)
-    : JS.Promise<string> =
-    jsNative
+  let saveFile (title : string) (defaultFilename : string) (filters : FileFilter array) : JS.Promise<string> = jsNative
 
   [<Import("ShowMessage", from = "@wailsjs/go/main/App")>]
-  let showMessage (title : string) (message : string) (dialogType : string) : JS.Promise<string> =
-    jsNative
+  let showMessage (title : string) (message : string) (dialogType : string) : JS.Promise<string> = jsNative
 
   [<Import("LoadSettings", from = "@wailsjs/go/main/App")>]
   let loadSettings () : JS.Promise<obj> = jsNative

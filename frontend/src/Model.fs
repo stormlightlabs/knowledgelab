@@ -335,11 +335,7 @@ let private applyMarkdownFormat
   | _ -> (content, 0, 0)
 
 /// Applies heading formatting to the current line
-let private applyHeadingFormat
-  (content : string)
-  (cursorPosition : int option)
-  (level : int)
-  : string * int =
+let private applyHeadingFormat (content : string) (cursorPosition : int option) (level : int) : string * int =
   match cursorPosition with
   | Some pos ->
     let lines = content.Split('\n')
@@ -472,11 +468,7 @@ let private applyBlockOutdent
   | None -> (content, None)
 
 /// Navigates cursor to the previous or next line (direction: -1 for up, 1 for down)
-let private navigateBlock
-  (content : string)
-  (cursorPosition : int option)
-  (direction : int)
-  : int option =
+let private navigateBlock (content : string) (cursorPosition : int option) (direction : int) : int option =
   match cursorPosition with
   | Some pos ->
     let lines = content.Split('\n')
@@ -516,8 +508,7 @@ let private updateRecentPage (noteId : string) (state : State) : State * Cmd<Msg
     | Some snapshot ->
       let resolvedWorkspacePath =
         match state.Workspace with
-        | Some ws when not (String.IsNullOrWhiteSpace ws.Workspace.RootPath) ->
-          ws.Workspace.RootPath
+        | Some ws when not (String.IsNullOrWhiteSpace ws.Workspace.RootPath) -> ws.Workspace.RootPath
         | _ -> snapshot.UI.LastWorkspacePath
 
       let updatedUI = {
@@ -529,8 +520,7 @@ let private updateRecentPage (noteId : string) (state : State) : State * Cmd<Msg
 
       let updatedSnapshot = { snapshot with UI = updatedUI }
 
-      { state with WorkspaceSnapshot = Some updatedSnapshot },
-      Cmd.ofMsg (WorkspaceSnapshotChanged updatedSnapshot)
+      { state with WorkspaceSnapshot = Some updatedSnapshot }, Cmd.ofMsg (WorkspaceSnapshotChanged updatedSnapshot)
     | None -> state, Cmd.none
 
 let Init () =
@@ -562,8 +552,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
       (fun ex -> SetError ex.Message)
   | OpenWorkspace path ->
     { state with Loading = true },
-    Cmd.OfPromise.either Api.openWorkspace path (Ok >> WorkspaceOpened) (fun ex ->
-      WorkspaceOpened(Error ex.Message))
+    Cmd.OfPromise.either Api.openWorkspace path (Ok >> WorkspaceOpened) (fun ex -> WorkspaceOpened(Error ex.Message))
   | WorkspaceOpened(Ok workspace) ->
     let targetWorkspacePath = workspace.Workspace.RootPath
 
@@ -633,8 +622,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     Browser.Dom.console.log ("SelectNote - Requesting note:", noteId)
 
     { state with Loading = true },
-    Cmd.OfPromise.either Api.getNote noteId (Ok >> NoteLoaded) (fun ex ->
-      NoteLoaded(Error ex.Message))
+    Cmd.OfPromise.either Api.getNote noteId (Ok >> NoteLoaded) (fun ex -> NoteLoaded(Error ex.Message))
   | OpenRecentFile(workspacePath, noteId) ->
     let trimmedWorkspace = if isNull workspacePath then "" else workspacePath.Trim()
 
@@ -643,16 +631,13 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     elif String.IsNullOrWhiteSpace trimmedWorkspace then
       {
         state with
-            Error =
-              Some
-                "This recent file is missing its workspace path. Please open the workspace manually."
+            Error = Some "This recent file is missing its workspace path. Please open the workspace manually."
       },
       Cmd.none
     else
       let isWorkspaceActive =
         state.Workspace
-        |> Option.map (fun ws ->
-          ws.Workspace.RootPath.Equals(trimmedWorkspace, StringComparison.OrdinalIgnoreCase))
+        |> Option.map (fun ws -> ws.Workspace.RootPath.Equals(trimmedWorkspace, StringComparison.OrdinalIgnoreCase))
         |> Option.defaultValue false
 
       if isWorkspaceActive then
@@ -694,10 +679,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     Browser.Dom.console.log ("  Path:", note.Path)
     Browser.Dom.console.log ("  Content length:", note.Content.Length)
 
-    Browser.Dom.console.log (
-      "  Content preview:",
-      note.Content.Substring(0, min 100 note.Content.Length)
-    )
+    Browser.Dom.console.log ("  Content preview:", note.Content.Substring(0, min 100 note.Content.Length))
 
     let stateWithNote = {
       state with
@@ -715,16 +697,13 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     { state with Loading = false; Error = Some err }, Cmd.none
   | SaveNote note ->
     { state with Loading = true },
-    Cmd.OfPromise.either Api.saveNote note (fun _ -> NoteSaved(Ok())) (fun ex ->
-      NoteSaved(Error ex.Message))
+    Cmd.OfPromise.either Api.saveNote note (fun _ -> NoteSaved(Ok())) (fun ex -> NoteSaved(Error ex.Message))
   | NoteSaved(Ok()) ->
-    { state with Loading = false; Error = None },
-    Cmd.batch [ Cmd.ofMsg LoadNotes; Cmd.ofMsg LoadGraph ]
+    { state with Loading = false; Error = None }, Cmd.batch [ Cmd.ofMsg LoadNotes; Cmd.ofMsg LoadGraph ]
   | NoteSaved(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | CreateNote(title, folder) ->
     { state with Loading = true },
-    Cmd.OfPromise.either (Api.createNote title) folder (Ok >> NoteCreated) (fun ex ->
-      NoteCreated(Error ex.Message))
+    Cmd.OfPromise.either (Api.createNote title) folder (Ok >> NoteCreated) (fun ex -> NoteCreated(Error ex.Message))
   | NoteCreated(Ok note) ->
     let stateWithNote = {
       state with
@@ -740,8 +719,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   | NoteCreated(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | DeleteNote noteId ->
     { state with Loading = true },
-    Cmd.OfPromise.either Api.deleteNote noteId (fun _ -> NoteDeleted(Ok())) (fun ex ->
-      NoteDeleted(Error ex.Message))
+    Cmd.OfPromise.either Api.deleteNote noteId (fun _ -> NoteDeleted(Ok())) (fun ex -> NoteDeleted(Error ex.Message))
   | NoteDeleted(Ok()) ->
     {
       state with
@@ -795,8 +773,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   | SearchCompleted(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | LoadGraph ->
     { state with Loading = true },
-    Cmd.OfPromise.either Api.getGraph () (Ok >> GraphLoaded) (fun ex ->
-      GraphLoaded(Error ex.Message))
+    Cmd.OfPromise.either Api.getGraph () (Ok >> GraphLoaded) (fun ex -> GraphLoaded(Error ex.Message))
   | GraphLoaded(Ok graph) ->
     {
       state with
@@ -814,11 +791,8 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   | TagsLoaded(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | LoadBacklinks noteId ->
     { state with Loading = true },
-    Cmd.OfPromise.either
-      Api.getBacklinks
-      noteId
-      (safeArrayToList >> Ok >> BacklinksLoaded)
-      (fun ex -> BacklinksLoaded(Error ex.Message))
+    Cmd.OfPromise.either Api.getBacklinks noteId (safeArrayToList >> Ok >> BacklinksLoaded) (fun ex ->
+      BacklinksLoaded(Error ex.Message))
   | BacklinksLoaded(Ok links) ->
     {
       state with
@@ -834,11 +808,8 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     let dailyNoteFolder = "daily"
 
     { state with Loading = true },
-    Cmd.OfPromise.either
-      (Api.createNote dailyNoteTitle)
-      dailyNoteFolder
-      (Ok >> NoteCreated)
-      (fun ex -> NoteCreated(Error ex.Message))
+    Cmd.OfPromise.either (Api.createNote dailyNoteTitle) dailyNoteFolder (Ok >> NoteCreated) (fun ex ->
+      NoteCreated(Error ex.Message))
   | UpdateNoteContent content ->
     match state.CurrentNote with
     | Some note ->
@@ -857,8 +828,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   | HydrateFromDisk ->
     state,
     Cmd.batch [
-      Cmd.OfPromise.either Api.loadSettings () (Ok >> SettingsLoaded) (fun ex ->
-        SettingsLoaded(Error ex.Message))
+      Cmd.OfPromise.either Api.loadSettings () (Ok >> SettingsLoaded) (fun ex -> SettingsLoaded(Error ex.Message))
       Cmd.OfPromise.either Api.loadWorkspaceSnapshot () (Ok >> WorkspaceSnapshotLoaded) (fun ex ->
         WorkspaceSnapshotLoaded(Error ex.Message))
     ]
@@ -899,11 +869,8 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     match state.WorkspaceSnapshot with
     | Some snapshot ->
       { state with SnapshotSaveTimer = None },
-      Cmd.OfPromise.either
-        Api.saveWorkspaceSnapshot
-        snapshot
-        (fun _ -> WorkspaceSnapshotSaved(Ok()))
-        (fun ex -> WorkspaceSnapshotSaved(Error ex.Message))
+      Cmd.OfPromise.either Api.saveWorkspaceSnapshot snapshot (fun _ -> WorkspaceSnapshotSaved(Ok())) (fun ex ->
+        WorkspaceSnapshotSaved(Error ex.Message))
     | None -> state, Cmd.none
   | WorkspaceSnapshotSaved(Ok()) -> { state with Error = None }, Cmd.none
   | WorkspaceSnapshotSaved(Error err) -> { state with Error = Some err }, Cmd.none
@@ -974,12 +941,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     match state.CurrentNote with
     | Some note ->
       let newContent, newStart, newEnd =
-        applyMarkdownFormat
-          note.Content
-          state.EditorState.SelectionStart
-          state.EditorState.SelectionEnd
-          "**"
-          "**"
+        applyMarkdownFormat note.Content state.EditorState.SelectionStart state.EditorState.SelectionEnd "**" "**"
 
       let updatedNote = { note with Content = newContent }
 
@@ -999,12 +961,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     match state.CurrentNote with
     | Some note ->
       let newContent, newStart, newEnd =
-        applyMarkdownFormat
-          note.Content
-          state.EditorState.SelectionStart
-          state.EditorState.SelectionEnd
-          "_"
-          "_"
+        applyMarkdownFormat note.Content state.EditorState.SelectionStart state.EditorState.SelectionEnd "_" "_"
 
       let updatedNote = { note with Content = newContent }
 
@@ -1024,12 +981,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     match state.CurrentNote with
     | Some note ->
       let newContent, newStart, newEnd =
-        applyMarkdownFormat
-          note.Content
-          state.EditorState.SelectionStart
-          state.EditorState.SelectionEnd
-          "`"
-          "`"
+        applyMarkdownFormat note.Content state.EditorState.SelectionStart state.EditorState.SelectionEnd "`" "`"
 
       let updatedNote = { note with Content = newContent }
 
@@ -1070,11 +1022,8 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
       PreviewRendered(Error(string err)))
   | PreviewRendered(Ok html) ->
     state,
-    Cmd.OfPromise.either
-      SyntaxHighlighter.highlightCodeBlocks
-      html
-      (Ok >> SyntaxHighlightingApplied)
-      (fun err -> SyntaxHighlightingApplied(Error(string err)))
+    Cmd.OfPromise.either SyntaxHighlighter.highlightCodeBlocks html (Ok >> SyntaxHighlightingApplied) (fun err ->
+      SyntaxHighlightingApplied(Error(string err)))
   | PreviewRendered(Error err) -> { state with Error = Some err }, Cmd.none
   | SyntaxHighlightingApplied(Ok html) ->
     {
@@ -1177,20 +1126,17 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   | TaskToggled(Ok()) ->
     match state.CurrentNote with
     | Some note ->
-      { state with Loading = false; Error = None },
-      Cmd.batch [ Cmd.ofMsg (SelectNote note.Id); Cmd.ofMsg LoadAllTasks ]
+      { state with Loading = false; Error = None }, Cmd.batch [ Cmd.ofMsg (SelectNote note.Id); Cmd.ofMsg LoadAllTasks ]
     | None -> { state with Loading = false; Error = None }, Cmd.none
   | TaskToggled(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | LoadAllTasks ->
     { state with IsLoadingTasks = true },
-    Cmd.OfPromise.either Api.getAllTasks state.TaskFilter (Ok >> TasksLoaded) (fun ex ->
-      TasksLoaded(Error ex.Message))
+    Cmd.OfPromise.either Api.getAllTasks state.TaskFilter (Ok >> TasksLoaded) (fun ex -> TasksLoaded(Error ex.Message))
   | LoadTasksForNote noteId ->
     let filter = { state.TaskFilter with NoteId = Some noteId }
 
     { state with IsLoadingTasks = true },
-    Cmd.OfPromise.either Api.getAllTasks filter (Ok >> TasksLoaded) (fun ex ->
-      TasksLoaded(Error ex.Message))
+    Cmd.OfPromise.either Api.getAllTasks filter (Ok >> TasksLoaded) (fun ex -> TasksLoaded(Error ex.Message))
   | TasksLoaded(Ok taskInfo) ->
     {
       state with

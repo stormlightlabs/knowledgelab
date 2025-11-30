@@ -96,8 +96,7 @@ let noteDecoder : Decoder<Note> =
       Path = get.Required.Field "path" Decode.string
       Content = get.Required.Field "content" Decode.string
       Frontmatter = frontmatterDict |> Seq.map (fun kvp -> (kvp.Key, kvp.Value)) |> Map.ofSeq
-      Aliases =
-        get.Required.Field "aliases" (Decode.oneOf [ Decode.list Decode.string; Decode.nil [] ])
+      Aliases = get.Required.Field "aliases" (Decode.oneOf [ Decode.list Decode.string; Decode.nil [] ])
       Type = get.Required.Field "type" Decode.string
       Blocks = get.Required.Field "blocks" (Decode.list blockDecoder)
       Links = get.Required.Field "links" (Decode.list linkDecoder)
@@ -197,8 +196,7 @@ let workspaceUIDecoder : Decoder<WorkspaceUI> =
     RightPanelWidth = get.Required.Field "RightPanelWidth" Decode.int
     PinnedPages = get.Required.Field "PinnedPages" (Decode.list Decode.string)
     RecentPages = get.Required.Field "RecentPages" (Decode.list Decode.string)
-    LastWorkspacePath =
-      get.Optional.Field "LastWorkspacePath" Decode.string |> Option.defaultValue ""
+    LastWorkspacePath = get.Optional.Field "LastWorkspacePath" Decode.string |> Option.defaultValue ""
     GraphLayout = get.Required.Field "GraphLayout" Decode.string
   })
 

@@ -55,8 +55,7 @@ let codeToHtml (code : string) (options : CodeToHtmlOptions) : JS.Promise<string
 
 /// Convert code to intermediate token data for custom rendering
 [<Import("codeToTokens", from = "shiki")>]
-let codeToTokens (code : string) (options : CodeToTokensOptions) : JS.Promise<CodeToTokensResult> =
-  jsNative
+let codeToTokens (code : string) (options : CodeToTokensOptions) : JS.Promise<CodeToTokensResult> = jsNative
 
 /// Convert code to HAST (Hypertext Abstract Syntax Tree) for advanced processing
 [<Import("codeToHast", from = "shiki")>]

@@ -12,7 +12,7 @@ insert_final_newline = true
 # Fantomas Configuration
 [*{fs,.fsi,.fsx}]
 fsharp_max_record_width = 60
-max_line_length = 99
+max_line_length = 120
 fsharp_space_before_colon = true
 fsharp_max_array_or_list_number_of_items = 3
 fsharp_multiline_bracket_style = stroustrup

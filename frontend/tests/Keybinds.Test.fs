@@ -7,13 +7,7 @@ open Keybinds
 open Model
 
 /// Creates a mock KeyboardEvent with specified properties
-let private createKeyEvent
-  (key : string)
-  (ctrl : bool)
-  (shift : bool)
-  (alt : bool)
-  (meta : bool)
-  : KeyboardEvent =
+let private createKeyEvent (key : string) (ctrl : bool) (shift : bool) (alt : bool) (meta : bool) : KeyboardEvent =
   let event = obj ()
   event?key <- key
   event?ctrlKey <- ctrl

@@ -25,8 +25,7 @@ module WorkspacePicker =
 
     Html.div [
       prop.key $"{resolvedWorkspace}:{noteId}"
-      prop.className
-        "p-3 hover:bg-base02 cursor-pointer border border-base02 default-transition rounded"
+      prop.className "p-3 hover:bg-base02 cursor-pointer border border-base02 default-transition rounded"
       prop.onClick (fun _ -> dispatch (OpenRecentFile(resolvedWorkspace, noteId)))
       prop.children [
         Html.div [ prop.className "font-medium text-base05"; prop.text noteId ]
@@ -55,8 +54,7 @@ module WorkspacePicker =
                 ]
                 Html.p [
                   prop.className "text-sm text-base03"
-                  prop.text
-                    "Build your personal knowledge graph with markdown, wikilinks, and powerful search"
+                  prop.text "Build your personal knowledge graph with markdown, wikilinks, and powerful search"
                 ]
               ]
             ]
@@ -97,10 +95,7 @@ module WorkspacePicker =
                     Html.div [
                       prop.className "flex items-center justify-between mb-4"
                       prop.children [
-                        Html.h3 [
-                          prop.className "text-lg font-semibold text-base05"
-                          prop.text "Recent Files"
-                        ]
+                        Html.h3 [ prop.className "text-lg font-semibold text-base05"; prop.text "Recent Files" ]
                         Html.button [
                           prop.className
                             "text-xs text-base03 hover:text-base05 default-transition underline-offset-2 hover:underline"
@@ -184,12 +179,7 @@ module Sidebar =
 module NoteEditor =
   module Toolbar =
     /// Renders a toolbar button with hover state and optional active state
-    let private toolbarButton
-      (label : string)
-      (title : string)
-      (isActive : bool)
-      (onClick : unit -> unit)
-      =
+    let private toolbarButton (label : string) (title : string) (isActive : bool) (onClick : unit -> unit) =
       Html.button [
         prop.className (
           "px-3 py-1.5 rounded text-sm font-medium transition-all "
@@ -243,16 +233,10 @@ module NoteEditor =
           Html.div [
             prop.className "flex items-center gap-1"
             prop.children [
-              toolbarButton
-                "Edit"
-                "Edit Only Mode"
-                (state.EditorState.PreviewMode = EditOnly)
-                (fun () -> dispatch (SetPreviewMode EditOnly))
-              toolbarButton
-                "Preview"
-                "Preview Only Mode"
-                (state.EditorState.PreviewMode = PreviewOnly)
-                (fun () -> dispatch (SetPreviewMode PreviewOnly))
+              toolbarButton "Edit" "Edit Only Mode" (state.EditorState.PreviewMode = EditOnly) (fun () ->
+                dispatch (SetPreviewMode EditOnly))
+              toolbarButton "Preview" "Preview Only Mode" (state.EditorState.PreviewMode = PreviewOnly) (fun () ->
+                dispatch (SetPreviewMode PreviewOnly))
               toolbarButton
                 "Split"
                 "Split View Mode (Ctrl/Cmd+Shift+P)"
@@ -314,8 +298,7 @@ module NoteEditor =
         prop.className "flex-1 p-6 overflow-y-auto prose prose-invert max-w-none"
         prop.children [
           match state.EditorState.RenderedPreview with
-          | Some content ->
-            Html.div [ prop.className "rendered-markdown"; prop.dangerouslySetInnerHTML content ]
+          | Some content -> Html.div [ prop.className "rendered-markdown"; prop.dangerouslySetInnerHTML content ]
           | None ->
             Html.div [
               prop.className "text-base03 text-center mt-8"
@@ -423,8 +406,7 @@ module NoteEditor =
             prop.className "flex-1 flex overflow-hidden min-h-0"
             prop.children [
               Html.div [
-                prop.className
-                  "flex-1 flex flex-col overflow-hidden border-r border-base02 min-h-0"
+                prop.className "flex-1 flex flex-col overflow-hidden border-r border-base02 min-h-0"
                 prop.children [
                   Html.textarea [
                     prop.className
@@ -472,8 +454,7 @@ module BacklinksPanel =
   /// Renders the backlinks panel
   let Render (state : State) (dispatch : Msg -> unit) =
     Html.div [
-      prop.className
-        "w-64 bg-base01 border-l border-base02 flex flex-col h-full default-transition"
+      prop.className "w-64 bg-base01 border-l border-base02 flex flex-col h-full default-transition"
       prop.children [
         Html.div [
           prop.className "p-4 border-b border-base02 shrink-0"
@@ -568,8 +549,7 @@ module TaskPanel =
               prop.children [
                 Html.label [ prop.className "text-xs text-base04 mb-1 block"; prop.text "Status" ]
                 Html.select [
-                  prop.className
-                    "w-full px-2 py-1 text-sm bg-base01 text-base05 border border-base02 rounded"
+                  prop.className "w-full px-2 py-1 text-sm bg-base01 text-base05 border border-base02 rounded"
                   prop.value (
                     match state.TaskFilter.Status with
                     | None -> "all"
@@ -600,8 +580,7 @@ module TaskPanel =
   /// Renders the tasks panel
   let Render (state : State) (dispatch : Msg -> unit) =
     Html.div [
-      prop.className
-        "w-80 bg-base01 border-l border-base02 flex flex-col h-full default-transition"
+      prop.className "w-80 bg-base01 border-l border-base02 flex flex-col h-full default-transition"
       prop.children [
         Html.div [
           prop.className "p-4 border-b border-base02 shrink-0"
@@ -618,9 +597,7 @@ module TaskPanel =
         if state.IsLoadingTasks then
           Html.div [
             prop.className "flex-1 flex items-center justify-center"
-            prop.children [
-              Html.div [ prop.className "text-base03"; prop.text "Loading tasks..." ]
-            ]
+            prop.children [ Html.div [ prop.className "text-base03"; prop.text "Loading tasks..." ] ]
           ]
         elif state.AllTasks.IsEmpty then
           Html.div [
@@ -757,14 +734,10 @@ module SettingsPanel =
                   prop.className "text-sm text-base03 mb-1"
                   prop.text $"Path: {ws.Workspace.RootPath}"
                 ]
-                Html.div [
-                  prop.className "text-sm text-base03"
-                  prop.text $"Notes: {ws.NoteCount}"
-                ]
+                Html.div [ prop.className "text-sm text-base03"; prop.text $"Notes: {ws.NoteCount}" ]
               ]
             ]
-          | None ->
-            Html.div [ prop.className "text-sm text-base03"; prop.text "No workspace open" ]
+          | None -> Html.div [ prop.className "text-sm text-base03"; prop.text "No workspace open" ]
         ]
 
         section "General" [
@@ -783,12 +756,8 @@ module SettingsPanel =
           checkboxField "Auto Save" settings.General.AutoSave (fun enabled ->
             updateGeneral (fun g -> { g with AutoSave = enabled }))
 
-          numberField
-            "Auto Save Interval (seconds)"
-            settings.General.AutoSaveInterval
-            5
-            120
-            (fun interval -> updateGeneral (fun g -> { g with AutoSaveInterval = interval }))
+          numberField "Auto Save Interval (seconds)" settings.General.AutoSaveInterval 5 120 (fun interval ->
+            updateGeneral (fun g -> { g with AutoSaveInterval = interval }))
         ]
 
         section "Editor" [
@@ -866,27 +835,23 @@ module NavigationBar =
       prop.className "h-12 bg-base01 border-b border-base02 flex items-center px-4 gap-2 shrink-0"
       prop.children [
         Html.button [
-          prop.className
-            "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
+          prop.className "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
           prop.text "Notes"
           prop.onClick (fun _ -> dispatch (NavigateTo NoteList))
         ]
         Html.button [
-          prop.className
-            "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
+          prop.className "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
           prop.text "Graph"
           prop.onClick (fun _ -> dispatch (NavigateTo GraphViewRoute))
         ]
         Html.button [
-          prop.className
-            "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
+          prop.className "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
           prop.text "Settings"
           prop.onClick (fun _ -> dispatch (NavigateTo Settings))
         ]
         Html.div [ prop.className "flex-1" ]
         Html.button [
-          prop.className
-            "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
+          prop.className "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
           prop.text (
             if state.VisiblePanels.Contains Backlinks then
               "Hide Backlinks"
@@ -993,8 +958,7 @@ module App =
         if state.Loading then
           Html.div [
             prop.key "loading-overlay"
-            prop.className
-              "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center default-transition"
+            prop.className "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center default-transition"
             prop.children [
               Html.div [
                 prop.className "bg-base01 text-base05 p-6 rounded-lg shadow-xl"

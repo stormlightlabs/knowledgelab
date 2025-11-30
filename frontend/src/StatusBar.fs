@@ -57,11 +57,7 @@ let calculateColumnNumber (content : string) (cursorPosition : int) : int =
       safePosition - lastNewlineIndex
 
 /// Calculates status bar statistics from note content and editor state
-let calculateStats
-  (content : string)
-  (cursorPosition : int option)
-  (isDirty : bool)
-  : StatusBarStats =
+let calculateStats (content : string) (cursorPosition : int option) (isDirty : bool) : StatusBarStats =
   let wordCount = countWords content
   let charCount = countCharacters content
   let position = cursorPosition |> Option.defaultValue 0

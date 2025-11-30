@@ -455,6 +455,248 @@ func TestNoteService_BlockNestingLevel(t *testing.T) {
 	}
 }
 
+func TestParseBlockID(t *testing.T) {
+	tests := []struct {
+		name          string
+		content       string
+		wantID        string
+		wantContent   string
+		wantGenerated bool
+	}{
+		{
+			name:          "valid block ID",
+			content:       "Some content ^my-block-123",
+			wantID:        "my-block-123",
+			wantContent:   "Some content",
+			wantGenerated: false,
+		},
+		{
+			name:          "block ID with underscores",
+			content:       "List item ^block_id_with_underscores",
+			wantID:        "block_id_with_underscores",
+			wantContent:   "List item",
+			wantGenerated: false,
+		},
+		{
+			name:          "block ID alphanumeric only",
+			content:       "Text ^abc123XYZ",
+			wantID:        "abc123XYZ",
+			wantContent:   "Text",
+			wantGenerated: false,
+		},
+		{
+			name:          "no block ID",
+			content:       "Content without block ID",
+			wantContent:   "Content without block ID",
+			wantGenerated: true,
+		},
+		{
+			name:          "invalid block ID with spaces",
+			content:       "Content ^has spaces",
+			wantContent:   "Content ^has spaces",
+			wantGenerated: true,
+		},
+		{
+			name:          "invalid block ID with special chars",
+			content:       "Content ^has-special!@#",
+			wantContent:   "Content ^has-special!@#",
+			wantGenerated: true,
+		},
+		{
+			name:          "caret without space before",
+			content:       "Content^no-space",
+			wantContent:   "Content^no-space",
+			wantGenerated: true,
+		},
+		{
+			name:          "empty content",
+			content:       "",
+			wantContent:   "",
+			wantGenerated: true,
+		},
+		{
+			name:          "only block ID",
+			content:       " ^block-id",
+			wantID:        "block-id",
+			wantContent:   "",
+			wantGenerated: false,
+		},
+		{
+			name:          "multiple carets - use last",
+			content:       "Text ^first ^second",
+			wantID:        "second",
+			wantContent:   "Text ^first",
+			wantGenerated: false,
+		},
+		{
+			name:          "block ID with trailing whitespace",
+			content:       "Content ^block-id   ",
+			wantID:        "block-id",
+			wantContent:   "Content",
+			wantGenerated: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotID, gotContent := parseBlockID(tt.content)
+
+			if !tt.wantGenerated {
+				if gotID != tt.wantID {
+					t.Errorf("parseBlockID() ID = %q, want %q", gotID, tt.wantID)
+				}
+			} else {
+				if len(gotID) == 0 {
+					t.Error("parseBlockID() should generate ID when none found")
+				}
+			}
+
+			if gotContent != tt.wantContent {
+				t.Errorf("parseBlockID() content = %q, want %q", gotContent, tt.wantContent)
+			}
+		})
+	}
+}
+
+func TestIsValidBlockID(t *testing.T) {
+	tests := []struct {
+		name  string
+		id    string
+		valid bool
+	}{
+		{"alphanumeric", "abc123", true},
+		{"with dashes", "my-block-id", true},
+		{"with underscores", "my_block_id", true},
+		{"mixed valid chars", "Block_ID-123", true},
+		{"uppercase", "BLOCKID", true},
+		{"lowercase", "blockid", true},
+		{"single char", "a", true},
+		{"empty string", "", false},
+		{"with spaces", "has spaces", false},
+		{"with special chars", "has!@#", false},
+		{"with dots", "has.dots", false},
+		{"with slashes", "has/slash", false},
+		{"with unicode", "has-ñ-chars", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isValidBlockID(tt.id)
+			if got != tt.valid {
+				t.Errorf("isValidBlockID(%q) = %v, want %v", tt.id, got, tt.valid)
+			}
+		})
+	}
+}
+
+func TestNoteService_BlockIDParsing(t *testing.T) {
+	tmpDir := filepath.Join(os.TempDir(), "test-workspace-block-ids")
+	os.RemoveAll(tmpDir)
+	defer os.RemoveAll(tmpDir)
+
+	fs, err := NewFilesystemService()
+	if err != nil {
+		t.Fatalf("NewFilesystemService() error = %v", err)
+	}
+	defer fs.Close()
+
+	_, err = fs.OpenWorkspace(tmpDir)
+	if err != nil {
+		t.Fatalf("OpenWorkspace() error = %v", err)
+	}
+
+	noteService := NewNoteService(fs)
+
+	tests := []struct {
+		name    string
+		content string
+		want    []struct {
+			content string
+			id      string
+		}
+	}{
+		{
+			name:    "list items with block IDs",
+			content: "- Item 1 ^item-1\n- Item 2 ^item-2\n- Item 3 ^item-3",
+			want: []struct {
+				content string
+				id      string
+			}{
+				{"Item 1", "item-1"},
+				{"Item 2", "item-2"},
+				{"Item 3", "item-3"},
+			},
+		},
+		{
+			name:    "paragraphs with block IDs",
+			content: "First paragraph ^para-1\n\nSecond paragraph ^para-2",
+			want: []struct {
+				content string
+				id      string
+			}{
+				{"First paragraph", "para-1"},
+				{"Second paragraph", "para-2"},
+			},
+		},
+		{
+			name:    "mixed with and without IDs",
+			content: "- Has ID ^custom-id\n- No ID\n- Another ID ^another-id",
+			want: []struct {
+				content string
+				id      string
+			}{
+				{"Has ID", "custom-id"},
+				{"No ID", ""},
+				{"Another ID", "another-id"},
+			},
+		},
+		{
+			name:    "heading with block ID",
+			content: "# Heading ^heading-id\n\nParagraph ^para-id",
+			want: []struct {
+				content string
+				id      string
+			}{
+				{"Heading", "heading-id"},
+				{"Paragraph", "para-id"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := tt.name + ".md"
+			fs.WriteFile(path, []byte(tt.content))
+
+			note, err := noteService.GetNote(path)
+			if err != nil {
+				t.Fatalf("GetNote() error = %v", err)
+			}
+
+			if len(note.Blocks) != len(tt.want) {
+				t.Errorf("Got %d blocks, want %d", len(note.Blocks), len(tt.want))
+				for i, block := range note.Blocks {
+					t.Logf("Block %d: content=%q, id=%q", i, block.Content, block.ID)
+				}
+				return
+			}
+
+			for i, want := range tt.want {
+				block := note.Blocks[i]
+				if !strings.Contains(block.Content, want.content) {
+					t.Errorf("Block %d: content = %q, want to contain %q", i, block.Content, want.content)
+				}
+				if want.id != "" && block.ID != want.id {
+					t.Errorf("Block %d: ID = %q, want %q", i, block.ID, want.id)
+				}
+				if want.id == "" && len(block.ID) == 0 {
+					t.Errorf("Block %d: should have generated ID", i)
+				}
+			}
+		})
+	}
+}
+
 func TestNoteService_RenderMarkdown(t *testing.T) {
 	tmpDir := filepath.Join(os.TempDir(), "test-workspace-render-md")
 	os.RemoveAll(tmpDir)

@@ -71,15 +71,15 @@ Local-first Markdown storage with wikilinks, backlinks, graph view, daily notes,
 
 #### Block-Based Outliner
 
-- [ ] Block ID support:
-  - [ ] Parse Logseq-style block IDs (`^block-id` at end of line).
-  - [ ] Generate unique block IDs on demand.
-  - [ ] Preserve block IDs round-trip on note edit.
-- [ ] Block operations:
-  - [ ] Block indentation with Tab key.
-  - [ ] Block outdentation with Shift+Tab.
-  - [ ] Block-level navigation with Up/Down arrow keys.
-  - [ ] Block focus/zoom (collapse siblings, show only focused branch).
+- [x] Block ID support:
+  - [x] Parse Logseq-style block IDs (`^block-id` at end of line).
+  - [x] Generate unique block IDs on demand (UUID v4).
+  - [x] Preserve block IDs round-trip on note edit.
+- [x] Block operations:
+  - [x] Block indentation with Tab key.
+  - [x] Block outdentation with Shift+Tab.
+  - [x] Block-level navigation with Up/Down arrow keys.
+  - [x] Block focus/zoom state tracking (UI implementation pending).
 
 #### Task Management
 

@@ -42,6 +42,7 @@ type EditorState = {
   SelectionEnd : int option
   IsDirty : bool
   RenderedPreview : string option
+  FocusedBlock : string option
 }
 
 /// Modal dialog types that can be shown
@@ -123,6 +124,7 @@ type State = {
       SelectionEnd = None
       IsDirty = false
       RenderedPreview = None
+      FocusedBlock = None
     }
     UIState = {
       SidebarWidth = 280
@@ -199,6 +201,11 @@ type Msg =
   | RenderPreview of markdown : string
   | PreviewRendered of Result<string, string>
   | SyntaxHighlightingApplied of Result<string, string>
+  | BlockIndent
+  | BlockOutdent
+  | BlockNavigateUp
+  | BlockNavigateDown
+  | BlockFocusToggle of blockId : string option
 
 /// Debounce delay in milliseconds
 [<Literal>]
@@ -335,6 +342,147 @@ let private applyHeadingFormat
 
     (newContent, newPos)
   | None -> (content, 0)
+
+/// Applies indentation (2 spaces) to the current line or selected lines
+let private applyBlockIndent
+  (content : string)
+  (cursorPosition : int option)
+  (selectionStart : int option)
+  (selectionEnd : int option)
+  : string * int option =
+  match cursorPosition with
+  | Some pos ->
+    let lines = content.Split('\n')
+    let mutable currentPos = 0
+    let mutable startLine = 0
+    let mutable endLine = 0
+    let mutable found = false
+
+    let targetPos =
+      match selectionStart, selectionEnd with
+      | Some s, Some e when s < e -> s
+      | _ -> pos
+
+    let endPos =
+      match selectionStart, selectionEnd with
+      | Some s, Some e when s < e -> e
+      | _ -> pos
+
+    for i in 0 .. lines.Length - 1 do
+      if not found && currentPos + lines.[i].Length >= targetPos then
+        startLine <- i
+        found <- true
+
+      if currentPos + lines.[i].Length >= endPos then
+        endLine <- i
+      elif not found then
+        currentPos <- currentPos + lines.[i].Length + 1
+      else
+        currentPos <- currentPos + lines.[i].Length + 1
+
+    for i in startLine..endLine do
+      lines.[i] <- "  " + lines.[i]
+
+    let newContent = System.String.Join("\n", lines)
+    let newCursor = Some(pos + 2)
+
+    (newContent, newCursor)
+  | None -> (content, None)
+
+/// Removes indentation (up to 2 spaces) from the current line or selected lines
+let private applyBlockOutdent
+  (content : string)
+  (cursorPosition : int option)
+  (selectionStart : int option)
+  (selectionEnd : int option)
+  : string * int option =
+  match cursorPosition with
+  | Some pos ->
+    let lines = content.Split('\n')
+    let mutable currentPos = 0
+    let mutable startLine = 0
+    let mutable endLine = 0
+    let mutable found = false
+
+    let targetPos =
+      match selectionStart, selectionEnd with
+      | Some s, Some e when s < e -> s
+      | _ -> pos
+
+    let endPos =
+      match selectionStart, selectionEnd with
+      | Some s, Some e when s < e -> e
+      | _ -> pos
+
+    for i in 0 .. lines.Length - 1 do
+      if not found && currentPos + lines.[i].Length >= targetPos then
+        startLine <- i
+        found <- true
+
+      if currentPos + lines.[i].Length >= endPos then
+        endLine <- i
+      elif not found then
+        currentPos <- currentPos + lines.[i].Length + 1
+      else
+        currentPos <- currentPos + lines.[i].Length + 1
+
+    let mutable removedChars = 0
+
+    for i in startLine..endLine do
+      let line = lines.[i]
+
+      if line.StartsWith("  ") then
+        lines.[i] <- line.Substring(2)
+
+        if i = startLine then
+          removedChars <- 2
+      elif line.StartsWith(" ") then
+        lines.[i] <- line.Substring(1)
+
+        if i = startLine then
+          removedChars <- 1
+
+    let newContent = System.String.Join("\n", lines)
+    let newCursor = Some(max 0 (pos - removedChars))
+
+    (newContent, newCursor)
+  | None -> (content, None)
+
+/// Navigates cursor to the previous or next line (direction: -1 for up, 1 for down)
+let private navigateBlock
+  (content : string)
+  (cursorPosition : int option)
+  (direction : int)
+  : int option =
+  match cursorPosition with
+  | Some pos ->
+    let lines = content.Split('\n')
+    let mutable currentPos = 0
+    let mutable lineIndex = 0
+    let mutable columnInLine = 0
+    let mutable found = false
+
+    for i in 0 .. lines.Length - 1 do
+      if not found && currentPos + lines.[i].Length >= pos then
+        lineIndex <- i
+        columnInLine <- pos - currentPos
+        found <- true
+      elif not found then
+        currentPos <- currentPos + lines.[i].Length + 1
+
+    let targetLine = lineIndex + direction
+
+    if targetLine >= 0 && targetLine < lines.Length then
+      let mutable targetPos = 0
+
+      for i in 0 .. targetLine - 1 do
+        targetPos <- targetPos + lines.[i].Length + 1
+
+      let targetColumn = min columnInLine lines.[targetLine].Length
+      Some(targetPos + targetColumn)
+    else
+      Some pos
+  | None -> None
 
 /// Updates the workspace snapshot with a new recent page and triggers save
 let private updateRecentPage (noteId : string) (state : State) : State * Cmd<Msg> =
@@ -912,3 +1060,77 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     },
     Cmd.none
   | SyntaxHighlightingApplied(Error err) -> { state with Error = Some err }, Cmd.none
+  | BlockIndent ->
+    match state.CurrentNote with
+    | Some note ->
+      let newContent, newCursor =
+        applyBlockIndent
+          note.Content
+          state.EditorState.CursorPosition
+          state.EditorState.SelectionStart
+          state.EditorState.SelectionEnd
+
+      let updatedNote = { note with Content = newContent }
+
+      {
+        state with
+            CurrentNote = Some updatedNote
+            EditorState = {
+              state.EditorState with
+                  CursorPosition = newCursor
+                  IsDirty = true
+            }
+      },
+      Cmd.ofMsg (SaveNote updatedNote)
+    | None -> state, Cmd.none
+  | BlockOutdent ->
+    match state.CurrentNote with
+    | Some note ->
+      let newContent, newCursor =
+        applyBlockOutdent
+          note.Content
+          state.EditorState.CursorPosition
+          state.EditorState.SelectionStart
+          state.EditorState.SelectionEnd
+
+      let updatedNote = { note with Content = newContent }
+
+      {
+        state with
+            CurrentNote = Some updatedNote
+            EditorState = {
+              state.EditorState with
+                  CursorPosition = newCursor
+                  IsDirty = true
+            }
+      },
+      Cmd.ofMsg (SaveNote updatedNote)
+    | None -> state, Cmd.none
+  | BlockNavigateUp ->
+    match state.CurrentNote with
+    | Some note ->
+      let newCursor = navigateBlock note.Content state.EditorState.CursorPosition -1
+
+      {
+        state with
+            EditorState = { state.EditorState with CursorPosition = newCursor }
+      },
+      Cmd.none
+    | None -> state, Cmd.none
+  | BlockNavigateDown ->
+    match state.CurrentNote with
+    | Some note ->
+      let newCursor = navigateBlock note.Content state.EditorState.CursorPosition 1
+
+      {
+        state with
+            EditorState = { state.EditorState with CursorPosition = newCursor }
+      },
+      Cmd.none
+    | None -> state, Cmd.none
+  | BlockFocusToggle blockId ->
+    {
+      state with
+          EditorState = { state.EditorState with FocusedBlock = blockId }
+    },
+    Cmd.none

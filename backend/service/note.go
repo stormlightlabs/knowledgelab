@@ -2,7 +2,6 @@ package service
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 
 	"notes/backend/domain"
 
+	"github.com/google/uuid"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
@@ -373,6 +373,7 @@ func (s *NoteService) extractTitleAndTags(content []byte) (string, []domain.Tag)
 
 // extractBlocks parses Markdown content into outline blocks.
 // Each paragraph, heading, list item, etc. becomes a separate block.
+// Supports Logseq-style block IDs (^block-id at end of line).
 func (s *NoteService) extractBlocks(noteID string, content []byte) []domain.Block {
 	doc := s.parser.Parser().Parse(text.NewReader(content))
 
@@ -434,12 +435,12 @@ func (s *NoteService) extractBlocks(noteID string, content []byte) []domain.Bloc
 
 		if shouldCreate {
 			blockContent := nodeText(n, content)
-			blockID := generateBlockID(noteID, blockIdx)
+			blockID, cleanContent := parseBlockID(blockContent)
 
 			blocks = append(blocks, domain.Block{
 				ID:       blockID,
 				NoteID:   noteID,
-				Content:  blockContent,
+				Content:  cleanContent,
 				Level:    level,
 				Parent:   "",
 				Children: []string{},
@@ -531,11 +532,54 @@ func sanitizeFilename(title string) string {
 	return filename
 }
 
-// generateBlockID creates a unique identifier for a block.
-func generateBlockID(noteID string, position int) string {
-	data := fmt.Sprintf("%s:%d", noteID, position)
-	hash := sha256.Sum256([]byte(data))
-	return fmt.Sprintf("%x", hash[:8])
+// parseBlockID extracts a Logseq-style block ID from content (^block-id at end of line).
+// Returns the block ID and content with the ID marker removed.
+// If no ID is found, generates a new one.
+func parseBlockID(content string) (string, string) {
+	trimmed := strings.TrimSpace(content)
+
+	if len(trimmed) > 1 && trimmed[0] == '^' {
+		potentialID := trimmed[1:]
+		if isValidBlockID(potentialID) {
+			return potentialID, ""
+		}
+	}
+
+	if len(trimmed) > 2 && strings.Contains(trimmed, " ^") {
+		lastSpaceIdx := strings.LastIndex(trimmed, " ^")
+		potentialID := trimmed[lastSpaceIdx+2:] // +2 to skip " ^"
+
+		if isValidBlockID(potentialID) {
+			cleanContent := strings.TrimSpace(trimmed[:lastSpaceIdx])
+			return potentialID, cleanContent
+		}
+	}
+
+	return generateBlockID(), content
+}
+
+// isValidBlockID checks if a string is a valid block ID.
+// Valid IDs contain only alphanumeric characters, dashes, and underscores.
+func isValidBlockID(id string) bool {
+	if len(id) == 0 {
+		return false
+	}
+
+	for _, ch := range id {
+		if !((ch >= 'a' && ch <= 'z') ||
+			(ch >= 'A' && ch <= 'Z') ||
+			(ch >= '0' && ch <= '9') ||
+			ch == '-' || ch == '_') {
+			return false
+		}
+	}
+
+	return true
+}
+
+// generateBlockID creates a unique identifier for a block using UUID v4.
+func generateBlockID() string {
+	return uuid.New().String()
 }
 
 // nodeText extracts text content from an AST node by walking its children.

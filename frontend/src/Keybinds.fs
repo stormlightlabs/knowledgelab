@@ -45,6 +45,7 @@ let isKey (key : string) (e : KeyboardEvent) : bool =
 type KeyPattern =
   | CmdCtrl of string
   | CtrlShift of string
+  | Shift of string
   | Plain of string
   | NoMatch
 
@@ -59,12 +60,15 @@ let getKeyPattern (e : KeyboardEvent) : KeyPattern =
       e.ctrlKey
 
   let hasCtrlShift = e.ctrlKey && e.shiftKey && not e.altKey && not e.metaKey
+  let hasShift = e.shiftKey && not e.ctrlKey && not e.altKey && not e.metaKey
   let noModifiers = not e.ctrlKey && not e.shiftKey && not e.altKey && not e.metaKey
 
   if cmdModifier && not e.shiftKey && not e.altKey then
     CmdCtrl key
   elif hasCtrlShift then
     CtrlShift key
+  elif hasShift then
+    Shift key
   elif noModifiers then
     Plain key
   else
@@ -90,6 +94,10 @@ let handleKeydown (e : KeyboardEvent) : Msg option =
   | CtrlShift "g" -> Some(NavigateTo GraphViewRoute)
   | CtrlShift "l" -> Some(NavigateTo NoteList)
   | CtrlShift "p" -> Some(SetPreviewMode SplitView)
+  | Plain "tab" -> Some BlockIndent
+  | Shift "tab" -> Some BlockOutdent
+  | Plain "arrowup" -> Some BlockNavigateUp
+  | Plain "arrowdown" -> Some BlockNavigateDown
   | Plain "escape" -> Some CloseModal
   | _ -> None
 

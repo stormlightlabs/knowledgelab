@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"notes/backend/domain"
 	"notes/backend/paths"
@@ -19,6 +21,7 @@ type App struct {
 	notes                     *service.NoteService
 	graph                     *service.GraphService
 	search                    *service.SearchService
+	tasks                     *service.TaskService
 	stores                    *service.Stores
 	indexing                  bool
 	userConfigDir             string
@@ -41,11 +44,14 @@ func NewApp() *App {
 		panic(fmt.Sprintf("failed to create stores: %v", err))
 	}
 
+	tasks := service.NewTaskService(stores.Task)
+
 	return &App{
 		fs:     fs,
 		notes:  notes,
 		graph:  graph,
 		search: search,
+		tasks:  tasks,
 		stores: stores,
 	}
 }
@@ -111,7 +117,7 @@ func (a *App) GetNote(id string) (*domain.Note, error) {
 }
 
 // SaveNote creates or updates a note in the workspace.
-// After saving, the note is re-indexed for search and graph updates.
+// After saving, the note is re-indexed for search, graph, and task updates.
 func (a *App) SaveNote(note *domain.Note) error {
 	if err := a.notes.SaveNote(note); err != nil {
 		return a.wrapError("failed to save note", err)
@@ -125,11 +131,16 @@ func (a *App) SaveNote(note *domain.Note) error {
 		return a.wrapError("failed to index note in search", err)
 	}
 
+	tasks := a.notes.ExtractTasks(note.ID, note.Path, []byte(note.Content))
+	if err := a.tasks.IndexNote(note.ID, note.Path, tasks, note.ModifiedAt); err != nil {
+		return a.wrapError("failed to index tasks", err)
+	}
+
 	return nil
 }
 
 // DeleteNote removes a note from the workspace.
-// The note is removed from filesystem, graph, and search indexes.
+// The note is removed from filesystem, graph, search, and task indexes.
 func (a *App) DeleteNote(id string) error {
 	if err := a.notes.DeleteNote(id); err != nil {
 		return a.wrapError("failed to delete note", err)
@@ -137,6 +148,10 @@ func (a *App) DeleteNote(id string) error {
 
 	a.graph.RemoveNote(id)
 	a.search.RemoveNote(id)
+
+	if err := a.tasks.RemoveNote(id); err != nil {
+		return a.wrapError("failed to remove tasks", err)
+	}
 
 	return nil
 }
@@ -155,6 +170,11 @@ func (a *App) CreateNote(title, folder string) (*domain.Note, error) {
 
 	if err := a.search.IndexNote(note); err != nil {
 		return nil, a.wrapError("failed to index new note in search", err)
+	}
+
+	tasks := a.notes.ExtractTasks(note.ID, note.Path, []byte(note.Content))
+	if err := a.tasks.IndexNote(note.ID, note.Path, tasks, note.ModifiedAt); err != nil {
+		return nil, a.wrapError("failed to index tasks", err)
 	}
 
 	return note, nil
@@ -229,6 +249,11 @@ func (a *App) buildInitialIndex() {
 
 		if err := a.graph.IndexNote(note); err != nil {
 			fmt.Printf("Failed to index note %s in graph: %v\n", summary.ID, err)
+		}
+
+		tasks := a.notes.ExtractTasks(note.ID, note.Path, []byte(note.Content))
+		if err := a.tasks.IndexNote(note.ID, note.Path, tasks, note.ModifiedAt); err != nil {
+			fmt.Printf("Failed to index tasks for note %s: %v\n", summary.ID, err)
 		}
 
 		notes = append(notes, *note)
@@ -356,6 +381,66 @@ func (a *App) InitWorkspaceConfigDir(workspaceRoot string) (string, error) {
 
 	a.currentWorkspaceConfigDir = configDir
 	return configDir, nil
+}
+
+// GetAllTasks returns all tasks across all notes, optionally filtered.
+// Supports filtering by completion status, note ID, and date ranges.
+func (a *App) GetAllTasks(filter domain.TaskFilter) (*domain.TaskInfo, error) {
+	taskInfo, err := a.tasks.GetAllTasks(filter)
+	if err != nil {
+		return nil, a.wrapError("failed to get tasks", err)
+	}
+	return &taskInfo, nil
+}
+
+// GetTasksForNote returns all tasks in a specific note.
+func (a *App) GetTasksForNote(noteID string) ([]domain.Task, error) {
+	tasks, err := a.tasks.GetTasksForNote(noteID)
+	if err != nil {
+		return nil, a.wrapError("failed to get tasks for note", err)
+	}
+	return tasks, nil
+}
+
+// ToggleTaskInNote toggles a task's completion status at the specified line number.
+// Re-parses and re-indexes the note after the toggle.
+func (a *App) ToggleTaskInNote(noteID string, lineNumber int) error {
+	note, err := a.notes.GetNote(noteID)
+	if err != nil {
+		return a.wrapError("failed to get note", err)
+	}
+
+	lines := strings.Split(note.Content, "\n")
+	if lineNumber < 0 || lineNumber >= len(lines) {
+		return a.wrapError("invalid line number", fmt.Errorf("line %d out of range", lineNumber))
+	}
+
+	line := strings.TrimSpace(lines[lineNumber])
+	taskPattern := regexp.MustCompile(`^-\s+\[([ xX])\]\s+(.*)$`)
+
+	if matches := taskPattern.FindStringSubmatch(line); matches != nil {
+		checkboxState := matches[1]
+		taskContent := matches[2]
+
+		indent := ""
+		for i := 0; i < len(lines[lineNumber]); i++ {
+			if lines[lineNumber][i] == ' ' || lines[lineNumber][i] == '\t' {
+				indent += string(lines[lineNumber][i])
+			} else {
+				break
+			}
+		}
+
+		if checkboxState == " " {
+			lines[lineNumber] = indent + "- [x] " + taskContent
+		} else {
+			lines[lineNumber] = indent + "- [ ] " + taskContent
+		}
+
+		note.Content = strings.Join(lines, "\n")
+		return a.SaveNote(note)
+	}
+	return a.wrapError("line is not a task", fmt.Errorf("line %d does not contain a task", lineNumber))
 }
 
 // wrapError converts domain errors to user-friendly messages.

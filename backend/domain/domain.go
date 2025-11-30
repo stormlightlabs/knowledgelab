@@ -113,3 +113,40 @@ type WorkspaceInfo struct {
 	NoteCount   int             `json:"noteCount"`
 	TotalBlocks int             `json:"totalBlocks"`
 }
+
+// Task represents a task item parsed from markdown checkbox syntax.
+// Tasks are list items with `- [ ]` (unchecked) or `- [x]` (completed) markers.
+// Tasks reuse the block infrastructure and are stored with metadata in SQLite.
+type Task struct {
+	ID          string     `json:"id"`                           // Task identifier (reuses block ID)
+	BlockID     string     `json:"blockId"`                      // Same as ID for consistency
+	NoteID      string     `json:"noteId"`                       // Parent note ID
+	NotePath    string     `json:"notePath"`                     // Relative path of containing note
+	Content     string     `json:"content"`                      // Task text without checkbox marker
+	IsCompleted bool       `json:"isCompleted"`                  // Completion status
+	CreatedAt   time.Time  `json:"createdAt" ts_type:"string"`   // When task was first created
+	CompletedAt *time.Time `json:"completedAt" ts_type:"string"` // When task was completed (nil if pending)
+	LineNumber  int        `json:"lineNumber"`                   // Line number in note (0-indexed)
+}
+
+// TaskFilter specifies criteria for filtering tasks.
+// All filter fields are optional (nil/empty means no filter on that criterion).
+type TaskFilter struct {
+	Status             *bool      `json:"status"`             // nil = all, true = completed, false = pending
+	NoteID             string     `json:"noteId"`             // Filter by specific note ID
+	CreatedAfter       *time.Time `json:"createdAfter"`       // Tasks created after this time
+	CreatedBefore      *time.Time `json:"createdBefore"`      // Tasks created before this time
+	CompletedAfter     *time.Time `json:"completedAfter"`     // Tasks completed after this time
+	CompletedBefore    *time.Time `json:"completedBefore"`    // Tasks completed before this time
+	NoteModifiedAfter  *time.Time `json:"noteModifiedAfter"`  // Filter by note modified date (after)
+	NoteModifiedBefore *time.Time `json:"noteModifiedBefore"` // Filter by note modified date (before)
+}
+
+// TaskInfo provides aggregated task statistics and data.
+// Used for task panel display and summary views.
+type TaskInfo struct {
+	Tasks          []Task `json:"tasks"`          // Filtered task list
+	TotalCount     int    `json:"totalCount"`     // Total tasks matching filter
+	CompletedCount int    `json:"completedCount"` // Number of completed tasks
+	PendingCount   int    `json:"pendingCount"`   // Number of pending tasks
+}

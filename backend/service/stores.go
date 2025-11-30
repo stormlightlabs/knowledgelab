@@ -3,6 +3,8 @@ package service
 import (
 	"database/sql"
 	"fmt"
+
+	"notes/backend/domain"
 )
 
 // WorkspaceStore manages application settings and workspace snapshots.
@@ -58,6 +60,20 @@ func NewGraphStore(db *sql.DB) *GraphStore {
 	}
 }
 
+// TaskStore manages task persistence in the SQLite database.
+// Provides CRUD operations for tasks with metadata tracking.
+type TaskStore struct {
+	db *sql.DB
+}
+
+// NewTaskStore creates a new TaskStore with an open database connection.
+// The database should already have task table migrations applied.
+func NewTaskStore(db *sql.DB) *TaskStore {
+	return &TaskStore{
+		db: db,
+	}
+}
+
 // CreatePage inserts a new page into the graph.
 func (gs *GraphStore) CreatePage(page Page) error {
 	return CreatePage(gs.db, page)
@@ -93,21 +109,36 @@ func (gs *GraphStore) Close() error {
 	return gs.db.Close()
 }
 
-// Stores holds both WorkspaceStore and GraphStore for a workspace.
+// SaveTask persists a task to the database.
+func (ts *TaskStore) SaveTask(task *domain.Task) error {
+	return SaveTask(ts.db, task)
+}
+
+// GetTaskByID retrieves a task by its ID.
+func (ts *TaskStore) GetTaskByID(id string) (*domain.Task, error) {
+	return GetTaskByID(ts.db, id)
+}
+
+// GetTasksForNote retrieves all tasks for a specific note.
+func (ts *TaskStore) GetTasksForNote(noteID string) ([]domain.Task, error) {
+	return GetTasksForNote(ts.db, noteID)
+}
+
+// DeleteTasksForNote removes all tasks associated with a note.
+func (ts *TaskStore) DeleteTasksForNote(noteID string) error {
+	return DeleteTasksForNote(ts.db, noteID)
+}
+
+// Stores holds WorkspaceStore, GraphStore, and TaskStore for a workspace.
 // Provides a unified interface for all persistence operations.
 type Stores struct {
 	Workspace *WorkspaceStore
 	Graph     *GraphStore
+	Task      *TaskStore
 }
 
 // NewStores creates and initializes both WorkspaceStore and GraphStore.
 // Creates necessary directories and applies database migrations.
-//
-// Parameters:
-//   - appName: the application name (e.g., "notes")
-//   - workspaceName: the workspace identifier (e.g., workspace hash or "default")
-//
-// Returns an error if directory creation, database opening, or migration fails.
 func NewStores(appName, workspaceName string) (*Stores, error) {
 	dirs, err := NewAppDirs(appName, workspaceName)
 	if err != nil {
@@ -131,6 +162,7 @@ func NewStores(appName, workspaceName string) (*Stores, error) {
 	return &Stores{
 		Workspace: NewWorkspaceStore(dirs),
 		Graph:     NewGraphStore(db),
+		Task:      NewTaskStore(db),
 	}, nil
 }
 

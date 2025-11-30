@@ -1,9 +1,12 @@
+// TODO: convert migrations to embedded sql files
 package service
 
 import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"notes/backend/domain"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -41,6 +44,12 @@ func Migrate(db *sql.DB) error {
 	if version < 1 {
 		if err := applyMigration1(db); err != nil {
 			return fmt.Errorf("failed to apply migration 1: %w", err)
+		}
+	}
+
+	if version < 2 {
+		if err := applyMigration2(db); err != nil {
+			return fmt.Errorf("failed to apply migration 2: %w", err)
 		}
 	}
 
@@ -130,6 +139,56 @@ func applyMigration1(db *sql.DB) error {
 	if _, err := tx.Exec(
 		"INSERT INTO schema_meta (version, applied_at) VALUES (?, ?)",
 		1,
+		time.Now(),
+	); err != nil {
+		return fmt.Errorf("failed to record migration: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// applyMigration2 creates the tasks table for task management.
+func applyMigration2(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`
+		CREATE TABLE tasks (
+			id TEXT PRIMARY KEY,
+			note_id TEXT NOT NULL,
+			note_path TEXT NOT NULL,
+			content TEXT NOT NULL,
+			is_completed BOOLEAN NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL,
+			completed_at DATETIME,
+			line_number INTEGER NOT NULL
+		)
+	`); err != nil {
+		return fmt.Errorf("failed to create tasks table: %w", err)
+	}
+
+	if _, err := tx.Exec(`CREATE INDEX idx_tasks_note_id ON tasks(note_id)`); err != nil {
+		return fmt.Errorf("failed to create tasks note_id index: %w", err)
+	}
+
+	if _, err := tx.Exec(`CREATE INDEX idx_tasks_status ON tasks(is_completed)`); err != nil {
+		return fmt.Errorf("failed to create tasks status index: %w", err)
+	}
+
+	if _, err := tx.Exec(`CREATE INDEX idx_tasks_created ON tasks(created_at)`); err != nil {
+		return fmt.Errorf("failed to create tasks created_at index: %w", err)
+	}
+
+	if _, err := tx.Exec(`CREATE INDEX idx_tasks_completed ON tasks(completed_at)`); err != nil {
+		return fmt.Errorf("failed to create tasks completed_at index: %w", err)
+	}
+
+	if _, err := tx.Exec(
+		"INSERT INTO schema_meta (version, applied_at) VALUES (?, ?)",
+		2,
 		time.Now(),
 	); err != nil {
 		return fmt.Errorf("failed to record migration: %w", err)
@@ -253,6 +312,117 @@ func DeletePage(db *sql.DB, pageID string) error {
 	_, err := db.Exec(query, pageID)
 	if err != nil {
 		return fmt.Errorf("failed to delete page: %w", err)
+	}
+	return nil
+}
+
+// SaveTask inserts or updates a task in the database.
+// Uses INSERT OR REPLACE to handle both create and update operations.
+func SaveTask(db *sql.DB, task *domain.Task) error {
+	query := `
+		INSERT OR REPLACE INTO tasks (
+			id, note_id, note_path, content, is_completed, created_at, completed_at, line_number
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`
+	_, err := db.Exec(
+		query,
+		task.ID,
+		task.NoteID,
+		task.NotePath,
+		task.Content,
+		task.IsCompleted,
+		task.CreatedAt,
+		task.CompletedAt,
+		task.LineNumber,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to save task: %w", err)
+	}
+	return nil
+}
+
+// GetTaskByID retrieves a task by its ID.
+func GetTaskByID(db *sql.DB, id string) (*domain.Task, error) {
+	query := `
+		SELECT id, note_id, note_path, content, is_completed, created_at, completed_at, line_number
+		FROM tasks WHERE id = ?
+	`
+	var task domain.Task
+	var completedAt sql.NullTime
+
+	err := db.QueryRow(query, id).Scan(
+		&task.ID,
+		&task.NoteID,
+		&task.NotePath,
+		&task.Content,
+		&task.IsCompleted,
+		&task.CreatedAt,
+		&completedAt,
+		&task.LineNumber,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get task: %w", err)
+	}
+
+	if completedAt.Valid {
+		task.CompletedAt = &completedAt.Time
+	}
+	task.BlockID = task.ID
+
+	return &task, nil
+}
+
+// GetTasksForNote retrieves all tasks for a specific note.
+func GetTasksForNote(db *sql.DB, noteID string) ([]domain.Task, error) {
+	query := `
+		SELECT id, note_id, note_path, content, is_completed, created_at, completed_at, line_number
+		FROM tasks WHERE note_id = ? ORDER BY line_number
+	`
+	rows, err := db.Query(query, noteID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tasks for note: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []domain.Task
+	for rows.Next() {
+		var task domain.Task
+		var completedAt sql.NullTime
+
+		if err := rows.Scan(
+			&task.ID,
+			&task.NoteID,
+			&task.NotePath,
+			&task.Content,
+			&task.IsCompleted,
+			&task.CreatedAt,
+			&completedAt,
+			&task.LineNumber,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan task: %w", err)
+		}
+
+		if completedAt.Valid {
+			task.CompletedAt = &completedAt.Time
+		}
+		task.BlockID = task.ID
+
+		tasks = append(tasks, task)
+	}
+
+	return tasks, rows.Err()
+}
+
+// DeleteTasksForNote removes all tasks associated with a note.
+func DeleteTasksForNote(db *sql.DB, noteID string) error {
+	query := `DELETE FROM tasks WHERE note_id = ?`
+	_, err := db.Exec(query, noteID)
+	if err != nil {
+		return fmt.Errorf("failed to delete tasks for note: %w", err)
 	}
 	return nil
 }

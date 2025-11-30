@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -455,6 +456,65 @@ func (s *NoteService) extractBlocks(noteID string, content []byte) []domain.Bloc
 	})
 
 	return blocks
+}
+
+// taskCheckboxPattern matches:
+//   - task syntax: - [ ] or - [x] or - [X]
+//
+// Handles extra whitespace: -  [  ]  Task or - [x] Task
+var taskCheckboxPattern = regexp.MustCompile(`^-\s+\[\s*([ xX])\s*\]\s+(.*)$`)
+
+// ExtractTasks parses note content and extracts all task items with metadata.
+func (s *NoteService) ExtractTasks(noteID string, notePath string, content []byte) []domain.Task {
+	lines := strings.Split(string(content), "\n")
+	tasks := []domain.Task{}
+	now := time.Now()
+
+	startLine := 0
+	if len(lines) > 0 && strings.TrimSpace(lines[0]) == "---" {
+		for i := 1; i < len(lines); i++ {
+			if strings.TrimSpace(lines[i]) == "---" {
+				startLine = i + 1
+				break
+			}
+		}
+	}
+
+	for lineNum := startLine; lineNum < len(lines); lineNum++ {
+		line := strings.TrimSpace(lines[lineNum])
+
+		matches := taskCheckboxPattern.FindStringSubmatch(line)
+		if matches == nil {
+			continue
+		}
+
+		checkboxState := matches[1]
+		taskContent := matches[2]
+
+		blockID, cleanContent := parseBlockID(taskContent)
+
+		isCompleted := checkboxState == "x" || checkboxState == "X"
+
+		task := domain.Task{
+			ID:          blockID,
+			BlockID:     blockID,
+			NoteID:      noteID,
+			NotePath:    notePath,
+			Content:     cleanContent,
+			IsCompleted: isCompleted,
+			CreatedAt:   now,
+			CompletedAt: nil,
+			LineNumber:  lineNum,
+		}
+
+		if isCompleted {
+			task.CompletedAt = &now
+		}
+
+		tasks = append(tasks, task)
+	}
+
+	return tasks
 }
 
 // serializeNote converts a Note back to Markdown with frontmatter.

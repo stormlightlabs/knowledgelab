@@ -111,8 +111,24 @@ export const LoadWorkspaceSnapshot = () =>
       RightPanelWidth: 300,
       PinnedPages: [],
       RecentPages: [],
+      LastWorkspacePath: "/mock/workspace/directory",
       GraphLayout: "force",
     },
   });
 
 export const SaveWorkspaceSnapshot = () => Promise.resolve();
+
+export const ClearRecentFiles = () =>
+  Promise.resolve({
+    UI: {
+      ActivePage: "",
+      SidebarVisible: true,
+      SidebarWidth: 280,
+      RightPanelVisible: false,
+      RightPanelWidth: 300,
+      PinnedPages: [],
+      RecentPages: [],
+      LastWorkspacePath: "/mock/workspace/directory",
+      GraphLayout: "force",
+    },
+  });

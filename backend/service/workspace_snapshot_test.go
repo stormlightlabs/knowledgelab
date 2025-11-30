@@ -38,6 +38,10 @@ func TestDefaultWorkspaceSnapshot(t *testing.T) {
 		t.Errorf("expected empty recent_pages, got %v", snapshot.UI.RecentPages)
 	}
 
+	if snapshot.UI.LastWorkspacePath != "" {
+		t.Errorf("expected empty last_workspace_path, got %q", snapshot.UI.LastWorkspacePath)
+	}
+
 	if snapshot.UI.GraphLayout != "force" {
 		t.Errorf("expected graph_layout 'force', got %q", snapshot.UI.GraphLayout)
 	}
@@ -121,6 +125,7 @@ func TestSaveWorkspaceSnapshot_RoundTrip(t *testing.T) {
 			RightPanelWidth:   450,
 			PinnedPages:       []string{"index.md", "todo.md"},
 			RecentPages:       []string{"projects/new-idea.md", "daily/2025-01-20.md"},
+			LastWorkspacePath: "/Users/test/workspace",
 			GraphLayout:       "tree",
 		},
 	}
@@ -179,6 +184,10 @@ func TestSaveWorkspaceSnapshot_RoundTrip(t *testing.T) {
 
 	if loaded.UI.GraphLayout != original.UI.GraphLayout {
 		t.Errorf("graph_layout mismatch: got %q, want %q", loaded.UI.GraphLayout, original.UI.GraphLayout)
+	}
+
+	if loaded.UI.LastWorkspacePath != original.UI.LastWorkspacePath {
+		t.Errorf("last_workspace_path mismatch: got %q, want %q", loaded.UI.LastWorkspacePath, original.UI.LastWorkspacePath)
 	}
 }
 

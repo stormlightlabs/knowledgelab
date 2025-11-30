@@ -197,6 +197,8 @@ let workspaceUIDecoder : Decoder<WorkspaceUI> =
     RightPanelWidth = get.Required.Field "RightPanelWidth" Decode.int
     PinnedPages = get.Required.Field "PinnedPages" (Decode.list Decode.string)
     RecentPages = get.Required.Field "RecentPages" (Decode.list Decode.string)
+    LastWorkspacePath =
+      get.Optional.Field "LastWorkspacePath" Decode.string |> Option.defaultValue ""
     GraphLayout = get.Required.Field "GraphLayout" Decode.string
   })
 

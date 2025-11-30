@@ -30,6 +30,8 @@ type WorkspaceUI struct {
 	PinnedPages []string `toml:"pinned_pages"`
 	// RecentPages contains IDs of recently opened notes (most recent first)
 	RecentPages []string `toml:"recent_pages"`
+	// LastWorkspacePath stores the absolute path to the workspace this snapshot belongs to.
+	LastWorkspacePath string `toml:"last_workspace_path"`
 	// GraphLayout stores the last graph view layout (e.g., "force", "tree")
 	GraphLayout string `toml:"graph_layout"`
 }
@@ -45,6 +47,7 @@ func DefaultWorkspaceSnapshot() WorkspaceSnapshot {
 			RightPanelWidth:   300,
 			PinnedPages:       []string{},
 			RecentPages:       []string{},
+			LastWorkspacePath: "",
 			GraphLayout:       "force",
 		},
 	}

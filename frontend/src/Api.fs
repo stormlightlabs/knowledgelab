@@ -78,6 +78,9 @@ module Raw =
   [<Import("SaveWorkspaceSnapshot", from = "@wailsjs/go/main/App")>]
   let saveWorkspaceSnapshot (snapshot : WorkspaceSnapshot) : JS.Promise<unit> = jsNative
 
+  [<Import("ClearRecentFiles", from = "@wailsjs/go/main/App")>]
+  let clearRecentFiles () : JS.Promise<obj> = jsNative
+
 /// Helper to decode JSON response
 let decodeResponse<'T> (decoder : Decoder<'T>) (response : obj) : 'T =
   let json = JS.JSON.stringify response
@@ -164,3 +167,7 @@ let loadWorkspaceSnapshot () : JS.Promise<WorkspaceSnapshot> =
   |> Promise.map (decodeResponse Json.workspaceSnapshotDecoder)
 
 let saveWorkspaceSnapshot = Raw.saveWorkspaceSnapshot
+
+let clearRecentFiles () : JS.Promise<WorkspaceSnapshot> =
+  Raw.clearRecentFiles ()
+  |> Promise.map (decodeResponse Json.workspaceSnapshotDecoder)

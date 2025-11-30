@@ -310,6 +310,23 @@ func (a *App) SaveWorkspaceSnapshot(snapshot service.WorkspaceSnapshot) error {
 	return nil
 }
 
+// ClearRecentFiles removes all recent pages from the workspace snapshot and persists the change.
+func (a *App) ClearRecentFiles() (*service.WorkspaceSnapshot, error) {
+	snapshot, err := a.stores.Workspace.LoadSnapshot()
+	if err != nil {
+		return nil, a.wrapError("failed to load workspace snapshot", err)
+	}
+
+	snapshot.UI.RecentPages = []string{}
+	snapshot.UI.ActivePage = ""
+
+	if err := a.stores.Workspace.SaveSnapshot(snapshot); err != nil {
+		return nil, a.wrapError("failed to save workspace snapshot", err)
+	}
+
+	return &snapshot, nil
+}
+
 // wrapError converts domain errors to user-friendly messages.
 // Maps specific error types to appropriate frontend error messages.
 func (a *App) wrapError(msg string, err error) error {

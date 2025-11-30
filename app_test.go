@@ -148,6 +148,7 @@ func TestApp_SettingsAndSnapshotMethods(t *testing.T) {
 		testSnapshot.UI.ActivePage = "test-page.md"
 		testSnapshot.UI.SidebarWidth = 350
 		testSnapshot.UI.PinnedPages = []string{"page1.md", "page2.md"}
+		testSnapshot.UI.LastWorkspacePath = "/tmp/workspace-path"
 
 		err := app.SaveWorkspaceSnapshot(testSnapshot)
 		if err != nil {
@@ -169,6 +170,42 @@ func TestApp_SettingsAndSnapshotMethods(t *testing.T) {
 
 		if len(loaded.UI.PinnedPages) != 2 {
 			t.Errorf("len(PinnedPages) = %d, want %d", len(loaded.UI.PinnedPages), 2)
+		}
+
+		if loaded.UI.LastWorkspacePath != "/tmp/workspace-path" {
+			t.Errorf("LastWorkspacePath = %q, want %q", loaded.UI.LastWorkspacePath, "/tmp/workspace-path")
+		}
+	})
+
+	t.Run("ClearRecentFiles empties recent pages", func(t *testing.T) {
+		snapshot := service.DefaultWorkspaceSnapshot()
+		snapshot.UI.ActivePage = "existing.md"
+		snapshot.UI.RecentPages = []string{"existing.md", "older.md"}
+
+		if err := app.SaveWorkspaceSnapshot(snapshot); err != nil {
+			t.Fatalf("setup SaveWorkspaceSnapshot() error = %v", err)
+		}
+
+		cleared, err := app.ClearRecentFiles()
+		if err != nil {
+			t.Fatalf("ClearRecentFiles() error = %v", err)
+		}
+
+		if len(cleared.UI.RecentPages) != 0 {
+			t.Fatalf("expected recent pages to be empty, got %v", cleared.UI.RecentPages)
+		}
+
+		if cleared.UI.ActivePage != "" {
+			t.Fatalf("expected active page to be empty, got %q", cleared.UI.ActivePage)
+		}
+
+		loaded, err := app.LoadWorkspaceSnapshot()
+		if err != nil {
+			t.Fatalf("LoadWorkspaceSnapshot() error = %v", err)
+		}
+
+		if len(loaded.UI.RecentPages) != 0 {
+			t.Fatalf("expected persisted recent pages to be empty, got %v", loaded.UI.RecentPages)
 		}
 	})
 }

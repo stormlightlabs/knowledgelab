@@ -85,6 +85,9 @@ type State = {
   UIState : UIState
   Loading : bool
   Error : string option
+  Success : string option
+  PendingWorkspacePath : string option
+  PendingNoteToOpen : string option
 } with
 
   static member Default = {
@@ -128,6 +131,9 @@ type State = {
     }
     Loading = false
     Error = None
+    Success = None
+    PendingWorkspacePath = None
+    PendingNoteToOpen = None
   }
 
 /// Messages represent all possible user actions and events
@@ -139,6 +145,9 @@ type Msg =
   | LoadNotes
   | NotesLoaded of Result<NoteSummary list, string>
   | SelectNote of noteId : string
+  | OpenRecentFile of workspacePath : string * noteId : string
+  | ClearRecentFiles
+  | RecentFilesCleared of Result<WorkspaceSnapshot, string>
   | NoteLoaded of Result<Note, string>
   | SaveNote of Note
   | NoteSaved of Result<unit, string>
@@ -182,6 +191,7 @@ type Msg =
   | CloseModal
   | SetError of string
   | ClearError
+  | ClearSuccess
   | FormatBold
   | FormatItalic
   | FormatInlineCode
@@ -245,6 +255,18 @@ let private MaxRecentFiles = 20
 /// Removes blank or whitespace-only entries from the recent files list
 let private sanitizeRecentPages (recentPages : string list) =
   recentPages |> List.filter (String.IsNullOrWhiteSpace >> not)
+
+let private sanitizeSnapshot (snapshot : WorkspaceSnapshot) =
+  let sanitizedUI = {
+    snapshot.UI with
+        RecentPages = sanitizeRecentPages snapshot.UI.RecentPages
+        LastWorkspacePath =
+          match snapshot.UI.LastWorkspacePath with
+          | null -> ""
+          | value -> value.Trim()
+  }
+
+  { snapshot with UI = sanitizedUI }
 
 /// Adds a note ID to the recent pages list, maintaining max size and moving duplicates to front
 let private addToRecentPages (noteId : string) (recentPages : string list) : string list =
@@ -321,10 +343,17 @@ let private updateRecentPage (noteId : string) (state : State) : State * Cmd<Msg
   else
     match state.WorkspaceSnapshot with
     | Some snapshot ->
+      let resolvedWorkspacePath =
+        match state.Workspace with
+        | Some ws when not (String.IsNullOrWhiteSpace ws.Workspace.RootPath) ->
+          ws.Workspace.RootPath
+        | _ -> snapshot.UI.LastWorkspacePath
+
       let updatedUI = {
         snapshot.UI with
             RecentPages = addToRecentPages noteId snapshot.UI.RecentPages
             ActivePage = noteId
+            LastWorkspacePath = resolvedWorkspacePath
       }
 
       let updatedSnapshot = { snapshot with UI = updatedUI }
@@ -365,15 +394,54 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     Cmd.OfPromise.either Api.openWorkspace path (Ok >> WorkspaceOpened) (fun ex ->
       WorkspaceOpened(Error ex.Message))
   | WorkspaceOpened(Ok workspace) ->
-    {
+    let targetWorkspacePath = workspace.Workspace.RootPath
+
+    let pendingNote =
+      match state.PendingWorkspacePath, state.PendingNoteToOpen with
+      | Some pendingPath, Some note when
+        not (String.IsNullOrWhiteSpace pendingPath)
+        && pendingPath.Equals(targetWorkspacePath, StringComparison.OrdinalIgnoreCase)
+        ->
+        Some note
+      | _ -> None
+
+    let baseState = {
       state with
           Workspace = Some workspace
           Loading = false
           CurrentRoute = NoteList
           Error = None
+          PendingWorkspacePath = None
+          PendingNoteToOpen = None
+    }
+
+    let stateWithSnapshot, snapshotCmd =
+      match baseState.WorkspaceSnapshot with
+      | Some snapshot when snapshot.UI.LastWorkspacePath <> targetWorkspacePath ->
+        let updatedSnapshot = {
+          snapshot with
+              UI = { snapshot.UI with LastWorkspacePath = targetWorkspacePath }
+        }
+
+        { baseState with WorkspaceSnapshot = Some updatedSnapshot },
+        Cmd.ofMsg (WorkspaceSnapshotChanged updatedSnapshot)
+      | _ -> baseState, Cmd.none
+
+    let pendingNoteCmd =
+      match pendingNote with
+      | Some noteId -> Cmd.ofMsg (SelectNote noteId)
+      | None -> Cmd.none
+
+    stateWithSnapshot, Cmd.batch [ Cmd.ofMsg LoadNotes; snapshotCmd; pendingNoteCmd ]
+  | WorkspaceOpened(Error err) ->
+    {
+      state with
+          Loading = false
+          Error = Some err
+          PendingWorkspacePath = None
+          PendingNoteToOpen = None
     },
-    Cmd.ofMsg LoadNotes
-  | WorkspaceOpened(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
+    Cmd.none
   | LoadNotes ->
     { state with Loading = true },
     Cmd.OfPromise.either Api.listNotes () (safeArrayToList >> Ok >> NotesLoaded) (fun ex ->
@@ -396,6 +464,58 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     { state with Loading = true },
     Cmd.OfPromise.either Api.getNote noteId (Ok >> NoteLoaded) (fun ex ->
       NoteLoaded(Error ex.Message))
+  | OpenRecentFile(workspacePath, noteId) ->
+    let trimmedWorkspace = if isNull workspacePath then "" else workspacePath.Trim()
+
+    if String.IsNullOrWhiteSpace noteId then
+      state, Cmd.none
+    elif String.IsNullOrWhiteSpace trimmedWorkspace then
+      {
+        state with
+            Error =
+              Some
+                "This recent file is missing its workspace path. Please open the workspace manually."
+      },
+      Cmd.none
+    else
+      let isWorkspaceActive =
+        state.Workspace
+        |> Option.map (fun ws ->
+          ws.Workspace.RootPath.Equals(trimmedWorkspace, StringComparison.OrdinalIgnoreCase))
+        |> Option.defaultValue false
+
+      if isWorkspaceActive then
+        state, Cmd.ofMsg (SelectNote noteId)
+      else
+        {
+          state with
+              PendingWorkspacePath = Some trimmedWorkspace
+              PendingNoteToOpen = Some noteId
+        },
+        Cmd.ofMsg (OpenWorkspace trimmedWorkspace)
+  | ClearRecentFiles ->
+    { state with Loading = true },
+    Cmd.OfPromise.either Api.clearRecentFiles () (Ok >> RecentFilesCleared) (fun ex ->
+      RecentFilesCleared(Error ex.Message))
+  | RecentFilesCleared(Ok snapshot) ->
+    let sanitizedSnapshot = sanitizeSnapshot snapshot
+
+    {
+      state with
+          WorkspaceSnapshot = Some sanitizedSnapshot
+          Loading = false
+          Error = None
+          Success = Some "Recent files cleared"
+    },
+    Cmd.none
+  | RecentFilesCleared(Error err) ->
+    {
+      state with
+          Loading = false
+          Error = Some err
+          Success = None
+    },
+    Cmd.none
   | NoteLoaded(Ok note) ->
     Browser.Dom.console.log ("NoteLoaded - Note data:", note)
     Browser.Dom.console.log ("  Id:", note.Id)
@@ -574,18 +694,13 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   | SettingsLoaded(Ok settings) -> { state with Settings = Some settings; Error = None }, Cmd.none
   | SettingsLoaded(Error err) -> { state with Error = Some err }, Cmd.none
   | WorkspaceSnapshotLoaded(Ok snapshot) ->
-    let sanitizedSnapshot =
-      let sanitizedUI = {
-        snapshot.UI with
-            RecentPages = sanitizeRecentPages snapshot.UI.RecentPages
-      }
-
-      { snapshot with UI = sanitizedUI }
+    let sanitizedSnapshot = sanitizeSnapshot snapshot
 
     Browser.Dom.console.log ("WorkspaceSnapshotLoaded - Snapshot data:", sanitizedSnapshot)
     Browser.Dom.console.log ("  ActivePage:", sanitizedSnapshot.UI.ActivePage)
     Browser.Dom.console.log ("  RecentPages:", sanitizedSnapshot.UI.RecentPages)
     Browser.Dom.console.log ("  RecentPages count:", sanitizedSnapshot.UI.RecentPages.Length)
+    Browser.Dom.console.log ("  LastWorkspacePath:", sanitizedSnapshot.UI.LastWorkspacePath)
 
     {
       state with
@@ -681,8 +796,9 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
           UIState = { state.UIState with ActiveModal = NoModal }
     },
     Cmd.none
-  | SetError err -> { state with Error = Some err }, Cmd.none
+  | SetError err -> { state with Error = Some err; Success = None }, Cmd.none
   | ClearError -> { state with Error = None }, Cmd.none
+  | ClearSuccess -> { state with Success = None }, Cmd.none
   | FormatBold ->
     match state.CurrentNote with
     | Some note ->

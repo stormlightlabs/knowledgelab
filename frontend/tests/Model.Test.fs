@@ -267,6 +267,7 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = [ "page1.md"; "page2.md" ]
             RecentPages = [ "recent1.md" ]
+            LastWorkspacePath = "/workspace"
             GraphLayout = "force"
           }
         }
@@ -295,11 +296,13 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = []
             RecentPages = [ ""; "note-a.md"; " " ]
+            LastWorkspacePath = "/workspace"
             GraphLayout = "force"
           }
         }
 
-        let newState, _ = Update (WorkspaceSnapshotLoaded(Ok snapshotWithBlanks)) State.Default
+        let newState, _ =
+          Update (WorkspaceSnapshotLoaded(Ok snapshotWithBlanks)) State.Default
 
         match newState.WorkspaceSnapshot with
         | Some s ->
@@ -316,6 +319,147 @@ Jest.describe (
         let newState, _ = Update (WorkspaceSnapshotLoaded(Error errorMsg)) initialState
         Jest.expect(newState.Error).toEqual (Some errorMsg)
         Jest.expect(newState.WorkspaceSnapshot).toEqual None
+    )
+
+    Jest.test (
+      "ClearRecentFiles triggers loading state",
+      fun () ->
+        let snapshot = {
+          UI = {
+            ActivePage = "note-a"
+            SidebarVisible = true
+            SidebarWidth = 280
+            RightPanelVisible = false
+            RightPanelWidth = 300
+            PinnedPages = []
+            RecentPages = [ "note-a"; "note-b" ]
+            LastWorkspacePath = "/workspace"
+            GraphLayout = "force"
+          }
+        }
+
+        let initialState = { State.Default with WorkspaceSnapshot = Some snapshot }
+        let newState, _ = Update ClearRecentFiles initialState
+        Jest.expect(newState.Loading).toEqual true
+    )
+
+    Jest.test (
+      "RecentFilesCleared success updates snapshot",
+      fun () ->
+        let snapshot = {
+          UI = {
+            ActivePage = ""
+            SidebarVisible = true
+            SidebarWidth = 280
+            RightPanelVisible = false
+            RightPanelWidth = 300
+            PinnedPages = []
+            RecentPages = []
+            LastWorkspacePath = "/workspace"
+            GraphLayout = "force"
+          }
+        }
+
+        let initialState = { State.Default with Loading = true }
+        let newState, _ = Update (RecentFilesCleared(Ok snapshot)) initialState
+
+        match newState.WorkspaceSnapshot with
+        | Some updated -> Jest.expect(updated.UI.RecentPages.Length).toEqual 0
+        | None -> failwith "Expected snapshot"
+
+        Jest.expect(newState.Loading).toEqual false
+        Jest.expect(newState.Success).toEqual (Some "Recent files cleared")
+    )
+
+    Jest.test (
+      "RecentFilesCleared error sets error message",
+      fun () ->
+        let errorMsg = "Failed to clear"
+        let initialState = { State.Default with Loading = true }
+        let newState, _ = Update (RecentFilesCleared(Error errorMsg)) initialState
+        Jest.expect(newState.Error).toEqual (Some errorMsg)
+        Jest.expect(newState.Loading).toEqual false
+        Jest.expect(newState.Success).toEqual None
+    )
+
+    Jest.test (
+      "ClearSuccess removes success notification",
+      fun () ->
+        let initialState = { State.Default with Success = Some "Saved" }
+        let newState, _ = Update ClearSuccess initialState
+        Jest.expect(newState.Success).toEqual None
+    )
+
+    Jest.test (
+      "OpenRecentFile without workspace path sets friendly error",
+      fun () ->
+        let newState, _ = Update (OpenRecentFile("", "note.md")) State.Default
+        Jest.expect(newState.Error.IsSome).toEqual true
+        Jest.expect(newState.PendingWorkspacePath).toEqual None
+        Jest.expect(newState.PendingNoteToOpen).toEqual None
+    )
+
+    Jest.test (
+      "OpenRecentFile stores pending state when workspace needs to change",
+      fun () ->
+        let workspacePath = "/workspace"
+        let noteId = "note.md"
+        let newState, _ = Update (OpenRecentFile(workspacePath, noteId)) State.Default
+        Jest.expect(newState.PendingWorkspacePath).toEqual (Some workspacePath)
+        Jest.expect(newState.PendingNoteToOpen).toEqual (Some noteId)
+    )
+
+    Jest.test (
+      "WorkspaceOpened updates snapshot with last workspace path",
+      fun () ->
+        let snapshot = {
+          UI = {
+            ActivePage = ""
+            SidebarVisible = true
+            SidebarWidth = 280
+            RightPanelVisible = false
+            RightPanelWidth = 300
+            PinnedPages = []
+            RecentPages = []
+            LastWorkspacePath = ""
+            GraphLayout = "force"
+          }
+        }
+
+        let workspaceInfo = {
+          Workspace = {
+            Id = "ws-id"
+            Name = "Workspace"
+            RootPath = "/workspace"
+            IgnorePatterns = []
+            CreatedAt = System.DateTime.Now
+            LastOpenedAt = System.DateTime.Now
+          }
+          Config = {
+            DailyNoteFormat = "yyyy-MM-dd"
+            DailyNoteFolder = ""
+            DefaultTags = []
+          }
+          NoteCount = 0
+          TotalBlocks = 0
+        }
+
+        let initialState = {
+          State.Default with
+              WorkspaceSnapshot = Some snapshot
+              PendingWorkspacePath = Some "/workspace"
+              PendingNoteToOpen = Some "note.md"
+        }
+
+        let newState, _ = Update (WorkspaceOpened(Ok workspaceInfo)) initialState
+
+        match newState.WorkspaceSnapshot with
+        | Some updatedSnapshot ->
+          Jest.expect(updatedSnapshot.UI.LastWorkspacePath).toEqual "/workspace"
+        | None -> failwith "Expected workspace snapshot to be present"
+
+        Jest.expect(newState.PendingWorkspacePath).toEqual None
+        Jest.expect(newState.PendingNoteToOpen).toEqual None
     )
 
     Jest.test (
@@ -365,6 +509,7 @@ Jest.describe (
             RightPanelWidth = 400
             PinnedPages = [ "pinned1.md" ]
             RecentPages = []
+            LastWorkspacePath = "/workspace"
             GraphLayout = "tree"
           }
         }
@@ -460,6 +605,7 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = []
             RecentPages = []
+            LastWorkspacePath = "/workspace"
             GraphLayout = "force"
           }
         }
@@ -514,6 +660,7 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = []
             RecentPages = []
+            LastWorkspacePath = "/workspace"
             GraphLayout = "force"
           }
         }
@@ -640,6 +787,7 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = []
             RecentPages = []
+            LastWorkspacePath = "/workspace"
             GraphLayout = "force"
           }
         }
@@ -682,6 +830,7 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = []
             RecentPages = [ "existing.md" ]
+            LastWorkspacePath = "/workspace"
             GraphLayout = "force"
           }
         }
@@ -723,6 +872,7 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = []
             RecentPages = [ "note-a"; "note-b"; "note-c" ]
+            LastWorkspacePath = "/workspace"
             GraphLayout = "force"
           }
         }

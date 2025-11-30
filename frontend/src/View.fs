@@ -1,6 +1,7 @@
 module View
 
 open System
+open System.IO
 open Feliz
 open Feliz.Router
 open Model
@@ -9,15 +10,27 @@ open StatusBar
 
 module WorkspacePicker =
   /// Renders a recent file item in the workspace picker
-  let private recentFileItem (noteId : string) (dispatch : Msg -> unit) =
+  let private recentFileItem (workspacePath : string) (noteId : string) (dispatch : Msg -> unit) =
+    let resolvedWorkspace =
+      if String.IsNullOrWhiteSpace workspacePath then
+        ""
+      else
+        workspacePath
+
+    let fullPath =
+      if String.IsNullOrWhiteSpace resolvedWorkspace then
+        noteId
+      else
+        Path.Combine(resolvedWorkspace, noteId)
+
     Html.div [
-      prop.key noteId
+      prop.key $"{resolvedWorkspace}:{noteId}"
       prop.className
-        "p-3 hover:bg-base02 cursor-pointer border-b border-base02 default-transition rounded"
-      prop.onClick (fun _ -> dispatch (SelectNote noteId))
+        "p-3 hover:bg-base02 cursor-pointer border border-base02 default-transition rounded"
+      prop.onClick (fun _ -> dispatch (OpenRecentFile(resolvedWorkspace, noteId)))
       prop.children [
         Html.div [ prop.className "font-medium text-base05"; prop.text noteId ]
-        Html.div [ prop.className "text-xs text-base03 mt-1"; prop.text "Recent file" ]
+        Html.div [ prop.className "text-xs text-base03 mt-1"; prop.text fullPath ]
       ]
     ]
 
@@ -73,22 +86,35 @@ module WorkspacePicker =
               let recentPages =
                 snapshot.UI.RecentPages |> List.filter (String.IsNullOrWhiteSpace >> not)
 
+              let workspacePath = snapshot.UI.LastWorkspacePath
+
               if List.isEmpty recentPages then
                 Html.none
               else
                 Html.div [
                   prop.className "mt-6 bg-base01 p-6 rounded-lg shadow-xl border border-base02"
                   prop.children [
-                    Html.h3 [
-                      prop.className "text-lg font-semibold mb-4 text-base05"
-                      prop.text "Recent Files"
+                    Html.div [
+                      prop.className "flex items-center justify-between mb-4"
+                      prop.children [
+                        Html.h3 [
+                          prop.className "text-lg font-semibold text-base05"
+                          prop.text "Recent Files"
+                        ]
+                        Html.button [
+                          prop.className
+                            "text-xs text-base03 hover:text-base05 default-transition underline-offset-2 hover:underline"
+                          prop.text "Clear"
+                          prop.onClick (fun _ -> dispatch ClearRecentFiles)
+                        ]
+                      ]
                     ]
                     Html.div [
                       prop.className "space-y-2 max-h-60 overflow-y-auto"
                       prop.children (
                         recentPages
                         |> List.truncate 10
-                        |> List.map (fun noteId -> recentFileItem noteId dispatch)
+                        |> List.map (fun noteId -> recentFileItem workspacePath noteId dispatch)
                       )
                     ]
                   ]
@@ -495,6 +521,24 @@ module Notification =
         ]
       | None -> Html.none
 
+  module Success =
+    /// Renders success notification if present
+    let Render (message : string option) (dispatch : Msg -> unit) =
+      match message with
+      | Some msg ->
+        Html.div [
+          prop.className "fixed top-4 left-4 bg-green text-base00 px-4 py-3 rounded shadow-lg"
+          prop.children [
+            Html.span [ prop.text msg ]
+            Html.button [
+              prop.className "ml-4 font-bold"
+              prop.text "×"
+              prop.onClick (fun _ -> dispatch ClearSuccess)
+            ]
+          ]
+        ]
+      | None -> Html.none
+
 module NavigationBar =
   /// Renders the top navigation bar
   let Render (state : State) (dispatch : Msg -> unit) =
@@ -608,8 +652,11 @@ module App =
         ]
 
         Html.div [
-          prop.key "error-notification"
-          prop.children [ Notification.Error.Render state.Error dispatch ]
+          prop.key "notification-stack"
+          prop.children [
+            Notification.Error.Render state.Error dispatch
+            Notification.Success.Render state.Success dispatch
+          ]
         ]
 
         if state.Loading then

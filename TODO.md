@@ -69,7 +69,7 @@ Local-first Markdown storage with wikilinks, backlinks, graph view, daily notes,
 
 ### Logseq-Compatible Features
 
-#### Block-Based Outliner (Light)
+#### Block-Based Outliner
 
 - [ ] Block ID support:
   - [ ] Parse Logseq-style block IDs (`^block-id` at end of line).
@@ -81,7 +81,7 @@ Local-first Markdown storage with wikilinks, backlinks, graph view, daily notes,
   - [ ] Block-level navigation with Up/Down arrow keys.
   - [ ] Block focus/zoom (collapse siblings, show only focused branch).
 
-#### Task Management (Basic)
+#### Task Management
 
 - [ ] Task parsing:
   - [ ] Parse `- [ ]` unchecked task syntax.

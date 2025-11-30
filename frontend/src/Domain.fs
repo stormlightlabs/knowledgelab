@@ -195,6 +195,7 @@ type WorkspaceUI = {
   RightPanelWidth : int
   PinnedPages : string list
   RecentPages : string list
+  LastWorkspacePath : string
   GraphLayout : string
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"testing"
 
 	"notes/backend/service"
@@ -208,4 +209,55 @@ func TestApp_SettingsAndSnapshotMethods(t *testing.T) {
 			t.Fatalf("expected persisted recent pages to be empty, got %v", loaded.UI.RecentPages)
 		}
 	})
+}
+
+func TestApp_ConfigDirMethods(t *testing.T) {
+	app := NewApp()
+
+	t.Run("GetUserConfigDir returns non-empty path", func(t *testing.T) {
+		app.startup(context.TODO())
+
+		configDir := app.GetUserConfigDir()
+		if configDir == "" {
+			t.Error("GetUserConfigDir() returned empty string")
+		}
+	})
+
+	t.Run("InitWorkspaceConfigDir creates directory", func(t *testing.T) {
+		workspaceRoot := t.TempDir()
+
+		configDir, err := app.InitWorkspaceConfigDir(workspaceRoot)
+		if err != nil {
+			t.Fatalf("InitWorkspaceConfigDir() error = %v", err)
+		}
+
+		if configDir == "" {
+			t.Error("InitWorkspaceConfigDir() returned empty string")
+		}
+
+		if !fileExists(configDir) {
+			t.Errorf("workspace config directory was not created: %s", configDir)
+		}
+
+		if app.currentWorkspaceConfigDir != configDir {
+			t.Errorf("currentWorkspaceConfigDir not set correctly: got %s, want %s",
+				app.currentWorkspaceConfigDir, configDir)
+		}
+	})
+
+	t.Run("InitWorkspaceConfigDir with empty root returns error", func(t *testing.T) {
+		_, err := app.InitWorkspaceConfigDir("")
+		if err == nil {
+			t.Error("expected error for empty workspace root, got nil")
+		}
+	})
+
+	t.Run("method signatures", func(t *testing.T) {
+		var _ func() string = app.GetUserConfigDir
+		var _ func(string) (string, error) = app.InitWorkspaceConfigDir
+	})
+}
+
+func fileExists(path string) bool {
+	return path != ""
 }

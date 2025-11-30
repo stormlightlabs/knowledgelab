@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"notes/backend/domain"
+	"notes/backend/paths"
 	"notes/backend/service"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -13,13 +14,15 @@ import (
 // App struct holds application services and state.
 // Services are initialized during startup and exposed to the frontend via Wails bindings.
 type App struct {
-	ctx      context.Context
-	fs       *service.FilesystemService
-	notes    *service.NoteService
-	graph    *service.GraphService
-	search   *service.SearchService
-	stores   *service.Stores
-	indexing bool
+	ctx                       context.Context
+	fs                        *service.FilesystemService
+	notes                     *service.NoteService
+	graph                     *service.GraphService
+	search                    *service.SearchService
+	stores                    *service.Stores
+	indexing                  bool
+	userConfigDir             string
+	currentWorkspaceConfigDir string
 }
 
 // NewApp creates a new App application struct with all services initialized.
@@ -51,6 +54,15 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+
+	// Initialize user config directory
+	userConfigDir, err := paths.UserConfigDir("KnowledgeLab")
+	if err != nil {
+		fmt.Printf("Warning: failed to initialize user config directory: %v\n", err)
+	} else {
+		a.userConfigDir = userConfigDir
+		fmt.Printf("User config directory: %s\n", userConfigDir)
+	}
 }
 
 // shutdown is called when the app is closing
@@ -325,6 +337,25 @@ func (a *App) ClearRecentFiles() (*service.WorkspaceSnapshot, error) {
 	}
 
 	return &snapshot, nil
+}
+
+// GetUserConfigDir returns the user-level configuration directory path.
+// This directory contains global application settings and per-workspace metadata.
+func (a *App) GetUserConfigDir() string {
+	return a.userConfigDir
+}
+
+// InitWorkspaceConfigDir initializes and returns the workspace-level configuration directory.
+// This directory lives inside the workspace root and can be committed to version control.
+// Creates the directory if it doesn't exist.
+func (a *App) InitWorkspaceConfigDir(workspaceRoot string) (string, error) {
+	configDir, err := paths.WorkspaceConfigDir(workspaceRoot, "KnowledgeLab")
+	if err != nil {
+		return "", a.wrapError("failed to initialize workspace config directory", err)
+	}
+
+	a.currentWorkspaceConfigDir = configDir
+	return configDir, nil
 }
 
 // wrapError converts domain errors to user-friendly messages.

@@ -460,44 +460,183 @@ module BacklinksPanel =
     ]
 
 module SettingsPanel =
-  /// Renders the settings panel
-  let Render (state : State) (dispatch : Msg -> unit) =
+  /// Renders a settings section with a title and content
+  let private section (title : string) children =
     Html.div [
-      prop.className "flex-1 flex flex-col bg-base00 p-6"
+      prop.className "bg-base01 p-4 rounded border border-base02 mb-4"
+      prop.children (
+        Html.h3 [ prop.className "font-semibold text-base05 mb-3"; prop.text title ]
+        :: children
+      )
+    ]
+
+  /// Renders a labeled select dropdown
+  let private selectField
+    (label : string)
+    (value : string)
+    (options : List<string * string>)
+    (onChange : string -> unit)
+    =
+    Html.div [
+      prop.className "mb-3"
       prop.children [
-        Html.h1 [ prop.className "text-2xl font-bold text-base05 mb-4"; prop.text "Settings" ]
-        Html.div [
-          prop.className "bg-base01 p-4 rounded border border-base02 mb-4"
-          prop.children [
-            Html.h3 [ prop.className "font-semibold text-base05 mb-2"; prop.text "Workspace" ]
-            match state.Workspace with
-            | Some ws ->
-              Html.div [
-                prop.children [
-                  Html.div [
-                    prop.className "text-sm text-base03 mb-1"
-                    prop.text $"Name: {ws.Workspace.Name}"
-                  ]
-                  Html.div [
-                    prop.className "text-sm text-base03 mb-1"
-                    prop.text $"Path: {ws.Workspace.RootPath}"
-                  ]
-                  Html.div [
-                    prop.className "text-sm text-base03 mb-1"
-                    prop.text $"Notes: {ws.NoteCount}"
-                  ]
+        Html.label [ prop.className "block text-sm font-medium text-base04 mb-1"; prop.text label ]
+        Html.select [
+          prop.className
+            "w-full bg-base00 border border-base02 rounded px-3 py-2 text-base05 focus:outline-none focus:border-blue"
+          prop.value value
+          prop.onChange (fun (v : string) -> onChange v)
+          prop.children (
+            options
+            |> List.map (fun (v, label) -> Html.option [ prop.value v; prop.text label ])
+          )
+        ]
+      ]
+    ]
+
+  /// Renders a labeled number input with range
+  let private numberField label (value : int) (min : int) (max : int) onChange =
+    Html.div [
+      prop.className "mb-3"
+      prop.children [
+        Html.label [
+          prop.className "block text-sm font-medium text-base04 mb-1"
+          prop.text $"{label}: {value}"
+        ]
+        Html.input [
+          prop.type' "range"
+          prop.min min
+          prop.max max
+          prop.value value
+          prop.className "w-full accent-blue"
+          prop.onChange (fun (v : int) -> onChange v)
+        ]
+      ]
+    ]
+
+  /// Renders a labeled checkbox
+  let private checkboxField (label : string) isChecked onChange =
+    Html.div [
+      prop.className "mb-3 flex items-center"
+      prop.children [
+        Html.input [
+          prop.type' "checkbox"
+          prop.isChecked isChecked
+          prop.className "mr-2 accent-blue"
+          prop.onChange (fun (v : bool) -> onChange v)
+        ]
+        Html.label [ prop.className "text-sm text-base04"; prop.text label ]
+      ]
+    ]
+
+  /// Renders the settings panel with actual controls
+  let Render (state : State) (dispatch : Msg -> unit) =
+    let settings =
+      state.Settings
+      |> Option.defaultValue {
+        General = {
+          Theme = "auto"
+          Language = "en"
+          AutoSave = true
+          AutoSaveInterval = 30
+        }
+        Editor = {
+          FontFamily = "monospace"
+          FontSize = 14
+          LineHeight = 1.6
+          TabSize = 2
+          VimMode = false
+          SpellCheck = true
+        }
+      }
+
+    let updateGeneral (updater : GeneralSettings -> GeneralSettings) =
+      let updated = { settings with General = updater settings.General }
+      dispatch (SettingsChanged updated)
+
+    let updateEditor (updater : EditorSettings -> EditorSettings) =
+      let updated = { settings with Editor = updater settings.Editor }
+      dispatch (SettingsChanged updated)
+
+    Html.div [
+      prop.className "flex-1 flex flex-col bg-base00 p-6 overflow-y-auto"
+      prop.children [
+        Html.h1 [ prop.className "text-2xl font-bold text-base05 mb-6"; prop.text "Settings" ]
+
+        section "Workspace" [
+          match state.Workspace with
+          | Some ws ->
+            Html.div [
+              prop.children [
+                Html.div [
+                  prop.className "text-sm text-base03 mb-1"
+                  prop.text $"Name: {ws.Workspace.Name}"
+                ]
+                Html.div [
+                  prop.className "text-sm text-base03 mb-1"
+                  prop.text $"Path: {ws.Workspace.RootPath}"
+                ]
+                Html.div [
+                  prop.className "text-sm text-base03"
+                  prop.text $"Notes: {ws.NoteCount}"
                 ]
               ]
-            | None ->
-              Html.div [ prop.className "text-sm text-base03"; prop.text "No workspace open" ]
-          ]
+            ]
+          | None ->
+            Html.div [ prop.className "text-sm text-base03"; prop.text "No workspace open" ]
         ]
-        Html.div [
-          prop.className "bg-base01 p-4 rounded border border-base02"
-          prop.children [
-            Html.h3 [ prop.className "font-semibold text-base05 mb-2"; prop.text "Theme" ]
-            Html.div [ prop.className "text-sm text-base03"; prop.text "Iceberg Dark (active)" ]
-          ]
+
+        section "General" [
+          selectField
+            "Theme"
+            settings.General.Theme
+            [ "auto", "Auto (System)"; "light", "Light"; "dark", "Dark" ]
+            (fun theme -> updateGeneral (fun g -> { g with Theme = theme }))
+
+          selectField
+            "Language"
+            settings.General.Language
+            [ "en", "English"; "es", "Español"; "fr", "Français"; "de", "Deutsch" ]
+            (fun lang -> updateGeneral (fun g -> { g with Language = lang }))
+
+          checkboxField "Auto Save" settings.General.AutoSave (fun enabled ->
+            updateGeneral (fun g -> { g with AutoSave = enabled }))
+
+          numberField
+            "Auto Save Interval (seconds)"
+            settings.General.AutoSaveInterval
+            5
+            120
+            (fun interval -> updateGeneral (fun g -> { g with AutoSaveInterval = interval }))
+        ]
+
+        section "Editor" [
+          selectField
+            "Font Family"
+            settings.Editor.FontFamily
+            [
+              "monospace", "Monospace"
+              "JetBrains Mono", "JetBrains Mono"
+              "Fira Code", "Fira Code"
+              "Consolas", "Consolas"
+              "Monaco", "Monaco"
+            ]
+            (fun font -> updateEditor (fun e -> { e with FontFamily = font }))
+
+          numberField "Font Size" settings.Editor.FontSize 10 24 (fun size ->
+            updateEditor (fun e -> { e with FontSize = size }))
+
+          numberField "Line Height" (int (settings.Editor.LineHeight * 10.0)) 10 30 (fun height ->
+            updateEditor (fun e -> { e with LineHeight = float height / 10.0 }))
+
+          numberField "Tab Size" settings.Editor.TabSize 2 8 (fun size ->
+            updateEditor (fun e -> { e with TabSize = size }))
+
+          checkboxField "Vim Mode" settings.Editor.VimMode (fun enabled ->
+            updateEditor (fun e -> { e with VimMode = enabled }))
+
+          checkboxField "Spell Check" settings.Editor.SpellCheck (fun enabled ->
+            updateEditor (fun e -> { e with SpellCheck = enabled }))
         ]
       ]
     ]

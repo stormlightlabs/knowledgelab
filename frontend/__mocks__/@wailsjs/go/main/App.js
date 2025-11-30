@@ -132,3 +132,8 @@ export const ClearRecentFiles = () =>
       GraphLayout: "force",
     },
   });
+
+export const GetUserConfigDir = () => "/mock/user/config/KnowledgeLab";
+
+export const InitWorkspaceConfigDir = (workspaceRoot) =>
+  Promise.resolve(`${workspaceRoot}/.knowledgelab`);

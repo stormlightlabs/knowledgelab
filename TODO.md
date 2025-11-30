@@ -97,47 +97,11 @@ Local-first Markdown storage with wikilinks, backlinks, graph view, daily notes,
 
 ### Markdown Dialect & Syntax
 
-#### Frontmatter (YAML)
+**Frontmatter (YAML)**: Parse, preserve, and round-trip YAML frontmatter with support for aliases, tags, type, and timestamps.
 
-- [x] Parse YAML frontmatter:
-  - [x] Extract `---` delimited frontmatter block.
-  - [x] Parse YAML to structured key-value data.
-  - [x] Handle YAML parse errors gracefully with user feedback.
-- [x] Preserve frontmatter on edit:
-  - [x] Round-trip frontmatter without unintended changes.
-  - [x] Update specific frontmatter fields programmatically.
-- [x] Support standard fields:
-  - [x] `aliases` (array of alternative note titles).
-  - [x] `tags` (array of tags, supplementing inline tags).
-  - [x] `type` (note type or template identifier).
-  - [x] `created` and `modified` timestamps.
+**Editor Enhancements**: Keyboard shortcuts for bold, italic, inline code, links, and headings (Cmd/Ctrl+B/I/E/K/1-6).
 
-#### Editor Enhancements
-
-- [x] Keyboard shortcuts for formatting:
-  - [x] Bold text (`Ctrl/Cmd+B`) - wraps selection with `**text**`
-  - [x] Italic text (`Ctrl/Cmd+I`) - wraps selection with `_text_`
-  - [x] Inline code (`Ctrl/Cmd+E`) - wraps selection with `` `text` ``
-  - [x] Insert/edit link (`Ctrl/Cmd+K`) - opens search dialog
-  - [x] Set heading level (`Ctrl/Cmd+1` through `Ctrl/Cmd+6`) - formats current line as heading
-
-#### Dialect Specification & Documentation
-
-- [x] Document Markdown flavor:
-  - [x] Specify CommonMark base with Obsidian/Logseq extensions.
-  - [x] List supported syntax (wikilinks, tags, tasks, frontmatter, block IDs).
-- [x] Document wikilink resolution rules:
-  - [x] Title-based resolution vs. path-based.
-  - [x] Alias handling via frontmatter `aliases` field.
-- [x] Define daily note conventions:
-  - [x] Canonical location (e.g., `/daily/` or `/journal/`).
-  - [x] Naming convention (e.g., `YYYY-MM-DD.md`).
-- [x] Define block ID format:
-  - [x] Syntax: `^[a-z0-9-]+` at end of line.
-  - [x] Serialization and uniqueness constraints.
-- [x] Write import guides:
-  - [x] Obsidian import guide (1:1 features, degraded features, manual steps).
-  - [x] Logseq import guide (Markdown support, Org-mode limitations, block ID handling).
+**Dialect Specification & Documentation**: CommonMark with Obsidian/Logseq extensions, wikilink resolution, daily notes, block IDs, and import guides.
 
 ### Advanced Features (Deferred to Post-v1)
 
@@ -153,39 +117,27 @@ The following features are deferred to future releases after v1 launch:
 
 ## UI/UX Polish (MVP)
 
-### State Management (Model.fs)
+**State Management (Model.fs)**: Search state, editor state (preview, cursor, selection), UI state (panels, modals), and keyboard shortcut handlers (`Keybinds.fs`).
 
-- [x] Add search state (query, filters, results)
-- [x] Add editor state (preview mode, cursor position, selection)
-- [x] Add UI state (panel sizes, active modals/dialogs)
-- [x] Add keyboard shortcut handlers in new module (`Keybinds.fs`)
+### Core Functionality
 
-### Core Functionality (View.fs)
-
-Search & Discovery:
+#### Search & Discovery
 
 - [ ] Search UI with fuzzy matching
 - [ ] Search input in sidebar with live results
 - [x] Keyboard shortcuts for common actions (Cmd/Ctrl+N, Cmd/Ctrl+K, etc.)
 
-Editor:
+#### Editor
 
-- [x] Editor formatting with keyboard shortcuts (bold, italic, inline code, headings)
-- [x] Cursor position and selection tracking
-- [x] Markdown preview mode
-- [x] Split view
-- [x] Editor toolbar with preview toggle, formatting buttons
-- [x] Status bar with save state, word/char count, position (line, column)
-- [x] Syntax highlighting for markdown AND code blocks
-  - Interop with [shiki](https://shiki.style/)
+- [x] Editor with formatting shortcuts, cursor tracking, preview mode, split view, toolbar, status bar, and Shiki syntax highlighting.
 - [ ] Wikilink autocomplete dropdown
 
-Settings:
+#### Settings
 
-- [ ] Settings panel with actual controls (theme picker, font size slider, editor preferences)
-- [ ] Live preview of settings changes
+- [x] Settings panel with actual controls (theme picker, font size slider, editor preferences, auto-save, vim mode, spell check)
+- [x] Live preview of settings changes via SettingsChanged message with debounced save
 
-Notes List:
+#### Notes List
 
 - [ ] Sorting options (title, date modified, date created)
 - [ ] Empty state when no notes exist
@@ -193,22 +145,14 @@ Notes List:
 
 ### UI Polish
 
-Loading & Transitions:
-
-- [ ] Loading skeleton states instead of generic "Loading..." overlay
 - [x] Smooth transitions for route changes and panel toggles
+- [x] Recent files list in workspace snapshot
+- [ ] Loading skeleton states
 - [ ] Auto-save indicator in editor
-
-Feedback & Messaging:
-
-- [ ] Toast notifications for actions instead of fixed error banner
-- [ ] Empty states with helpful messaging (no notes, no backlinks, etc.)
-- [ ] Confirmation dialogs for destructive actions (delete note)
-
-Layout & Navigation:
-
+- [ ] Toast notifications for actions
+- [ ] Empty states with helpful messaging
+- [ ] Confirmation dialogs for destructive actions
 - [ ] Resizable panels (sidebar, backlinks panel)
-- [x] Implement recent files list in workspace snapshot
 - [ ] Focus management for keyboard navigation
 - [ ] Implement undo/redo for editor
 
@@ -228,3 +172,5 @@ Layout & Navigation:
 ## Configuration
 
 TOML-based settings and workspace snapshots with SQLite graph database, debounced saves (800ms).
+
+User-level config (XDG/AppData) and workspace-level config (`.knowledgelab/`) with `backend/paths` package, Wails integration, and comprehensive tests.

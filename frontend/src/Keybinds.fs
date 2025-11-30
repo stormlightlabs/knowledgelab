@@ -89,8 +89,10 @@ let handleKeydown (e : KeyboardEvent) : Msg option =
   | CmdCtrl "4" -> Some(SetHeadingLevel 4)
   | CmdCtrl "5" -> Some(SetHeadingLevel 5)
   | CmdCtrl "6" -> Some(SetHeadingLevel 6)
+  | CmdCtrl "t" -> Some ToggleTaskAtCursor
   | CtrlShift "f" -> Some(TogglePanel Panel.SearchPanel)
   | CtrlShift "t" -> Some(TogglePanel Panel.TagsPanel)
+  | CtrlShift "x" -> Some(TogglePanel Panel.TasksPanel)
   | CtrlShift "g" -> Some(NavigateTo GraphViewRoute)
   | CtrlShift "l" -> Some(NavigateTo NoteList)
   | CtrlShift "p" -> Some(SetPreviewMode SplitView)
@@ -152,6 +154,16 @@ let getAllShortcuts () : ShortcutHelp list =
       Keys = $"{cmdKey}+Shift+T"
       Description = "Toggle tags panel"
       Category = "Panels"
+    }
+    {
+      Keys = $"{cmdKey}+Shift+X"
+      Description = "Toggle tasks panel"
+      Category = "Panels"
+    }
+    {
+      Keys = $"{cmdKey}+T"
+      Description = "Toggle task at cursor"
+      Category = "Editor"
     }
     {
       Keys = $"{cmdKey}+Shift+P"

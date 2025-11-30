@@ -83,13 +83,13 @@ Local-first Markdown storage with wikilinks, backlinks, graph view, daily notes,
 
 #### Task Management
 
-- [ ] Task parsing:
-  - [ ] Parse `- [ ]` unchecked task syntax.
-  - [ ] Parse `- [x]` completed task syntax.
-  - [ ] Distinguish tasks from regular list items.
-- [ ] Task state tracking:
-  - [ ] Toggle task completion in editor (click checkbox or keyboard shortcut).
-  - [ ] Track task metadata (created date, completed date).
+- [x] Task parsing:
+  - [x] Parse `- [ ]` unchecked task syntax.
+  - [x] Parse `- [x]` completed task syntax.
+  - [x] Distinguish tasks from regular list items.
+- [x] Task state tracking:
+  - [x] Toggle task completion in editor (click checkbox or keyboard shortcut).
+  - [x] Track task metadata (created date, completed date).
 - [ ] Task views:
   - [ ] Task aggregation panel showing all open tasks across notes.
   - [ ] Filter tasks by completion status.

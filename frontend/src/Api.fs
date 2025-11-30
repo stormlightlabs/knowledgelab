@@ -87,6 +87,15 @@ module Raw =
   [<Import("InitWorkspaceConfigDir", from = "@wailsjs/go/main/App")>]
   let initWorkspaceConfigDir (workspaceRoot : string) : JS.Promise<string> = jsNative
 
+  [<Import("GetAllTasks", from = "@wailsjs/go/main/App")>]
+  let getAllTasks (filter : TaskFilter) : JS.Promise<obj> = jsNative
+
+  [<Import("GetTasksForNote", from = "@wailsjs/go/main/App")>]
+  let getTasksForNote (noteId : string) : JS.Promise<obj> = jsNative
+
+  [<Import("ToggleTaskInNote", from = "@wailsjs/go/main/App")>]
+  let toggleTaskInNote (noteId : string) (lineNumber : int) : JS.Promise<unit> = jsNative
+
 /// Helper to decode JSON response
 let decodeResponse<'T> (decoder : Decoder<'T>) (response : obj) : 'T =
   let json = JS.JSON.stringify response
@@ -183,3 +192,20 @@ let getUserConfigDir () : string = Raw.getUserConfigDir ()
 
 /// Initializes and returns the workspace configuration directory
 let initWorkspaceConfigDir = Raw.initWorkspaceConfigDir
+
+/// Gets all tasks matching the provided filter
+let getAllTasks (filter : TaskFilter) : JS.Promise<TaskInfo> =
+  Raw.getAllTasks filter |> Promise.map (decodeResponse Json.taskInfoDecoder)
+
+/// Gets all tasks for a specific note
+let getTasksForNote (noteId : string) : JS.Promise<Task array> =
+  Raw.getTasksForNote noteId
+  |> Promise.map (fun response ->
+    let json = JS.JSON.stringify response
+
+    match Decode.fromString (Decode.list Json.taskDecoder) json with
+    | Ok tasks -> Array.ofList tasks
+    | Error err -> failwith $"JSON decode error: {err}")
+
+/// Toggles the completion status of a task at the specified line number
+let toggleTaskInNote = Raw.toggleTaskInNote

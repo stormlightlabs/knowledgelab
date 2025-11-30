@@ -201,3 +201,36 @@ type WorkspaceUI = {
 
 /// WorkspaceSnapshot represents the UI state for a specific workspace
 type WorkspaceSnapshot = { UI : WorkspaceUI }
+
+/// Task represents a task item from a note
+type Task = {
+  Id : string
+  BlockId : string
+  NoteId : string
+  NotePath : string
+  Content : string
+  IsCompleted : bool
+  CreatedAt : DateTime
+  CompletedAt : DateTime option
+  LineNumber : int
+}
+
+/// TaskFilter provides filtering options for task queries
+type TaskFilter = {
+  Status : bool option
+  NoteId : string option
+  CreatedAfter : DateTime option
+  CreatedBefore : DateTime option
+  CompletedAfter : DateTime option
+  CompletedBefore : DateTime option
+  NoteModifiedAfter : DateTime option
+  NoteModifiedBefore : DateTime option
+}
+
+/// TaskInfo provides aggregated task data with counts
+type TaskInfo = {
+  Tasks : Task list
+  TotalCount : int
+  CompletedCount : int
+  PendingCount : int
+}

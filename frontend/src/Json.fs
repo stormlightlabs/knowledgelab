@@ -205,3 +205,26 @@ let workspaceUIDecoder : Decoder<WorkspaceUI> =
 /// Decodes WorkspaceSnapshot from JSON (Go sends PascalCase for WorkspaceSnapshot)
 let workspaceSnapshotDecoder : Decoder<WorkspaceSnapshot> =
   Decode.object (fun get -> { UI = get.Required.Field "UI" workspaceUIDecoder })
+
+/// Decodes a Task from JSON (Go sends camelCase for Task fields)
+let taskDecoder : Decoder<Task> =
+  Decode.object (fun get -> {
+    Id = get.Required.Field "id" Decode.string
+    BlockId = get.Required.Field "blockId" Decode.string
+    NoteId = get.Required.Field "noteId" Decode.string
+    NotePath = get.Required.Field "notePath" Decode.string
+    Content = get.Required.Field "content" Decode.string
+    IsCompleted = get.Required.Field "isCompleted" Decode.bool
+    CreatedAt = get.Required.Field "createdAt" Decode.datetimeUtc
+    CompletedAt = get.Optional.Field "completedAt" Decode.datetimeUtc
+    LineNumber = get.Required.Field "lineNumber" Decode.int
+  })
+
+/// Decodes TaskInfo from JSON (Go sends camelCase for TaskInfo fields)
+let taskInfoDecoder : Decoder<TaskInfo> =
+  Decode.object (fun get -> {
+    Tasks = get.Required.Field "tasks" (Decode.list taskDecoder)
+    TotalCount = get.Required.Field "totalCount" Decode.int
+    CompletedCount = get.Required.Field "completedCount" Decode.int
+    PendingCount = get.Required.Field "pendingCount" Decode.int
+  })

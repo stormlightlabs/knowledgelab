@@ -19,6 +19,7 @@ type Panel =
   | Backlinks
   | TagsPanel
   | SearchPanel
+  | TasksPanel
 
 /// Search filters for advanced search functionality
 type SearchFilters = {
@@ -78,6 +79,9 @@ type State = {
   GraphEngine : GraphEngine
   Tags : string list
   Backlinks : Link list
+  AllTasks : Task list
+  TaskFilter : TaskFilter
+  IsLoadingTasks : bool
   Settings : Settings option
   WorkspaceSnapshot : WorkspaceSnapshot option
   SettingsSaveTimer : int option
@@ -113,6 +117,18 @@ type State = {
     GraphEngine = Svg
     Tags = []
     Backlinks = []
+    AllTasks = []
+    TaskFilter = {
+      Status = None
+      NoteId = None
+      CreatedAfter = None
+      CreatedBefore = None
+      CompletedAfter = None
+      CompletedBefore = None
+      NoteModifiedAfter = None
+      NoteModifiedBefore = None
+    }
+    IsLoadingTasks = false
     Settings = None
     WorkspaceSnapshot = None
     SettingsSaveTimer = None
@@ -206,6 +222,13 @@ type Msg =
   | BlockNavigateUp
   | BlockNavigateDown
   | BlockFocusToggle of blockId : string option
+  | ToggleTaskAtCursor
+  | ToggleTaskAtLine of lineNumber : int
+  | TaskToggled of Result<unit, string>
+  | LoadAllTasks
+  | LoadTasksForNote of noteId : string
+  | TasksLoaded of Result<TaskInfo, string>
+  | UpdateTaskFilter of TaskFilter
 
 /// Debounce delay in milliseconds
 [<Literal>]
@@ -1134,3 +1157,47 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
           EditorState = { state.EditorState with FocusedBlock = blockId }
     },
     Cmd.none
+  | ToggleTaskAtCursor ->
+    match state.CurrentNote, state.EditorState.CursorPosition with
+    | Some note, Some cursorPos ->
+      let lines = note.Content.Split('\n')
+      let lineNumber = lines.[..cursorPos].Length
+      state, Cmd.ofMsg (ToggleTaskAtLine lineNumber)
+    | _ -> state, Cmd.none
+  | ToggleTaskAtLine lineNumber ->
+    match state.CurrentNote with
+    | Some note ->
+      { state with Loading = true },
+      Cmd.OfPromise.either
+        (fun () -> Api.toggleTaskInNote note.Id lineNumber)
+        ()
+        (fun _ -> TaskToggled(Ok()))
+        (fun ex -> TaskToggled(Error ex.Message))
+    | None -> state, Cmd.none
+  | TaskToggled(Ok()) ->
+    match state.CurrentNote with
+    | Some note ->
+      { state with Loading = false; Error = None },
+      Cmd.batch [ Cmd.ofMsg (SelectNote note.Id); Cmd.ofMsg LoadAllTasks ]
+    | None -> { state with Loading = false; Error = None }, Cmd.none
+  | TaskToggled(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
+  | LoadAllTasks ->
+    { state with IsLoadingTasks = true },
+    Cmd.OfPromise.either Api.getAllTasks state.TaskFilter (Ok >> TasksLoaded) (fun ex ->
+      TasksLoaded(Error ex.Message))
+  | LoadTasksForNote noteId ->
+    let filter = { state.TaskFilter with NoteId = Some noteId }
+
+    { state with IsLoadingTasks = true },
+    Cmd.OfPromise.either Api.getAllTasks filter (Ok >> TasksLoaded) (fun ex ->
+      TasksLoaded(Error ex.Message))
+  | TasksLoaded(Ok taskInfo) ->
+    {
+      state with
+          AllTasks = taskInfo.Tasks
+          IsLoadingTasks = false
+          Error = None
+    },
+    Cmd.none
+  | TasksLoaded(Error err) -> { state with IsLoadingTasks = false; Error = Some err }, Cmd.none
+  | UpdateTaskFilter filter -> { state with TaskFilter = filter }, Cmd.ofMsg LoadAllTasks

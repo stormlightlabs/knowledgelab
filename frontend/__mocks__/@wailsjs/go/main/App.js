@@ -137,3 +137,15 @@ export const GetUserConfigDir = () => "/mock/user/config/KnowledgeLab";
 
 export const InitWorkspaceConfigDir = (workspaceRoot) =>
   Promise.resolve(`${workspaceRoot}/.knowledgelab`);
+
+export const GetAllTasks = () =>
+  Promise.resolve({
+    tasks: [],
+    totalCount: 0,
+    completedCount: 0,
+    pendingCount: 0,
+  });
+
+export const GetTasksForNote = () => Promise.resolve([]);
+
+export const ToggleTaskInNote = () => Promise.resolve();

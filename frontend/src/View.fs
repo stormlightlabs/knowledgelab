@@ -21,7 +21,7 @@ module WorkspacePicker =
       if String.IsNullOrWhiteSpace resolvedWorkspace then
         noteId
       else
-        Path.Combine(resolvedWorkspace, noteId)
+        $"{resolvedWorkspace}/{noteId}"
 
     Html.div [
       prop.key $"{resolvedWorkspace}:{noteId}"
@@ -264,12 +264,56 @@ module NoteEditor =
       ]
 
   module PreviewPanel =
-    /// Renders the markdown preview panel
-    let Render (html : string option) =
+    /// Extracts line numbers of tasks from markdown content
+    let private getTaskLineNumbers (content : string) : int list =
+      let lines = content.Split('\n')
+      let taskPattern = System.Text.RegularExpressions.Regex(@"^-\s+\[\s*[xX\s]\s*\]\s+")
+
+      lines
+      |> Array.mapi (fun i line -> (i + 1, line))
+      |> Array.filter (fun (_, line) -> taskPattern.IsMatch(line.TrimStart()))
+      |> Array.map fst
+      |> Array.toList
+
+    /// Renders the markdown preview panel with clickable task checkboxes
+    [<ReactComponent>]
+    let Render (state : State) (dispatch : Msg -> unit) =
+      let containerRef = React.useRef None
+
+      React.useEffect (
+        (fun () ->
+          match containerRef.current, state.CurrentNote with
+          | Some(container : Browser.Types.HTMLElement), Some note ->
+            let taskLines = getTaskLineNumbers note.Content
+            let nodeList = container.querySelectorAll ("input[type='checkbox']")
+
+            let len = int nodeList.length
+
+            let checkboxes = [|
+              for i in 0 .. len - 1 do
+                let idx = float i
+                yield nodeList.item idx :?> Browser.Types.HTMLInputElement
+            |]
+
+            checkboxes
+            |> Array.iteri (fun i (checkbox : Browser.Types.HTMLInputElement) ->
+              if i < taskLines.Length then
+                let lineNumber = taskLines.[i]
+
+                checkbox.onclick <-
+                  fun (e : Browser.Types.MouseEvent) ->
+                    e.preventDefault ()
+                    dispatch (ToggleTaskAtLine lineNumber)
+                    null)
+          | _ -> ()),
+        [| box state.EditorState.RenderedPreview; box state.CurrentNote |]
+      )
+
       Html.div [
+        prop.ref containerRef
         prop.className "flex-1 p-6 overflow-y-auto prose prose-invert max-w-none"
         prop.children [
-          match html with
+          match state.EditorState.RenderedPreview with
           | Some content ->
             Html.div [ prop.className "rendered-markdown"; prop.dangerouslySetInnerHTML content ]
           | None ->
@@ -373,7 +417,7 @@ module NoteEditor =
               ]
             ]
           ]
-        | PreviewOnly -> PreviewPanel.Render state.EditorState.RenderedPreview
+        | PreviewOnly -> PreviewPanel.Render state dispatch
         | SplitView ->
           Html.div [
             prop.className "flex-1 flex overflow-hidden min-h-0"
@@ -404,7 +448,7 @@ module NoteEditor =
                   ]
                 ]
               ]
-              PreviewPanel.Render state.EditorState.RenderedPreview
+              PreviewPanel.Render state dispatch
             ]
           ]
 
@@ -455,6 +499,143 @@ module BacklinksPanel =
           Html.div [
             prop.className "flex-1 overflow-y-auto min-h-0"
             prop.children (state.Backlinks |> List.map (fun link -> backlinkItem link dispatch))
+          ]
+      ]
+    ]
+
+module TaskPanel =
+  /// Renders a task item with completion checkbox and metadata
+  let private taskItem (task : Task) (dispatch : Msg -> unit) =
+    let formattedCreatedAt = task.CreatedAt.ToString("yyyy-MM-dd")
+
+    Html.div [
+      prop.key task.Id
+      prop.className "p-3 hover:bg-base02 cursor-pointer border-b border-base02 transition-all"
+      prop.onClick (fun _ -> dispatch (SelectNote task.NoteId))
+      prop.children [
+        Html.div [
+          prop.className "flex items-start gap-2"
+          prop.children [
+            Html.div [
+              prop.className "shrink-0 mt-0.5"
+              prop.children [
+                if task.IsCompleted then
+                  Html.span [ prop.className "text-green text-base"; prop.text "\u2611" ]
+                else
+                  Html.span [ prop.className "text-base03 text-base"; prop.text "\u2610" ]
+              ]
+            ]
+            Html.div [
+              prop.className "flex-1 min-w-0"
+              prop.children [
+                Html.div [
+                  prop.className (
+                    if task.IsCompleted then
+                      "text-sm text-base04 line-through"
+                    else
+                      "text-sm text-base05"
+                  )
+                  prop.text task.Content
+                ]
+                Html.div [ prop.className "text-xs text-base03 mt-1"; prop.text task.NotePath ]
+                Html.div [
+                  prop.className "text-xs text-base03 mt-0.5"
+                  prop.children [
+                    Html.text $"Created: {formattedCreatedAt}"
+                    match task.CompletedAt with
+                    | Some completedAt ->
+                      let formattedCompletedAt = completedAt.ToString("yyyy-MM-dd")
+                      Html.text $" | Completed: {formattedCompletedAt}"
+                    | None -> Html.none
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ]
+    ]
+
+  /// Renders filter controls for the task panel
+  let private filterControls (state : State) (dispatch : Msg -> unit) =
+    Html.div [
+      prop.className "p-3 border-b border-base02 bg-base00"
+      prop.children [
+        Html.div [
+          prop.className "flex flex-col gap-2"
+          prop.children [
+            Html.div [
+              prop.children [
+                Html.label [ prop.className "text-xs text-base04 mb-1 block"; prop.text "Status" ]
+                Html.select [
+                  prop.className
+                    "w-full px-2 py-1 text-sm bg-base01 text-base05 border border-base02 rounded"
+                  prop.value (
+                    match state.TaskFilter.Status with
+                    | None -> "all"
+                    | Some true -> "completed"
+                    | Some false -> "pending"
+                  )
+                  prop.onChange (fun (value : string) ->
+                    let newStatus =
+                      match value with
+                      | "completed" -> Some true
+                      | "pending" -> Some false
+                      | _ -> None
+
+                    dispatch (UpdateTaskFilter { state.TaskFilter with Status = newStatus }))
+                  prop.children [
+                    Html.option [ prop.value "all"; prop.text "All Tasks" ]
+                    Html.option [ prop.value "pending"; prop.text "Pending" ]
+                    Html.option [ prop.value "completed"; prop.text "Completed" ]
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ]
+    ]
+
+  /// Renders the tasks panel
+  let Render (state : State) (dispatch : Msg -> unit) =
+    Html.div [
+      prop.className
+        "w-80 bg-base01 border-l border-base02 flex flex-col h-full default-transition"
+      prop.children [
+        Html.div [
+          prop.className "p-4 border-b border-base02 shrink-0"
+          prop.children [
+            Html.h2 [ prop.className "font-bold text-lg text-base05"; prop.text "Tasks" ]
+            Html.div [
+              prop.className "text-xs text-base03 mt-1"
+              prop.text
+                $"{state.AllTasks |> List.filter (fun t -> not t.IsCompleted) |> List.length} pending, {state.AllTasks |> List.filter (fun t -> t.IsCompleted) |> List.length} completed"
+            ]
+          ]
+        ]
+        filterControls state dispatch
+        if state.IsLoadingTasks then
+          Html.div [
+            prop.className "flex-1 flex items-center justify-center"
+            prop.children [
+              Html.div [ prop.className "text-base03"; prop.text "Loading tasks..." ]
+            ]
+          ]
+        elif state.AllTasks.IsEmpty then
+          Html.div [
+            prop.className "flex-1 overflow-y-auto min-h-0"
+            prop.children [
+              Html.div [
+                prop.className "p-4 text-center text-base03 text-sm"
+                prop.text "No tasks found"
+              ]
+            ]
+          ]
+        else
+          Html.div [
+            prop.className "flex-1 overflow-y-auto min-h-0"
+            prop.children (state.AllTasks |> List.map (fun task -> taskItem task dispatch))
           ]
       ]
     ]
@@ -786,6 +967,17 @@ module App =
                 prop.key "backlinks-panel"
                 prop.className "default-transition"
                 prop.children [ BacklinksPanel.Render state dispatch ]
+              ]
+
+            if
+              state.VisiblePanels.Contains TasksPanel
+              && state.CurrentRoute <> WorkspacePicker
+              && state.CurrentRoute <> Settings
+            then
+              Html.div [
+                prop.key "tasks-panel"
+                prop.className "default-transition"
+                prop.children [ TaskPanel.Render state dispatch ]
               ]
           ]
         ]

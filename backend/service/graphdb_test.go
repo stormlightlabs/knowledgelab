@@ -55,11 +55,11 @@ func TestMigrate(t *testing.T) {
 		t.Fatalf("failed to get version: %v", err)
 	}
 
-	if version != 1 {
-		t.Errorf("expected version 1, got %d", version)
+	if version != 2 {
+		t.Errorf("expected version 2, got %d", version)
 	}
 
-	tables := []string{"pages", "blocks", "links"}
+	tables := []string{"pages", "blocks", "links", "tasks"}
 	for _, table := range tables {
 		var exists int
 		query := "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?"
@@ -69,7 +69,7 @@ func TestMigrate(t *testing.T) {
 		}
 	}
 
-	indexes := []string{"idx_blocks_page_id", "idx_links_to_page_id", "idx_links_from_page_id"}
+	indexes := []string{"idx_blocks_page_id", "idx_links_to_page_id", "idx_links_from_page_id", "idx_tasks_note_id", "idx_tasks_status", "idx_tasks_created", "idx_tasks_completed"}
 	for _, index := range indexes {
 		var exists int
 		query := "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name=?"
@@ -89,8 +89,8 @@ func TestMigrate(t *testing.T) {
 		t.Fatalf("failed to get version: %v", err)
 	}
 
-	if version != 1 {
-		t.Errorf("expected version 1 after second migration, got %d", version)
+	if version != 2 {
+		t.Errorf("expected version 2 after second migration, got %d", version)
 	}
 }
 

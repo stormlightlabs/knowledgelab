@@ -71,29 +71,14 @@ Local-first Markdown storage with wikilinks, backlinks, graph view, daily notes,
 
 #### Block-Based Outliner
 
-- [x] Block ID support:
-  - [x] Parse Logseq-style block IDs (`^block-id` at end of line).
-  - [x] Generate unique block IDs on demand (UUID v4).
-  - [x] Preserve block IDs round-trip on note edit.
-- [x] Block operations:
-  - [x] Block indentation with Tab key.
-  - [x] Block outdentation with Shift+Tab.
-  - [x] Block-level navigation with Up/Down arrow keys.
-  - [x] Block focus/zoom state tracking (UI implementation pending).
+- Block ID support with parsing, generation (UUID v4), and round-trip preservation of Logseq-style block IDs.
+- Block operations including indentation (Tab/Shift+Tab), arrow key navigation, and focus/zoom state tracking.
 
 #### Task Management
 
-- [x] Task parsing:
-  - [x] Parse `- [ ]` unchecked task syntax.
-  - [x] Parse `- [x]` completed task syntax.
-  - [x] Distinguish tasks from regular list items.
-- [x] Task state tracking:
-  - [x] Toggle task completion in editor (click checkbox or keyboard shortcut).
-  - [x] Track task metadata (created date, completed date).
-- [ ] Task views:
-  - [ ] Task aggregation panel showing all open tasks across notes.
-  - [ ] Filter tasks by completion status.
-  - [ ] Filter tasks by note or date range.
+- Task parsing with support for unchecked (`- [ ]`) and completed (`- [x]`) task syntax, distinguished from regular list items.
+- Task state tracking with completion toggling via checkbox click or keyboard shortcut, including created and completed date metadata.
+- Task views with aggregation panel showing all tasks across notes, filterable by completion status, note, and date ranges.
 
 ### Markdown Dialect & Syntax
 

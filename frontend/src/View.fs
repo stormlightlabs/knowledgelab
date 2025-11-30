@@ -537,6 +537,21 @@ module TaskPanel =
       ]
     ]
 
+  /// Formats a date for the date input field (YYYY-MM-DD)
+  let private formatDateForInput (date : DateTime option) : string =
+    match date with
+    | Some d -> d.ToString("yyyy-MM-dd")
+    | None -> ""
+
+  /// Parses a date from the date input field (YYYY-MM-DD)
+  let private parseDateFromInput (value : string) : DateTime option =
+    if String.IsNullOrWhiteSpace value then
+      None
+    else
+      match DateTime.TryParse(value) with
+      | true, date -> Some date
+      | false, _ -> None
+
   /// Renders filter controls for the task panel
   let private filterControls (state : State) (dispatch : Msg -> unit) =
     Html.div [
@@ -571,6 +586,90 @@ module TaskPanel =
                   ]
                 ]
               ]
+            ]
+
+            Html.div [
+              prop.children [
+                Html.label [ prop.className "text-xs text-base04 mb-1 block"; prop.text "Note" ]
+                Html.select [
+                  prop.className "w-full px-2 py-1 text-sm bg-base01 text-base05 border border-base02 rounded"
+                  prop.value (state.TaskFilter.NoteId |> Option.defaultValue "all")
+                  prop.onChange (fun (value : string) ->
+                    let newNoteId = if value = "all" then None else Some value
+                    dispatch (UpdateTaskFilter { state.TaskFilter with NoteId = newNoteId }))
+                  prop.children (
+                    Html.option [ prop.value "all"; prop.text "All Notes" ]
+                    :: (state.Notes
+                        |> List.map (fun note -> Html.option [ prop.value note.id; prop.text note.title ]))
+                  )
+                ]
+              ]
+            ]
+
+            Html.div [
+              prop.children [
+                Html.label [ prop.className "text-xs text-base04 mb-1 block"; prop.text "Created After" ]
+                Html.input [
+                  prop.type' "date"
+                  prop.className "w-full px-2 py-1 text-sm bg-base01 text-base05 border border-base02 rounded"
+                  prop.value (formatDateForInput state.TaskFilter.CreatedAfter)
+                  prop.onChange (fun (value : string) ->
+                    let newDate = parseDateFromInput value
+                    dispatch (UpdateTaskFilter { state.TaskFilter with CreatedAfter = newDate }))
+                ]
+              ]
+            ]
+
+            Html.div [
+              prop.children [
+                Html.label [ prop.className "text-xs text-base04 mb-1 block"; prop.text "Created Before" ]
+                Html.input [
+                  prop.type' "date"
+                  prop.className "w-full px-2 py-1 text-sm bg-base01 text-base05 border border-base02 rounded"
+                  prop.value (formatDateForInput state.TaskFilter.CreatedBefore)
+                  prop.onChange (fun (value : string) ->
+                    let newDate = parseDateFromInput value
+                    dispatch (UpdateTaskFilter { state.TaskFilter with CreatedBefore = newDate }))
+                ]
+              ]
+            ]
+
+            Html.div [
+              prop.children [
+                Html.label [ prop.className "text-xs text-base04 mb-1 block"; prop.text "Completed After" ]
+                Html.input [
+                  prop.type' "date"
+                  prop.className "w-full px-2 py-1 text-sm bg-base01 text-base05 border border-base02 rounded"
+                  prop.value (formatDateForInput state.TaskFilter.CompletedAfter)
+                  prop.onChange (fun (value : string) ->
+                    let newDate = parseDateFromInput value
+                    dispatch (UpdateTaskFilter { state.TaskFilter with CompletedAfter = newDate }))
+                ]
+              ]
+            ]
+
+            Html.div [
+              prop.children [
+                Html.label [
+                  prop.className "text-xs text-base04 mb-1 block"
+                  prop.text "Completed Before"
+                ]
+                Html.input [
+                  prop.type' "date"
+                  prop.className "w-full px-2 py-1 text-sm bg-base01 text-base05 border border-base02 rounded"
+                  prop.value (formatDateForInput state.TaskFilter.CompletedBefore)
+                  prop.onChange (fun (value : string) ->
+                    let newDate = parseDateFromInput value
+                    dispatch (UpdateTaskFilter { state.TaskFilter with CompletedBefore = newDate }))
+                ]
+              ]
+            ]
+
+            Html.button [
+              prop.className
+                "mt-2 w-full bg-base02 hover:bg-base03 text-base05 text-xs font-medium py-1 px-2 rounded default-transition"
+              prop.text "Clear Filters"
+              prop.onClick (fun _ -> dispatch (UpdateTaskFilter TaskFilter.Default))
             ]
           ]
         ]
@@ -859,6 +958,16 @@ module NavigationBar =
               "Show Backlinks"
           )
           prop.onClick (fun _ -> dispatch (TogglePanel Backlinks))
+        ]
+        Html.button [
+          prop.className "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
+          prop.text (
+            if state.VisiblePanels.Contains TasksPanel then
+              "Hide Tasks"
+            else
+              "Show Tasks"
+          )
+          prop.onClick (fun _ -> dispatch (TogglePanel TasksPanel))
         ]
       ]
     ]

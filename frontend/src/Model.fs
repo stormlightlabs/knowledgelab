@@ -592,7 +592,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
       | Some noteId -> Cmd.ofMsg (SelectNote noteId)
       | None -> Cmd.none
 
-    stateWithSnapshot, Cmd.batch [ Cmd.ofMsg LoadNotes; snapshotCmd; pendingNoteCmd ]
+    stateWithSnapshot, Cmd.batch [ Cmd.ofMsg LoadNotes; Cmd.ofMsg LoadAllTasks; snapshotCmd; pendingNoteCmd ]
   | WorkspaceOpened(Error err) ->
     {
       state with

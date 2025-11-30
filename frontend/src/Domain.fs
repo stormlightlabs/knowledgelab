@@ -225,7 +225,18 @@ type TaskFilter = {
   CompletedBefore : DateTime option
   NoteModifiedAfter : DateTime option
   NoteModifiedBefore : DateTime option
-}
+} with
+
+  static member Default = {
+    Status = None
+    NoteId = None
+    CreatedAfter = None
+    CreatedBefore = None
+    CompletedAfter = None
+    CompletedBefore = None
+    NoteModifiedAfter = None
+    NoteModifiedBefore = None
+  }
 
 /// TaskInfo provides aggregated task data with counts
 type TaskInfo = {

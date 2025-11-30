@@ -526,3 +526,209 @@ func TestTaskService_RemoveNote(t *testing.T) {
 func ptrBool(b bool) *bool {
 	return &b
 }
+
+// Helper function to create time pointer
+func ptrTime(t time.Time) *time.Time {
+	return &t
+}
+
+func TestTaskService_AdvancedFiltering(t *testing.T) {
+	tmpDir := filepath.Join(os.TempDir(), "test-task-advanced-filtering")
+	defer os.RemoveAll(tmpDir)
+
+	stores, err := NewStores("test-app", "test-advanced-filtering")
+	if err != nil {
+		t.Fatalf("failed to create stores: %v", err)
+	}
+	defer stores.Close()
+
+	taskService := NewTaskService(stores.Task)
+
+	baseTime := time.Date(2024, 1, 10, 12, 0, 0, 0, time.UTC)
+	yesterday := baseTime.Add(-24 * time.Hour)
+	twoDaysAgo := baseTime.Add(-48 * time.Hour)
+
+	yesterdayCompleted := yesterday.Add(time.Hour)
+
+	tasks1 := []domain.Task{
+		{
+			ID:          "task-1",
+			BlockID:     "task-1",
+			NoteID:      "note-1",
+			NotePath:    "/note1.md",
+			Content:     "Old pending task",
+			IsCompleted: false,
+			CreatedAt:   twoDaysAgo,
+			LineNumber:  1,
+		},
+		{
+			ID:          "task-2",
+			BlockID:     "task-2",
+			NoteID:      "note-1",
+			NotePath:    "/note1.md",
+			Content:     "Recently completed task",
+			IsCompleted: true,
+			CreatedAt:   yesterday,
+			CompletedAt: ptrTime(baseTime),
+			LineNumber:  2,
+		},
+		{
+			ID:          "task-3",
+			BlockID:     "task-3",
+			NoteID:      "note-1",
+			NotePath:    "/note1.md",
+			Content:     "Old completed task",
+			IsCompleted: true,
+			CreatedAt:   twoDaysAgo,
+			CompletedAt: ptrTime(yesterdayCompleted),
+			LineNumber:  3,
+		},
+	}
+
+	tasks2 := []domain.Task{
+		{
+			ID:          "task-4",
+			BlockID:     "task-4",
+			NoteID:      "note-2",
+			NotePath:    "/note2.md",
+			Content:     "New pending task",
+			IsCompleted: false,
+			CreatedAt:   baseTime,
+			LineNumber:  1,
+		},
+	}
+
+	taskService.IndexNote("note-1", "/note1.md", tasks1, yesterday)
+	taskService.IndexNote("note-2", "/note2.md", tasks2, baseTime)
+
+	tests := []struct {
+		name          string
+		filter        domain.TaskFilter
+		expectedCount int
+		description   string
+	}{
+		{
+			name:          "no filter - all tasks",
+			filter:        domain.TaskFilter{},
+			expectedCount: 4,
+			description:   "Should return all tasks",
+		},
+		{
+			name: "filter by status - pending only",
+			filter: domain.TaskFilter{
+				Status: ptrBool(false),
+			},
+			expectedCount: 2,
+			description:   "Should return pending tasks only",
+		},
+		{
+			name: "filter by status - completed only",
+			filter: domain.TaskFilter{
+				Status: ptrBool(true),
+			},
+			expectedCount: 2,
+			description:   "Should return completed tasks only",
+		},
+		{
+			name: "filter by note ID",
+			filter: domain.TaskFilter{
+				NoteID: "note-1",
+			},
+			expectedCount: 3,
+			description:   "Should return tasks from note-1 only",
+		},
+		{
+			name: "combine status and note filters",
+			filter: domain.TaskFilter{
+				NoteID: "note-1",
+				Status: ptrBool(false),
+			},
+			expectedCount: 1,
+			description:   "Should return pending tasks from note-1 only",
+		},
+		// Date filtering tests
+		// TODO: Add comprehensive edge case tests for boundary conditions (tasks created exactly at filter time, etc.)
+		{
+			name: "filter by created after",
+			filter: domain.TaskFilter{
+				CreatedAfter: ptrTime(yesterday.Add(-12 * time.Hour)),
+			},
+			expectedCount: 2,
+			description:   "Should return tasks created after yesterday-12h (task-2 and task-4)",
+		},
+		{
+			name: "filter by created before",
+			filter: domain.TaskFilter{
+				CreatedBefore: ptrTime(yesterday.Add(12 * time.Hour)),
+			},
+			expectedCount: 3,
+			description:   "Should return tasks created before yesterday+12h (task-1, task-2, task-3)",
+		},
+		{
+			name: "filter by date range - created between",
+			filter: domain.TaskFilter{
+				CreatedAfter:  ptrTime(twoDaysAgo.Add(12 * time.Hour)),
+				CreatedBefore: ptrTime(yesterday.Add(12 * time.Hour)),
+			},
+			expectedCount: 1,
+			description:   "Should return tasks created in the middle day (task-2)",
+		},
+		// TODO: Add comprehensive tests for CompletedAfter/CompletedBefore with various boundary conditions
+		{
+			name: "filter by completed after",
+			filter: domain.TaskFilter{
+				CompletedAfter: ptrTime(yesterday.Add(12 * time.Hour)),
+			},
+			expectedCount: 1,
+			description:   "Should return tasks completed after yesterday+12h (task-2 only)",
+		},
+		{
+			name: "combine status and date filters",
+			filter: domain.TaskFilter{
+				Status:       ptrBool(true),
+				CreatedAfter: ptrTime(yesterday.Add(-12 * time.Hour)),
+			},
+			expectedCount: 1,
+			description:   "Should return completed tasks created after yesterday-12h (task-2 only)",
+		},
+		// TODO: Add comprehensive tests for NoteModifiedAfter/NoteModifiedBefore with edge cases
+		{
+			name: "filter by note modified after",
+			filter: domain.TaskFilter{
+				NoteModifiedAfter: ptrTime(yesterday.Add(12 * time.Hour)),
+			},
+			expectedCount: 1,
+			description:   "Should return tasks from notes modified recently (task-4 from note-2)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			taskInfo, err := taskService.GetAllTasks(tt.filter)
+			if err != nil {
+				t.Fatalf("GetAllTasks() error = %v", err)
+			}
+
+			if taskInfo.TotalCount != tt.expectedCount {
+				t.Errorf("%s: expected %d tasks, got %d", tt.description, tt.expectedCount, taskInfo.TotalCount)
+			}
+			if len(taskInfo.Tasks) != tt.expectedCount {
+				t.Errorf("%s: expected %d tasks in slice, got %d", tt.description, tt.expectedCount, len(taskInfo.Tasks))
+			}
+
+			completedCount := 0
+			pendingCount := 0
+			for _, task := range taskInfo.Tasks {
+				if task.IsCompleted {
+					completedCount++
+				} else {
+					pendingCount++
+				}
+			}
+
+			if completedCount+pendingCount != taskInfo.TotalCount {
+				t.Errorf("count mismatch: completed(%d) + pending(%d) != total(%d)", completedCount, pendingCount, taskInfo.TotalCount)
+			}
+		})
+	}
+}

@@ -2,6 +2,25 @@
  * Mock Wails API for testing
  * */
 
+export const CreateNewWorkspace = () =>
+  Promise.resolve({
+    Workspace: {
+      Id: "new-workspace-id",
+      Name: "New Workspace",
+      RootPath: "/mock/new/workspace",
+      IgnorePatterns: [".git"],
+      CreatedAt: new Date().toISOString(),
+      LastOpenedAt: new Date().toISOString(),
+    },
+    Config: {
+      DailyNoteFormat: "2006-01-02",
+      DailyNoteFolder: "",
+      DefaultTags: [],
+    },
+    NoteCount: 1,
+    TotalBlocks: 0,
+  });
+
 export const OpenWorkspace = (path) =>
   Promise.resolve({
     Workspace: {

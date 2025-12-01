@@ -8,6 +8,9 @@ open Thoth.Json
 
 /// Raw Wails API imports that return untyped objects
 module Raw =
+  [<Import("CreateNewWorkspace", from = "@wailsjs/go/main/App")>]
+  let createNewWorkspace () : JS.Promise<obj> = jsNative
+
   [<Import("OpenWorkspace", from = "@wailsjs/go/main/App")>]
   let openWorkspace (path : string) : JS.Promise<obj> = jsNative
 
@@ -104,6 +107,14 @@ let decodeResponse<'T> (decoder : Decoder<'T>) (response : obj) : 'T =
   | Error err -> failwith $"JSON decode error: {err}"
 
 /// Typed API wrappers that use Thoth.Json decoders
+let createNewWorkspace () : JS.Promise<WorkspaceInfo option> =
+  Raw.createNewWorkspace ()
+  |> Promise.map (fun response ->
+    if isNull response then
+      None
+    else
+      Some(decodeResponse Json.workspaceInfoDecoder response))
+
 let openWorkspace (path : string) : JS.Promise<WorkspaceInfo> =
   Raw.openWorkspace path |> Promise.map (decodeResponse Json.workspaceInfoDecoder)
 

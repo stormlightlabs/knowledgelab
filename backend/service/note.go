@@ -16,7 +16,12 @@ import (
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
 	"gopkg.in/yaml.v3"
+
+	_ "embed"
 )
+
+//go:embed welcome.md
+var WelcomeTutorialContent string
 
 // NoteService handles note operations including CRUD and parsing.
 type NoteService struct {
@@ -30,6 +35,28 @@ func NewNoteService(fs *FilesystemService) *NoteService {
 		fs:     fs,
 		parser: goldmark.New(),
 	}
+}
+
+// ScaffoldWorkspace creates a new workspace directory with a welcome tutorial note.
+// Creates the workspace directory if it doesn't exist and adds a Welcome.md file.
+func (s *NoteService) ScaffoldWorkspace(path string) error {
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return fmt.Errorf("failed to create workspace directory: %w", err)
+	}
+
+	welcomePath := filepath.Join(path, "Welcome.md")
+
+	content := strings.ReplaceAll(
+		WelcomeTutorialContent,
+		"{{.CreatedAt}}",
+		time.Now().Format(time.RFC3339),
+	)
+
+	if err := os.WriteFile(welcomePath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to create welcome tutorial: %w", err)
+	}
+
+	return nil
 }
 
 // GetNote retrieves a note by its ID (relative path).

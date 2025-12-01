@@ -171,6 +171,7 @@ type State = {
 type Msg =
   | UrlChanged of string list
   | SelectWorkspaceFolder
+  | CreateWorkspace
   | OpenWorkspace of path : string
   | WorkspaceOpened of Result<WorkspaceInfo, string>
   | LoadNotes
@@ -568,6 +569,16 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
         else
           OpenWorkspace path)
       (fun ex -> SetError ex.Message)
+  | CreateWorkspace ->
+    { state with Loading = true },
+    Cmd.OfPromise.either
+      Api.createNewWorkspace
+      ()
+      (fun workspaceOpt ->
+        match workspaceOpt with
+        | Some workspace -> WorkspaceOpened(Ok workspace)
+        | None -> ClearError)
+      (fun ex -> WorkspaceOpened(Error ex.Message))
   | OpenWorkspace path ->
     { state with Loading = true },
     Cmd.OfPromise.either Api.openWorkspace path (Ok >> WorkspaceOpened) (fun ex -> WorkspaceOpened(Error ex.Message))

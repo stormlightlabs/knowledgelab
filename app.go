@@ -81,6 +81,30 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 }
 
+// CreateNewWorkspace scaffolds a new workspace at the selected directory path.
+// Creates the workspace directory, adds a welcome tutorial note, and opens the workspace.
+// Returns workspace information on success.
+func (a *App) CreateNewWorkspace() (*domain.WorkspaceInfo, error) {
+	path, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:                      "Select Folder for New Workspace",
+		CanCreateDirectories:       true,
+		TreatPackagesAsDirectories: false,
+	})
+	if err != nil {
+		return nil, a.wrapError("failed to open directory picker", err)
+	}
+
+	if path == "" {
+		return nil, nil
+	}
+
+	if err := a.notes.ScaffoldWorkspace(path); err != nil {
+		return nil, a.wrapError("failed to scaffold workspace", err)
+	}
+
+	return a.OpenWorkspace(path)
+}
+
 // OpenWorkspace opens a workspace at the specified path and builds the initial index.
 // Returns workspace information including note count and configuration.
 func (a *App) OpenWorkspace(path string) (*domain.WorkspaceInfo, error) {

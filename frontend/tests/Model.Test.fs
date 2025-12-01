@@ -505,6 +505,14 @@ Jest.describe (
     )
 
     Jest.test (
+      "CreateWorkspace sets loading state",
+      fun () ->
+        let initialState = State.Default
+        let newState, _ = Update CreateWorkspace initialState
+        Jest.expect(newState.Loading).toEqual true
+    )
+
+    Jest.test (
       "WorkspaceOpened updates snapshot with last workspace path",
       fun () ->
         let snapshot = {

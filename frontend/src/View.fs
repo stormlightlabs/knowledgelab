@@ -67,15 +67,30 @@ module WorkspacePicker =
                 ]
                 Html.p [
                   prop.className "text-base03 mb-6"
-                  prop.text
-                    "Open a folder to use as your notes workspace. All your notes will be stored locally as markdown files."
+                  prop.text "Open a folder to use as your notes workspace."
                 ]
-                Html.button [
-                  prop.className
-                    "w-full bg-blue hover:bg-blue-bright text-base00 font-bold py-3 px-6 rounded default-transition shadow-md hover:shadow-lg"
-                  prop.text "Open Folder"
-                  prop.onClick (fun _ -> dispatch SelectWorkspaceFolder)
+                Html.p [
+                  prop.className "text-base03 mb-6"
+                  prop.text "All your notes will be stored locally as markdown files."
                 ]
+                Html.div [
+                  prop.className "w-full grid gap-4 grid-cols-2"
+                  prop.children [
+                    Html.button [
+                      prop.className
+                        "bg-blue hover:bg-blue-bright text-base00 font-bold py-3 px-6 rounded default-transition shadow-md hover:shadow-lg"
+                      prop.text "Open Folder"
+                      prop.onClick (fun _ -> dispatch SelectWorkspaceFolder)
+                    ]
+                    Html.button [
+                      prop.className
+                        "bg-blue hover:bg-blue-bright text-base00 font-bold py-3 px-6 rounded default-transition shadow-md hover:shadow-lg"
+                      prop.text "Create New Workspace"
+                      prop.onClick (fun _ -> dispatch CreateWorkspace)
+                    ]
+                  ]
+                ]
+
               ]
             ]
 

@@ -192,6 +192,48 @@ func (s *GraphService) GetAllTags() []string {
 	return tags
 }
 
+// GetAllTagsWithCounts returns all tags with their occurrence counts and note IDs.
+// Results are sorted by tag name for consistency.
+func (s *GraphService) GetAllTagsWithCounts() []domain.TagInfo {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	tagInfos := make([]domain.TagInfo, 0, len(s.tags))
+	for tagName, noteIDs := range s.tags {
+		noteIDsCopy := make([]string, len(noteIDs))
+		copy(noteIDsCopy, noteIDs)
+
+		tagInfos = append(tagInfos, domain.TagInfo{
+			Name:    tagName,
+			Count:   len(noteIDs),
+			NoteIDs: noteIDsCopy,
+		})
+	}
+
+	return tagInfos
+}
+
+// GetTagInfo returns information about a specific tag including occurrence count and note IDs.
+// Returns nil if the tag doesn't exist in the index.
+func (s *GraphService) GetTagInfo(tagName string) *domain.TagInfo {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	noteIDs, exists := s.tags[tagName]
+	if !exists {
+		return nil
+	}
+
+	noteIDsCopy := make([]string, len(noteIDs))
+	copy(noteIDsCopy, noteIDs)
+
+	return &domain.TagInfo{
+		Name:    tagName,
+		Count:   len(noteIDs),
+		NoteIDs: noteIDsCopy,
+	}
+}
+
 // extractLinks parses note content to find all links (wikilinks and markdown links).
 func (s *GraphService) extractLinks(note *domain.Note) []domain.Link {
 	content := []byte(note.Content)
@@ -288,7 +330,9 @@ func (s *GraphService) extractTags(note *domain.Note) []domain.Tag {
 		}
 	}
 
-	tagRegex := regexp.MustCompile(`#([a-zA-Z0-9_-]+)`)
+	// Updated regex to support nested tags (e.g., #parent/child)
+	// Matches the pattern used in NoteService.extractInlineTags
+	tagRegex := regexp.MustCompile(`(?:^|[^a-zA-Z0-9])#([a-zA-Z_][a-zA-Z0-9_-]*(?:/[a-zA-Z0-9_-]+)*)`)
 	matches := tagRegex.FindAllStringSubmatch(note.Content, -1)
 
 	for _, match := range matches {

@@ -70,6 +70,14 @@ type Tag struct {
 	NoteID string `json:"noteId"` // Note containing this tag
 }
 
+// TagInfo provides aggregated information about a tag across the workspace.
+// Used for tag browsing, filtering, and displaying tag statistics.
+type TagInfo struct {
+	Name    string   `json:"name"`    // Tag name (without #)
+	Count   int      `json:"count"`   // Number of notes containing this tag
+	NoteIDs []string `json:"noteIds"` // IDs of notes containing this tag
+}
+
 // DailyNote represents a date-based journal entry.
 // Daily notes follow a naming convention (e.g., "2025-01-27.md")
 // and provide quick access to journaling workflows.

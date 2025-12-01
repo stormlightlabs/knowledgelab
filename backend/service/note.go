@@ -172,8 +172,18 @@ func (s *NoteService) parseNote(id string, content []byte, info os.FileInfo) (*d
 		title = strings.TrimSuffix(filepath.Base(id), filepath.Ext(id))
 	}
 
-	tags := make([]domain.Tag, 0, len(fields.Tags))
+	inlineTags := s.extractInlineTags(body)
+
+	tagSet := make(map[string]bool)
 	for _, tagName := range fields.Tags {
+		tagSet[tagName] = true
+	}
+	for _, tagName := range inlineTags {
+		tagSet[tagName] = true
+	}
+
+	tags := make([]domain.Tag, 0, len(tagSet))
+	for tagName := range tagSet {
 		tags = append(tags, domain.Tag{Name: tagName, NoteID: id})
 	}
 
@@ -364,12 +374,84 @@ func (s *NoteService) extractTitleAndTags(content []byte) (string, []domain.Tag)
 		title = s.extractTitleFromContent(body)
 	}
 
-	tags := make([]domain.Tag, 0, len(fields.Tags))
+	inlineTags := s.extractInlineTags(body)
+
+	tagSet := make(map[string]bool)
 	for _, tagName := range fields.Tags {
+		tagSet[tagName] = true
+	}
+	for _, tagName := range inlineTags {
+		tagSet[tagName] = true
+	}
+
+	tags := make([]domain.Tag, 0, len(tagSet))
+	for tagName := range tagSet {
 		tags = append(tags, domain.Tag{Name: tagName})
 	}
 
 	return title, tags
+}
+
+// inlineTagPattern matches hashtag-style tags in content.
+// Supports:
+// - Simple tags: #tag
+// - Nested tags: #parent/child or #parent/child/grandchild
+// - Tags must start with letter or underscore
+// - Tag components can contain letters, numbers, dashes, underscores
+// - Tags are not matched if preceded by alphanumeric (avoids matching in URLs, code)
+var inlineTagPattern = regexp.MustCompile(`(?:^|[^a-zA-Z0-9])#([a-zA-Z_][a-zA-Z0-9_-]*(?:/[a-zA-Z0-9_-]+)*)`)
+
+// extractInlineTags extracts hashtag-style tags from note content.
+// Excludes tags found in code blocks and inline code.
+func (s *NoteService) extractInlineTags(content []byte) []string {
+	doc := s.parser.Parser().Parse(text.NewReader(content))
+
+	var codeRanges []struct{ start, end int }
+	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+
+		switch n.Kind() {
+		case ast.KindFencedCodeBlock, ast.KindCodeBlock:
+			lines := n.Lines()
+			if lines.Len() > 0 {
+				start := lines.At(0).Start
+				end := lines.At(lines.Len() - 1).Stop
+				codeRanges = append(codeRanges, struct{ start, end int }{start, end})
+			}
+		}
+
+		return ast.WalkContinue, nil
+	})
+
+	var filteredContent bytes.Buffer
+	lastPos := 0
+	for _, codeRange := range codeRanges {
+		if codeRange.start > lastPos {
+			filteredContent.Write(content[lastPos:codeRange.start])
+		}
+		lastPos = codeRange.end
+	}
+	if lastPos < len(content) {
+		filteredContent.Write(content[lastPos:])
+	}
+
+	tagSet := make(map[string]bool)
+	matches := inlineTagPattern.FindAllSubmatch(filteredContent.Bytes(), -1)
+	for _, match := range matches {
+		if len(match) > 1 {
+			tag := string(match[1])
+			tagSet[tag] = true
+		}
+	}
+
+	tags := make([]string, 0, len(tagSet))
+	for tag := range tagSet {
+		tags = append(tags, tag)
+	}
+
+	return tags
 }
 
 // extractBlocks parses Markdown content into outline blocks.

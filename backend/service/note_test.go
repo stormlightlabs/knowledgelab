@@ -697,6 +697,412 @@ func TestNoteService_BlockIDParsing(t *testing.T) {
 	}
 }
 
+func TestNoteService_InlineTagParsing(t *testing.T) {
+	tmpDir := filepath.Join(os.TempDir(), "test-workspace-inline-tags")
+	os.RemoveAll(tmpDir)
+	defer os.RemoveAll(tmpDir)
+
+	fs, err := NewFilesystemService()
+	if err != nil {
+		t.Fatalf("NewFilesystemService() error = %v", err)
+	}
+	defer fs.Close()
+
+	_, err = fs.OpenWorkspace(tmpDir)
+	if err != nil {
+		t.Fatalf("OpenWorkspace() error = %v", err)
+	}
+
+	noteService := NewNoteService(fs)
+
+	tests := []struct {
+		name     string
+		content  string
+		wantTags []string
+	}{
+		{
+			name:     "simple inline tag",
+			content:  "# Note\n\nThis is a note with #simple-tag",
+			wantTags: []string{"simple-tag"},
+		},
+		{
+			name:     "multiple inline tags",
+			content:  "# Note\n\nThis has #tag1 and #tag2 and #tag3",
+			wantTags: []string{"tag1", "tag2", "tag3"},
+		},
+		{
+			name:     "nested tag",
+			content:  "# Note\n\nThis has #parent/child tag",
+			wantTags: []string{"parent/child"},
+		},
+		{
+			name:     "deeply nested tag",
+			content:  "# Note\n\nThis has #parent/child/grandchild tag",
+			wantTags: []string{"parent/child/grandchild"},
+		},
+		{
+			name:     "mixed simple and nested tags",
+			content:  "# Note\n\nMixed #simple and #nested/tag and #another/nested/one",
+			wantTags: []string{"simple", "nested/tag", "another/nested/one"},
+		},
+		{
+			name:     "tag at start of line",
+			content:  "# Note\n\n#start-of-line tag",
+			wantTags: []string{"start-of-line"},
+		},
+		{
+			name:     "tag with underscores",
+			content:  "# Note\n\nThis has #tag_with_underscores",
+			wantTags: []string{"tag_with_underscores"},
+		},
+		{
+			name:     "tag starting with underscore",
+			content:  "# Note\n\nThis has #_private",
+			wantTags: []string{"_private"},
+		},
+		{
+			name:     "duplicate inline tags",
+			content:  "# Note\n\n#tag1 appears #tag1 twice #tag1",
+			wantTags: []string{"tag1"},
+		},
+		{
+			name:     "tags in list items",
+			content:  "# Note\n\n- Item with #tag1\n- Item with #tag2\n  - Nested with #tag3",
+			wantTags: []string{"tag1", "tag2", "tag3"},
+		},
+		{
+			name:     "tags in headings",
+			content:  "# Heading with #tag1\n\n## Subheading with #tag2",
+			wantTags: []string{"tag1", "tag2"},
+		},
+		{
+			name:     "no tags",
+			content:  "# Note\n\nThis has no tags at all",
+			wantTags: []string{},
+		},
+		{
+			name:     "hash in code block should not be tag",
+			content:  "# Note\n\n```\n#not-a-tag\n```",
+			wantTags: []string{},
+		},
+		{
+			name:     "hash without valid tag name",
+			content:  "# Note\n\n#123-starts-with-number should not match",
+			wantTags: []string{},
+		},
+		{
+			name:     "hash preceded by alphanumeric",
+			content:  "# Note\n\nurl: http://example.com#anchor should not match",
+			wantTags: []string{},
+		},
+		{
+			name:     "tag after punctuation",
+			content:  "# Note\n\nSentence. #tag after period",
+			wantTags: []string{"tag"},
+		},
+		{
+			name:     "tag in parentheses",
+			content:  "# Note\n\nText (#tag) in parens",
+			wantTags: []string{"tag"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := tt.name + ".md"
+			fs.WriteFile(path, []byte(tt.content))
+
+			note, err := noteService.GetNote(path)
+			if err != nil {
+				t.Fatalf("GetNote() error = %v", err)
+			}
+
+			if len(note.Tags) != len(tt.wantTags) {
+				t.Errorf("Got %d tags, want %d", len(note.Tags), len(tt.wantTags))
+				for i, tag := range note.Tags {
+					t.Logf("Tag %d: %s", i, tag.Name)
+				}
+				return
+			}
+
+			actualTags := make(map[string]bool)
+			for _, tag := range note.Tags {
+				actualTags[tag.Name] = true
+			}
+
+			for _, wantTag := range tt.wantTags {
+				if !actualTags[wantTag] {
+					t.Errorf("Expected tag %q not found in note tags", wantTag)
+				}
+			}
+		})
+	}
+}
+
+func TestNoteService_TagMerging(t *testing.T) {
+	tmpDir := filepath.Join(os.TempDir(), "test-workspace-tag-merging")
+	os.RemoveAll(tmpDir)
+	defer os.RemoveAll(tmpDir)
+
+	fs, err := NewFilesystemService()
+	if err != nil {
+		t.Fatalf("NewFilesystemService() error = %v", err)
+	}
+	defer fs.Close()
+
+	_, err = fs.OpenWorkspace(tmpDir)
+	if err != nil {
+		t.Fatalf("OpenWorkspace() error = %v", err)
+	}
+
+	noteService := NewNoteService(fs)
+
+	tests := []struct {
+		name     string
+		content  string
+		wantTags []string
+	}{
+		{
+			name: "frontmatter and inline tags combined",
+			content: `---
+title: Test
+tags:
+  - fm-tag1
+  - fm-tag2
+---
+
+# Note
+
+Content with #inline-tag1 and #inline-tag2`,
+			wantTags: []string{"fm-tag1", "fm-tag2", "inline-tag1", "inline-tag2"},
+		},
+		{
+			name: "duplicate tags in frontmatter and inline",
+			content: `---
+title: Test
+tags:
+  - duplicate
+  - unique-fm
+---
+
+# Note
+
+Content with #duplicate and #unique-inline`,
+			wantTags: []string{"duplicate", "unique-fm", "unique-inline"},
+		},
+		{
+			name: "frontmatter only",
+			content: `---
+title: Test
+tags:
+  - only-fm1
+  - only-fm2
+---
+
+# Note
+
+No inline tags here`,
+			wantTags: []string{"only-fm1", "only-fm2"},
+		},
+		{
+			name: "inline only",
+			content: `# Note
+
+Content with #inline-only1 and #inline-only2`,
+			wantTags: []string{"inline-only1", "inline-only2"},
+		},
+		{
+			name: "frontmatter array and comma-separated",
+			content: `---
+title: Test
+tags: tag1, tag2, tag3
+---
+
+# Note
+
+Content with #tag4`,
+			wantTags: []string{"tag1, tag2, tag3", "tag4"},
+		},
+		{
+			name: "nested tags in both frontmatter and inline",
+			content: `---
+title: Test
+tags:
+  - project/alpha
+  - status/active
+---
+
+# Note
+
+Working on #project/beta and #status/done`,
+			wantTags: []string{"project/alpha", "status/active", "project/beta", "status/done"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := tt.name + ".md"
+			fs.WriteFile(path, []byte(tt.content))
+
+			note, err := noteService.GetNote(path)
+			if err != nil {
+				t.Fatalf("GetNote() error = %v", err)
+			}
+
+			if len(note.Tags) != len(tt.wantTags) {
+				t.Errorf("Got %d tags, want %d", len(note.Tags), len(tt.wantTags))
+				for i, tag := range note.Tags {
+					t.Logf("Tag %d: %s", i, tag.Name)
+				}
+				return
+			}
+
+			actualTags := make(map[string]bool)
+			for _, tag := range note.Tags {
+				actualTags[tag.Name] = true
+			}
+
+			for _, wantTag := range tt.wantTags {
+				if !actualTags[wantTag] {
+					t.Errorf("Expected tag %q not found in note tags", wantTag)
+				}
+			}
+		})
+	}
+}
+
+func TestExtractInlineTags(t *testing.T) {
+	fs, _ := NewFilesystemService()
+	defer fs.Close()
+	noteService := NewNoteService(fs)
+
+	tests := []struct {
+		name     string
+		content  string
+		wantTags []string
+	}{
+		{
+			name:     "single tag",
+			content:  "Text with #tag",
+			wantTags: []string{"tag"},
+		},
+		{
+			name:     "multiple tags",
+			content:  "#tag1 #tag2 #tag3",
+			wantTags: []string{"tag1", "tag2", "tag3"},
+		},
+		{
+			name:     "nested tag",
+			content:  "Text with #parent/child",
+			wantTags: []string{"parent/child"},
+		},
+		{
+			name:     "deeply nested",
+			content:  "#a/b/c/d",
+			wantTags: []string{"a/b/c/d"},
+		},
+		{
+			name:     "tag with numbers",
+			content:  "#tag123 and #tag456",
+			wantTags: []string{"tag123", "tag456"},
+		},
+		{
+			name:     "tag with dashes",
+			content:  "#my-tag-name",
+			wantTags: []string{"my-tag-name"},
+		},
+		{
+			name:     "tag with underscores",
+			content:  "#my_tag_name",
+			wantTags: []string{"my_tag_name"},
+		},
+		{
+			name:     "tag starting with underscore",
+			content:  "#_private",
+			wantTags: []string{"_private"},
+		},
+		{
+			name:     "no tags",
+			content:  "No tags here",
+			wantTags: []string{},
+		},
+		{
+			name:     "hash with space",
+			content:  "# not a tag",
+			wantTags: []string{},
+		},
+		{
+			name:     "hash starts with number",
+			content:  "#123invalid",
+			wantTags: []string{},
+		},
+		{
+			name:     "hash in URL",
+			content:  "http://example.com#anchor",
+			wantTags: []string{},
+		},
+		{
+			name:     "duplicate tags",
+			content:  "#tag #tag #tag",
+			wantTags: []string{"tag"},
+		},
+		{
+			name:     "tag after punctuation",
+			content:  "Sentence. #tag",
+			wantTags: []string{"tag"},
+		},
+		{
+			name:     "tag in parentheses",
+			content:  "(#tag)",
+			wantTags: []string{"tag"},
+		},
+		{
+			name:     "tag after newline",
+			content:  "Line 1\n#tag on line 2",
+			wantTags: []string{"tag"},
+		},
+		{
+			name:     "mixed valid and invalid",
+			content:  "#valid #123invalid #another-valid",
+			wantTags: []string{"valid", "another-valid"},
+		},
+		{
+			name:     "tag at start",
+			content:  "#tag at start",
+			wantTags: []string{"tag"},
+		},
+		{
+			name:     "empty string",
+			content:  "",
+			wantTags: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotTags := noteService.extractInlineTags([]byte(tt.content))
+
+			if len(gotTags) != len(tt.wantTags) {
+				t.Errorf("extractInlineTags() returned %d tags, want %d", len(gotTags), len(tt.wantTags))
+				t.Logf("Got: %v", gotTags)
+				t.Logf("Want: %v", tt.wantTags)
+				return
+			}
+
+			gotMap := make(map[string]bool)
+			for _, tag := range gotTags {
+				gotMap[tag] = true
+			}
+
+			for _, wantTag := range tt.wantTags {
+				if !gotMap[wantTag] {
+					t.Errorf("extractInlineTags() missing expected tag %q", wantTag)
+				}
+			}
+		})
+	}
+}
+
 func TestNoteService_RenderMarkdown(t *testing.T) {
 	tmpDir := filepath.Join(os.TempDir(), "test-workspace-render-md")
 	os.RemoveAll(tmpDir)

@@ -22,10 +22,10 @@ Local-first Markdown storage with wikilinks, backlinks, graph view, daily notes,
 
 #### Tags System
 
-- [ ] Tag parsing:
-  - [ ] Parse inline `#tags` from note body.
-  - [ ] Parse frontmatter `tags:` field (array or comma-separated).
-  - [ ] Support nested tags (`#parent/child`).
+- [x] Tag parsing:
+  - [x] Parse inline `#tags` from note body.
+  - [x] Parse frontmatter `tags:` field (array or comma-separated).
+  - [x] Support nested tags (`#parent/child`).
 - [ ] Tag index:
   - [ ] Build tag index from parsed tags across all notes.
   - [ ] Track tag occurrence counts.

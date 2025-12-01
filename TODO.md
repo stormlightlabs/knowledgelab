@@ -30,13 +30,13 @@ Local-first Markdown storage with wikilinks, backlinks, graph view, daily notes,
   - [x] Build tag index from parsed tags across all notes.
   - [x] Track tag occurrence counts.
   - [x] Update index incrementally on note changes.
-- [ ] Tag browser UI:
-  - [ ] Tag list panel showing all tags with counts.
-  - [ ] Click tag to filter note list.
-  - [ ] Nested tag tree view for hierarchical tags.
-- [ ] Tag-based filtering:
-  - [ ] Filter note list by single tag.
-  - [ ] Multi-tag filtering with AND/OR logic.
+- [x] Tag browser UI:
+  - [x] Tag list panel showing all tags with counts.
+  - [x] Click tag to filter note list.
+  - [x] Nested tag tree view for hierarchical tags.
+- [x] Tag-based filtering:
+  - [x] Filter note list by single tag.
+  - [x] Multi-tag filtering with AND/OR logic.
   - [ ] Tag search and autocomplete in search box.
 
 #### Templates
@@ -159,3 +159,11 @@ The following features are deferred to future releases after v1 launch:
 TOML-based settings and workspace snapshots with SQLite graph database, debounced saves (800ms).
 
 User-level config (XDG/AppData) and workspace-level config (`.knowledgelab/`) with `backend/paths` package, Wails integration, and comprehensive tests.
+
+## Base16 Theming Engine
+
+- [ ] Refactor existing styling to only use `--color-base0X` variables
+  - [ ] Retain any required colors to move into base24 territory
+- [ ] Document (publicly in `docs/theming.md`) how to customize the colors of the application
+- [ ] Store override color variable values in user settings
+- [ ] Settings UI for theming

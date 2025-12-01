@@ -55,6 +55,9 @@ and LinkType =
 /// Tag represents a topic or category marker
 and Tag = { Name : string; NoteId : string }
 
+/// TagInfo provides aggregated information about a tag across the workspace
+and TagInfo = { Name : string; Count : int; NoteIds : string list }
+
 /// NoteSummary provides a lightweight note representation for lists
 type NoteSummary = {
   id : string

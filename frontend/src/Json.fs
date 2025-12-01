@@ -33,6 +33,14 @@ let tagDecoder : Decoder<Tag> =
     NoteId = get.Required.Field "noteId" Decode.string
   })
 
+/// Decodes a TagInfo from JSON
+let tagInfoDecoder : Decoder<TagInfo> =
+  Decode.object (fun get -> {
+    Name = get.Required.Field "name" Decode.string
+    Count = get.Required.Field "count" Decode.int
+    NoteIds = get.Required.Field "noteIds" (Decode.list Decode.string)
+  })
+
 /// Decodes a NoteSummary from JSON with lowercase field names
 let noteSummaryDecoder : Decoder<NoteSummary> =
   Decode.object (fun get -> {

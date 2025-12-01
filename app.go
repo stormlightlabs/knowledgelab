@@ -217,6 +217,22 @@ func (a *App) GetAllTags() ([]string, error) {
 	return tags, nil
 }
 
+// GetAllTagsWithCounts returns all tags with occurrence counts and note IDs.
+// Results are sorted by tag name.
+func (a *App) GetAllTagsWithCounts() ([]domain.TagInfo, error) {
+	tagInfos := a.graph.GetAllTagsWithCounts()
+	return tagInfos, nil
+}
+
+// GetTagInfo returns information about a specific tag including count and note IDs.
+func (a *App) GetTagInfo(tagName string) (*domain.TagInfo, error) {
+	tagInfo := a.graph.GetTagInfo(tagName)
+	if tagInfo == nil {
+		return nil, &domain.ErrNotFound{Resource: "tag", ID: tagName}
+	}
+	return tagInfo, nil
+}
+
 // RenderMarkdown converts markdown content to HTML.
 // Used by the frontend for preview mode rendering.
 func (a *App) RenderMarkdown(markdown string) (string, error) {

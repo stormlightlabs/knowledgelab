@@ -92,6 +92,101 @@ Jest.describe (
     )
 
     Jest.test (
+      "ToggleTagFilter adds tag when not selected",
+      fun () ->
+        let initialState = { State.Default with SelectedTags = [] }
+        let newState, _ = Update (ToggleTagFilter "test-tag") initialState
+        Jest.expect(newState.SelectedTags |> List.toArray).toEqual ([| "test-tag" |])
+    )
+
+    Jest.test (
+      "ToggleTagFilter removes tag when already selected",
+      fun () ->
+        let initialState = {
+          State.Default with
+              SelectedTags = [ "test-tag"; "other-tag" ]
+        }
+
+        let newState, _ = Update (ToggleTagFilter "test-tag") initialState
+        Jest.expect(newState.SelectedTags |> List.toArray).toEqual ([| "other-tag" |])
+    )
+
+    Jest.test (
+      "ToggleTagFilter handles multiple tag selections",
+      fun () ->
+        let initialState = State.Default
+        let state1, _ = Update (ToggleTagFilter "tag1") initialState
+        let state2, _ = Update (ToggleTagFilter "tag2") state1
+        let state3, _ = Update (ToggleTagFilter "tag3") state2
+        Jest.expect(state3.SelectedTags.Length).toEqual (3)
+        Jest.expect(state3.SelectedTags).toContain ("tag1")
+        Jest.expect(state3.SelectedTags).toContain ("tag2")
+        Jest.expect(state3.SelectedTags).toContain ("tag3")
+    )
+
+    Jest.test (
+      "SetTagFilterMode changes filter mode to And",
+      fun () ->
+        let initialState = { State.Default with TagFilterMode = Or }
+        let newState, _ = Update (SetTagFilterMode And) initialState
+        Jest.expect(newState.TagFilterMode).toEqual (And)
+    )
+
+    Jest.test (
+      "SetTagFilterMode changes filter mode to Or",
+      fun () ->
+        let initialState = { State.Default with TagFilterMode = And }
+        let newState, _ = Update (SetTagFilterMode Or) initialState
+        Jest.expect(newState.TagFilterMode).toEqual (Or)
+    )
+
+    Jest.test (
+      "ClearTagFilters removes all selected tags",
+      fun () ->
+        let initialState = {
+          State.Default with
+              SelectedTags = [ "tag1"; "tag2"; "tag3" ]
+        }
+
+        let newState, _ = Update ClearTagFilters initialState
+        Jest.expect(newState.SelectedTags |> List.toArray).toEqual ([||])
+    )
+
+    Jest.test (
+      "TagsWithCountsLoaded success updates tag infos",
+      fun () ->
+        let initialState = State.Default
+
+        let testTagInfos = [
+          {
+            Name = "tag1"
+            Count = 5
+            NoteIds = [ "note1"; "note2"; "note3"; "note4"; "note5" ]
+          }
+          {
+            Name = "tag2"
+            Count = 3
+            NoteIds = [ "note1"; "note3"; "note6" ]
+          }
+        ]
+
+        let newState, _ = Update (TagsWithCountsLoaded(Ok testTagInfos)) initialState
+        Jest.expect(newState.TagInfos.Length).toEqual (2)
+        Jest.expect(newState.Loading).toEqual (false)
+        Jest.expect(newState.Error).toEqual (None)
+    )
+
+    Jest.test (
+      "TagsWithCountsLoaded error sets error message",
+      fun () ->
+        let initialState = State.Default
+        let errorMsg = "Failed to load tags"
+        let newState, _ = Update (TagsWithCountsLoaded(Error errorMsg)) initialState
+        Jest.expect(newState.Error).toEqual (Some errorMsg)
+        Jest.expect(newState.Loading).toEqual (false)
+    )
+
+    Jest.test (
       "UpdateNoteContent updates current note content",
       fun () ->
         let testNote = {

@@ -80,6 +80,89 @@ Jest.describe (
     )
 
     Jest.test (
+      "TagInfo decoder handles valid JSON",
+      fun () ->
+        let json =
+          """
+    {
+      "name": "test-tag",
+      "count": 5,
+      "noteIds": ["note1", "note2", "note3", "note4", "note5"]
+    }
+    """
+
+        let result = Decode.fromString tagInfoDecoder json
+
+        match result with
+        | Ok tagInfo ->
+          Jest.expect(tagInfo.Name).toEqual "test-tag"
+          Jest.expect(tagInfo.Count).toEqual 5
+          Jest.expect(tagInfo.NoteIds.Length).toEqual 5
+          Jest.expect(tagInfo.NoteIds.[0]).toEqual "note1"
+        | Error err -> failwith $"Decode failed: {err}"
+    )
+
+    Jest.test (
+      "TagInfo decoder handles zero count",
+      fun () ->
+        let json =
+          """
+    {
+      "name": "empty-tag",
+      "count": 0,
+      "noteIds": []
+    }
+    """
+
+        let result = Decode.fromString tagInfoDecoder json
+
+        match result with
+        | Ok tagInfo ->
+          Jest.expect(tagInfo.Name).toEqual "empty-tag"
+          Jest.expect(tagInfo.Count).toEqual 0
+          Jest.expect(tagInfo.NoteIds.Length).toEqual 0
+        | Error err -> failwith $"Decode failed: {err}"
+    )
+
+    Jest.test (
+      "TagInfo decoder handles nested tags",
+      fun () ->
+        let json =
+          """
+    {
+      "name": "project/alpha/milestone",
+      "count": 3,
+      "noteIds": ["note1", "note2", "note3"]
+    }
+    """
+
+        let result = Decode.fromString tagInfoDecoder json
+
+        match result with
+        | Ok tagInfo ->
+          Jest.expect(tagInfo.Name).toEqual "project/alpha/milestone"
+          Jest.expect(tagInfo.Count).toEqual 3
+        | Error err -> failwith $"Decode failed: {err}"
+    )
+
+    Jest.test (
+      "TagInfo decoder rejects invalid JSON",
+      fun () ->
+        let json =
+          """
+    {
+      "name": "incomplete-tag"
+    }
+    """
+
+        let result = Decode.fromString tagInfoDecoder json
+
+        match result with
+        | Ok _ -> failwith "Should have failed with missing required fields"
+        | Error _ -> Jest.expect(true).toBe true
+    )
+
+    Jest.test (
       "Graph decoder handles valid graph JSON",
       fun () ->
         let json =

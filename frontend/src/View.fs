@@ -146,15 +146,46 @@ module Sidebar =
         ]
       ]
 
+    /// Filters notes based on selected tags and filter mode
+    let private filterNotesByTags
+      (notes : NoteSummary list)
+      (selectedTags : string list)
+      (filterMode : TagFilterMode)
+      : NoteSummary list =
+      if List.isEmpty selectedTags then
+        notes
+      else
+        notes
+        |> List.filter (fun note ->
+          let noteTags = note.tags |> List.map (fun t -> t.Name) |> Set.ofList
+          let selectedSet = Set.ofList selectedTags
+
+          match filterMode with
+          | And -> Set.isSubset selectedSet noteTags
+          | Or -> Set.intersect selectedSet noteTags |> Set.isEmpty |> not)
+
     /// Renders the notes list sidebar
     let Render (state : State) (dispatch : Msg -> unit) =
+      let filteredNotes =
+        filterNotesByTags state.Notes state.SelectedTags state.TagFilterMode
+
       Html.div [
         prop.className "w-64 bg-base01 border-r border-base02 flex flex-col h-full"
         prop.children [
           Html.div [
             prop.className "p-4 border-b border-base02 shrink-0"
             prop.children [
-              Html.h2 [ prop.className "font-bold text-lg text-base05"; prop.text "Notes" ]
+              Html.div [
+                prop.className "flex items-center justify-between mb-2"
+                prop.children [
+                  Html.h2 [ prop.className "font-bold text-lg text-base05"; prop.text "Notes" ]
+                  if not (List.isEmpty state.SelectedTags) then
+                    Html.span [
+                      prop.className "text-xs bg-blue text-base00 px-2 py-1 rounded"
+                      prop.text $"{filteredNotes.Length}/{state.Notes.Length}"
+                    ]
+                ]
+              ]
               Html.button [
                 prop.className
                   "mt-2 w-full bg-blue hover:bg-blue-bright text-base00 text-sm font-bold py-1 px-2 rounded default-transition"
@@ -171,7 +202,17 @@ module Sidebar =
           ]
           Html.div [
             prop.className "flex-1 overflow-y-auto min-h-0"
-            prop.children (state.Notes |> List.map (fun note -> noteListItem note dispatch))
+            prop.children (
+              if List.isEmpty filteredNotes then
+                [
+                  Html.div [
+                    prop.className "p-4 text-center text-base03 text-sm"
+                    prop.text "No notes match the selected tags"
+                  ]
+                ]
+              else
+                filteredNotes |> List.map (fun note -> noteListItem note dispatch)
+            )
           ]
         ]
       ]
@@ -435,6 +476,152 @@ module NoteEditor =
           ]
 
         statusBar note state.EditorState.CursorPosition state.EditorState.IsDirty
+      ]
+    ]
+
+module TagsPanel =
+  /// Renders a tag item with count and selection state
+  let private tagItem (tagInfo : TagInfo) (isSelected : bool) (dispatch : Msg -> unit) =
+    Html.div [
+      prop.key tagInfo.Name
+      prop.className (
+        "p-2 hover:bg-base02 cursor-pointer border-b border-base02 transition-all flex items-center justify-between "
+        + if isSelected then "bg-blue bg-opacity-20" else ""
+      )
+      prop.onClick (fun _ -> dispatch (ToggleTagFilter tagInfo.Name))
+      prop.children [
+        Html.div [
+          prop.className "flex items-center gap-2 flex-1 min-w-0"
+          prop.children [
+            Html.span [
+              prop.className (if isSelected then "text-blue" else "text-base05")
+              prop.text $"#{tagInfo.Name}"
+            ]
+          ]
+        ]
+        Html.span [
+          prop.className "text-xs bg-base02 text-base04 px-2 py-0.5 rounded shrink-0"
+          prop.text (string tagInfo.Count)
+        ]
+      ]
+    ]
+
+  /// Groups tags by top-level parent (for nested tags like project/alpha)
+  let private groupTagsByParent (tagInfos : TagInfo list) : Map<string, TagInfo list> =
+    tagInfos
+    |> List.groupBy (fun t ->
+      let parts = t.Name.Split('/')
+      if parts.Length > 1 then parts.[0] else "")
+    |> Map.ofList
+
+  /// Renders nested tags with indentation
+  let private renderNestedTags (tagInfos : TagInfo list) (selectedTags : string list) (dispatch : Msg -> unit) =
+    let grouped = groupTagsByParent tagInfos
+    let rootTags = grouped |> Map.tryFind "" |> Option.defaultValue []
+    let nestedGroups = grouped |> Map.remove ""
+
+    [
+      yield!
+        rootTags
+        |> List.map (fun t -> tagItem t (selectedTags |> List.contains t.Name) dispatch)
+
+      for KeyValue(parent, children) in nestedGroups do
+        yield
+          Html.div [
+            prop.className "mt-1"
+            prop.children [
+              Html.div [
+                prop.className "px-2 py-1 text-xs font-semibold text-base04 bg-base00"
+                prop.text parent
+              ]
+              Html.div [
+                prop.className "pl-2"
+                prop.children (
+                  children
+                  |> List.map (fun t -> tagItem t (selectedTags |> List.contains t.Name) dispatch)
+                )
+              ]
+            ]
+          ]
+    ]
+
+  /// Renders the filter mode toggle (AND/OR)
+  let private filterModeToggle (mode : TagFilterMode) (selectedTags : string list) (dispatch : Msg -> unit) =
+    Html.div [
+      prop.className "flex items-center gap-2 p-2 border-b border-base02 bg-base00"
+      prop.children [
+        Html.span [ prop.className "text-xs text-base04"; prop.text "Filter mode:" ]
+        Html.button [
+          prop.className (
+            "px-2 py-1 text-xs rounded transition-all "
+            + if mode = And then
+                "bg-blue text-base00"
+              else
+                "bg-base02 text-base04"
+          )
+          prop.text "AND"
+          prop.onClick (fun _ -> dispatch (SetTagFilterMode And))
+        ]
+        Html.button [
+          prop.className (
+            "px-2 py-1 text-xs rounded transition-all "
+            + if mode = Or then
+                "bg-blue text-base00"
+              else
+                "bg-base02 text-base04"
+          )
+          prop.text "OR"
+          prop.onClick (fun _ -> dispatch (SetTagFilterMode Or))
+        ]
+        if not (List.isEmpty selectedTags) then
+          Html.button [
+            prop.className "ml-auto px-2 py-1 text-xs rounded bg-red text-base00 hover:bg-red-bright transition-all"
+            prop.text "Clear"
+            prop.onClick (fun _ -> dispatch ClearTagFilters)
+          ]
+      ]
+    ]
+
+  /// Renders the tags panel
+  let Render (state : State) (dispatch : Msg -> unit) =
+    Html.div [
+      prop.className "w-64 bg-base01 border-l border-base02 flex flex-col h-full default-transition"
+      prop.children [
+        Html.div [
+          prop.className "p-4 border-b border-base02 shrink-0"
+          prop.children [
+            Html.h2 [ prop.className "font-bold text-lg text-base05"; prop.text "Tags" ]
+            Html.div [
+              prop.className "text-xs text-base03 mt-1"
+              prop.text $"{state.TagInfos.Length} tags"
+            ]
+          ]
+        ]
+
+        if not (List.isEmpty state.SelectedTags) then
+          filterModeToggle state.TagFilterMode state.SelectedTags dispatch
+        else
+          Html.none
+
+        if state.TagInfos.IsEmpty then
+          Html.div [
+            prop.className "flex-1 overflow-y-auto min-h-0"
+            prop.children [
+              Html.div [
+                prop.className "p-4 text-center text-base03 text-sm"
+                prop.text "No tags found"
+              ]
+            ]
+          ]
+        else
+          Html.div [
+            prop.className "flex-1 overflow-y-auto min-h-0"
+            prop.children (
+              state.TagInfos |> List.sortBy (fun t -> t.Name) |> renderNestedTags
+              <| state.SelectedTags
+              <| dispatch
+            )
+          ]
       ]
     ]
 
@@ -969,6 +1156,16 @@ module NavigationBar =
           )
           prop.onClick (fun _ -> dispatch (TogglePanel TasksPanel))
         ]
+        Html.button [
+          prop.className "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
+          prop.text (
+            if state.VisiblePanels.Contains TagsPanel then
+              "Hide Tags"
+            else
+              "Show Tags"
+          )
+          prop.onClick (fun _ -> dispatch (TogglePanel TagsPanel))
+        ]
       ]
     ]
 
@@ -1053,6 +1250,17 @@ module App =
                 prop.className "default-transition"
                 prop.children [ TaskPanel.Render state dispatch ]
               ]
+
+            if
+              state.VisiblePanels.Contains TagsPanel
+              && state.CurrentRoute <> WorkspacePicker
+              && state.CurrentRoute <> Settings
+            then
+              Html.div [
+                prop.key "tags-panel"
+                prop.className "default-transition"
+                prop.children [ TagsPanel.Render state dispatch ]
+              ]
           ]
         ]
 
@@ -1075,6 +1283,20 @@ module App =
               ]
             ]
           ]
+
+        Html.footer [
+          prop.className "flex items-center justify-center text-base04 text-xs gap-1 p-4"
+          prop.children [
+            Html.span [ prop.text "Made with ⚡️ in Austin, TX by" ]
+            // TODO: open in browser
+            Html.a [
+              prop.className "hover:text-base0A"
+              prop.href "https://desertthunder.dev"
+              prop.target "_blank"
+              prop.text "Owais"
+            ]
+          ]
+        ]
       ]
     ]
 

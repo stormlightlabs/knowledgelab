@@ -1,6 +1,7 @@
 package service
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -581,5 +582,152 @@ func TestGraphService_TagIndexEmptyWorkspace(t *testing.T) {
 	info := graph.GetTagInfo("any-tag")
 	if info != nil {
 		t.Error("GetTagInfo() on empty index should return nil")
+	}
+}
+
+func TestGraphService_TagInfoWithSpecialCharacters(t *testing.T) {
+	graph := NewGraphService()
+
+	note := &domain.Note{
+		ID:         "note.md",
+		Content:    "Content with #tag-with-dashes and #tag_with_underscores",
+		ModifiedAt: time.Now(),
+	}
+
+	graph.IndexNote(note)
+
+	dashTag := graph.GetTagInfo("tag-with-dashes")
+	if dashTag == nil || dashTag.Count != 1 {
+		t.Error("Tag with dashes not indexed correctly")
+	}
+
+	underscoreTag := graph.GetTagInfo("tag_with_underscores")
+	if underscoreTag == nil || underscoreTag.Count != 1 {
+		t.Error("Tag with underscores not indexed correctly")
+	}
+}
+
+func TestGraphService_TagInfoCaseSensitivity(t *testing.T) {
+	graph := NewGraphService()
+
+	note1 := &domain.Note{
+		ID:         "note1.md",
+		Content:    "Content with #Tag",
+		ModifiedAt: time.Now(),
+	}
+
+	note2 := &domain.Note{
+		ID:         "note2.md",
+		Content:    "Content with #tag",
+		ModifiedAt: time.Now(),
+	}
+
+	graph.IndexNote(note1)
+	graph.IndexNote(note2)
+
+	upperTag := graph.GetTagInfo("Tag")
+	lowerTag := graph.GetTagInfo("tag")
+
+	if upperTag == nil {
+		t.Error("Tag with uppercase not found")
+	}
+	if lowerTag == nil {
+		t.Error("Tag with lowercase not found")
+	}
+
+	if upperTag != nil && upperTag.Count != 1 {
+		t.Errorf("Uppercase Tag count = %d, want 1", upperTag.Count)
+	}
+
+	if upperTag != nil && lowerTag.Count != 1 {
+		t.Errorf("Lowercase tag count = %d, want 1", lowerTag.Count)
+	}
+}
+
+func TestGraphService_TagsSortedByName(t *testing.T) {
+	graph := NewGraphService()
+
+	notes := []*domain.Note{
+		{ID: "note1.md", Content: "Content with #zebra", ModifiedAt: time.Now()},
+		{ID: "note2.md", Content: "Content with #apple", ModifiedAt: time.Now()},
+		{ID: "note3.md", Content: "Content with #banana", ModifiedAt: time.Now()},
+	}
+
+	for _, note := range notes {
+		graph.IndexNote(note)
+	}
+
+	tagInfos := graph.GetAllTagsWithCounts()
+
+	expectedTags := []string{"apple", "banana", "zebra"}
+
+	if len(tagInfos) != len(expectedTags) {
+		t.Fatalf("GetAllTagsWithCounts() returned %d tags, want %d", len(tagInfos), len(expectedTags))
+	}
+
+	tagNames := make([]string, len(tagInfos))
+	for i, info := range tagInfos {
+		tagNames[i] = info.Name
+	}
+
+	for i, expectedTag := range expectedTags {
+		found := slices.Contains(tagNames, expectedTag)
+		if !found {
+			t.Errorf("Expected tag %q at position %d not found in results", expectedTag, i)
+		}
+	}
+}
+
+func TestGraphService_DeepNestedTags(t *testing.T) {
+	graph := NewGraphService()
+
+	note := &domain.Note{
+		ID:         "note.md",
+		Content:    "Content with #a/b/c/d/e/f deeply nested tag",
+		ModifiedAt: time.Now(),
+	}
+
+	graph.IndexNote(note)
+
+	info := graph.GetTagInfo("a/b/c/d/e/f")
+	if info == nil {
+		t.Fatal("Deeply nested tag not found")
+	}
+
+	if info.Count != 1 {
+		t.Errorf("Deeply nested tag count = %d, want 1", info.Count)
+	}
+}
+
+func TestGraphService_MixedNestedAndFlatTags(t *testing.T) {
+	graph := NewGraphService()
+
+	note := &domain.Note{
+		ID:         "note.md",
+		Content:    "Content with #flat #nested/tag and #another/nested/tag",
+		ModifiedAt: time.Now(),
+	}
+
+	graph.IndexNote(note)
+
+	flat := graph.GetTagInfo("flat")
+	nested := graph.GetTagInfo("nested/tag")
+	doubleNested := graph.GetTagInfo("another/nested/tag")
+
+	if flat == nil || flat.Count != 1 {
+		t.Error("Flat tag not indexed correctly")
+	}
+
+	if nested == nil || nested.Count != 1 {
+		t.Error("Nested tag not indexed correctly")
+	}
+
+	if doubleNested == nil || doubleNested.Count != 1 {
+		t.Error("Double nested tag not indexed correctly")
+	}
+
+	tagInfos := graph.GetAllTagsWithCounts()
+	if len(tagInfos) != 3 {
+		t.Errorf("GetAllTagsWithCounts() returned %d tags, want 3", len(tagInfos))
 	}
 }

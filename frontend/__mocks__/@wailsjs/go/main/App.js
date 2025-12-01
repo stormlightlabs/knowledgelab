@@ -69,6 +69,19 @@ export const GetNotesWithTag = () => Promise.resolve([]);
 
 export const GetAllTags = () => Promise.resolve([]);
 
+export const GetAllTagsWithCounts = () =>
+  Promise.resolve([
+    { Name: "test-tag", Count: 3, NoteIds: ["note1", "note2", "note3"] },
+    { Name: "another-tag", Count: 1, NoteIds: ["note4"] },
+  ]);
+
+export const GetTagInfo = (tagName) =>
+  Promise.resolve({
+    Name: tagName,
+    Count: 2,
+    NoteIds: ["note1", "note2"],
+  });
+
 export const RenderMarkdown = (markdown) => Promise.resolve(`<p>${markdown}</p>`);
 
 export const SelectDirectory = () => Promise.resolve("/mock/workspace/directory");

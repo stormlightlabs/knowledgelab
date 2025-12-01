@@ -41,6 +41,12 @@ module Raw =
   [<Import("GetAllTags", from = "@wailsjs/go/main/App")>]
   let getAllTags () : JS.Promise<obj> = jsNative
 
+  [<Import("GetAllTagsWithCounts", from = "@wailsjs/go/main/App")>]
+  let getAllTagsWithCounts () : JS.Promise<obj> = jsNative
+
+  [<Import("GetTagInfo", from = "@wailsjs/go/main/App")>]
+  let getTagInfo (tagName : string) : JS.Promise<obj> = jsNative
+
   [<Import("RenderMarkdown", from = "@wailsjs/go/main/App")>]
   let renderMarkdown (markdown : string) : JS.Promise<string> = jsNative
 
@@ -157,6 +163,18 @@ let getAllTags () : JS.Promise<string array> =
     match Decode.fromString (Decode.list Decode.string) json with
     | Ok tags -> Array.ofList tags
     | Error err -> failwith $"JSON decode error: {err}")
+
+let getAllTagsWithCounts () : JS.Promise<TagInfo array> =
+  Raw.getAllTagsWithCounts ()
+  |> Promise.map (fun response ->
+    let json = JS.JSON.stringify response
+
+    match Decode.fromString (Decode.list Json.tagInfoDecoder) json with
+    | Ok tagInfos -> Array.ofList tagInfos
+    | Error err -> failwith $"JSON decode error: {err}")
+
+let getTagInfo (tagName : string) : JS.Promise<TagInfo> =
+  Raw.getTagInfo tagName |> Promise.map (decodeResponse Json.tagInfoDecoder)
 
 let renderMarkdown = Raw.renderMarkdown
 let selectDirectory = Raw.selectDirectory

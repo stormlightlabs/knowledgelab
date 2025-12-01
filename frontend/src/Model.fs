@@ -29,6 +29,13 @@ type SearchFilters = {
   DateTo : DateTime option
 }
 
+/// Tag filtering mode for multi-tag selection
+type TagFilterMode =
+  /// Notes must have ALL selected tags
+  | And
+  /// Notes must have ANY of the selected tags
+  | Or
+
 /// Editor preview mode
 type PreviewMode =
   | EditOnly
@@ -78,6 +85,9 @@ type State = {
   ZoomState : ZoomState
   GraphEngine : GraphEngine
   Tags : string list
+  TagInfos : TagInfo list
+  SelectedTags : string list
+  TagFilterMode : TagFilterMode
   Backlinks : Link list
   AllTasks : Task list
   TaskFilter : TaskFilter
@@ -116,6 +126,9 @@ type State = {
     ZoomState = ZoomState.Default
     GraphEngine = Svg
     Tags = []
+    TagInfos = []
+    SelectedTags = []
+    TagFilterMode = Or
     Backlinks = []
     AllTasks = []
     TaskFilter = {
@@ -182,6 +195,11 @@ type Msg =
   | GraphLoaded of Result<Graph, string>
   | LoadTags
   | TagsLoaded of Result<string list, string>
+  | LoadTagsWithCounts
+  | TagsWithCountsLoaded of Result<TagInfo list, string>
+  | ToggleTagFilter of tagName : string
+  | SetTagFilterMode of TagFilterMode
+  | ClearTagFilters
   | LoadBacklinks of noteId : string
   | BacklinksLoaded of Result<Link list, string>
   | OpenDailyNote
@@ -592,7 +610,14 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
       | Some noteId -> Cmd.ofMsg (SelectNote noteId)
       | None -> Cmd.none
 
-    stateWithSnapshot, Cmd.batch [ Cmd.ofMsg LoadNotes; Cmd.ofMsg LoadAllTasks; snapshotCmd; pendingNoteCmd ]
+    stateWithSnapshot,
+    Cmd.batch [
+      Cmd.ofMsg LoadNotes
+      Cmd.ofMsg LoadAllTasks
+      Cmd.ofMsg LoadTagsWithCounts
+      snapshotCmd
+      pendingNoteCmd
+    ]
   | WorkspaceOpened(Error err) ->
     {
       state with
@@ -789,6 +814,29 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
       TagsLoaded(Error ex.Message))
   | TagsLoaded(Ok tags) -> { state with Tags = tags; Loading = false; Error = None }, Cmd.none
   | TagsLoaded(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
+  | LoadTagsWithCounts ->
+    { state with Loading = true },
+    Cmd.OfPromise.either Api.getAllTagsWithCounts () (Array.toList >> Ok >> TagsWithCountsLoaded) (fun ex ->
+      TagsWithCountsLoaded(Error ex.Message))
+  | TagsWithCountsLoaded(Ok tagInfos) ->
+    {
+      state with
+          TagInfos = tagInfos
+          Loading = false
+          Error = None
+    },
+    Cmd.none
+  | TagsWithCountsLoaded(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
+  | ToggleTagFilter tagName ->
+    let newSelectedTags =
+      if state.SelectedTags |> List.contains tagName then
+        state.SelectedTags |> List.filter ((<>) tagName)
+      else
+        tagName :: state.SelectedTags
+
+    { state with SelectedTags = newSelectedTags }, Cmd.none
+  | SetTagFilterMode mode -> { state with TagFilterMode = mode }, Cmd.none
+  | ClearTagFilters -> { state with SelectedTags = [] }, Cmd.none
   | LoadBacklinks noteId ->
     { state with Loading = true },
     Cmd.OfPromise.either Api.getBacklinks noteId (safeArrayToList >> Ok >> BacklinksLoaded) (fun ex ->

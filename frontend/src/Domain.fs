@@ -116,6 +116,7 @@ type SearchResult = {
   Score : float
   Tags : string list
   ModifiedAt : DateTime
+  Snippet : string
 }
 
 /// GraphNode represents a node in the force-directed graph with simulation data

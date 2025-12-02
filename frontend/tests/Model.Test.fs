@@ -41,7 +41,7 @@ Jest.describe (
         let initialState = State.Default
         let query = "test query"
         let newState, _ = Update (UpdateSearchQuery query) initialState
-        Jest.expect(newState.SearchQuery).toEqual (query)
+        Jest.expect(newState.Search.Query).toEqual query
     )
 
     Jest.test (
@@ -785,9 +785,9 @@ Jest.describe (
         }
 
         let newState, _ = Update (UpdateSearchFilters filters) initialState
-        Jest.expect(newState.SearchFilters.Tags.Length).toEqual 2
-        Jest.expect(newState.SearchFilters.PathPrefix).toEqual "notes/"
-        Jest.expect(newState.SearchFilters.DateFrom.IsSome).toEqual true
+        Jest.expect(newState.Search.Filters.Tags.Length).toEqual 2
+        Jest.expect(newState.Search.Filters.PathPrefix).toEqual "notes/"
+        Jest.expect(newState.Search.Filters.DateFrom.IsSome).toEqual true
     )
 
     Jest.test (
@@ -2543,4 +2543,193 @@ Jest.test (
       Jest.expect(s.Editor.LineHeight).toEqual 3.0
       Jest.expect(s.Editor.TabSize).toEqual 8
     | None -> failwith "Expected settings to be present"
+)
+
+Jest.describe (
+  "Search State Management",
+  fun () ->
+    Jest.test (
+      "SearchQueryChanged updates query and triggers search",
+      fun () ->
+        let initialState = State.Default
+        let newState, _ = Update (SearchQueryChanged "test query") initialState
+        Jest.expect(newState.Search.Query).toEqual "test query"
+        Jest.expect(newState.Search.IsLoading).toEqual true
+    )
+
+    Jest.test (
+      "SearchResultsReceived updates results and clears loading",
+      fun () ->
+        let initialState = {
+          State.Default with
+              Search = {
+                State.Default.Search with
+                    IsLoading = true
+                    Query = "test"
+              }
+        }
+
+        let testResults = [
+          {
+            NoteId = "note1"
+            Title = "Test Note"
+            Path = "/notes/test.md"
+            Score = 10.5
+            Tags = [ "test"; "sample" ]
+            ModifiedAt = System.DateTime.Now
+            Snippet = "This is a test snippet..."
+          }
+        ]
+
+        let newState, _ = Update (SearchResultsReceived(Ok testResults)) initialState
+        Jest.expect(newState.Search.Results.Length).toEqual 1
+        Jest.expect(newState.Search.IsLoading).toEqual false
+        Jest.expect(newState.Error).toEqual None
+    )
+
+    Jest.test (
+      "SearchResultsReceived handles errors",
+      fun () ->
+        let initialState = {
+          State.Default with
+              Search = {
+                State.Default.Search with
+                    IsLoading = true
+                    Query = "test"
+              }
+        }
+
+        let newState, _ = Update (SearchResultsReceived(Error "Search failed")) initialState
+        Jest.expect(newState.Search.IsLoading).toEqual false
+        Jest.expect(newState.Error).toEqual (Some "Search failed")
+    )
+
+    Jest.test (
+      "SearchCleared resets search state",
+      fun () ->
+        let initialState = {
+          State.Default with
+              Search = {
+                Query = "test query"
+                Results = [
+                  {
+                    NoteId = "note1"
+                    Title = "Test"
+                    Path = "/test.md"
+                    Score = 5.0
+                    Tags = []
+                    ModifiedAt = System.DateTime.Now
+                    Snippet = "snippet"
+                  }
+                ]
+                IsLoading = false
+                Filters = State.Default.Search.Filters
+              }
+        }
+
+        let newState, _ = Update SearchCleared initialState
+        Jest.expect(newState.Search.Query).toEqual ""
+        Jest.expect(newState.Search.Results.Length).toEqual 0
+        Jest.expect(newState.Search.IsLoading).toEqual false
+    )
+
+    Jest.test (
+      "UpdateSearchQuery updates query without triggering search",
+      fun () ->
+        let initialState = State.Default
+        let newState, _ = Update (UpdateSearchQuery "new query") initialState
+        Jest.expect(newState.Search.Query).toEqual "new query"
+        Jest.expect(newState.Search.IsLoading).toEqual false
+    )
+
+    Jest.test (
+      "PerformSearch sets loading state and initiates search",
+      fun () ->
+        let initialState = {
+          State.Default with
+              Search = { State.Default.Search with Query = "test" }
+        }
+
+        let newState, _ = Update PerformSearch initialState
+        Jest.expect(newState.Search.IsLoading).toEqual true
+    )
+
+    Jest.test (
+      "UpdateSearchFilters updates search filters",
+      fun () ->
+        let initialState = State.Default
+
+        let newFilters = {
+          Tags = [ "tag1"; "tag2" ]
+          PathPrefix = "/notes/"
+          DateFrom = Some(System.DateTime(2024, 1, 1))
+          DateTo = Some(System.DateTime(2024, 12, 31))
+        }
+
+        let newState, _ = Update (UpdateSearchFilters newFilters) initialState
+        Jest.expect(newState.Search.Filters.Tags.Length).toEqual 2
+        Jest.expect(newState.Search.Filters.PathPrefix).toEqual "/notes/"
+        Jest.expect(newState.Search.Filters.DateFrom.IsSome).toEqual true
+        Jest.expect(newState.Search.Filters.DateTo.IsSome).toEqual true
+    )
+
+    Jest.test (
+      "SearchCompleted (deprecated) updates results",
+      fun () ->
+        let initialState = State.Default
+
+        let testResults = [
+          {
+            NoteId = "note1"
+            Title = "Result 1"
+            Path = "/note1.md"
+            Score = 8.0
+            Tags = [ "test" ]
+            ModifiedAt = System.DateTime.Now
+            Snippet = "Test snippet"
+          }
+        ]
+
+        let newState, _ = Update (SearchCompleted(Ok testResults)) initialState
+        Jest.expect(newState.Search.Results.Length).toEqual 1
+        Jest.expect(newState.Search.IsLoading).toEqual false
+    )
+
+    Jest.test (
+      "Search with empty query",
+      fun () ->
+        let initialState = {
+          State.Default with
+              Search = { State.Default.Search with Query = "" }
+        }
+
+        let newState, _ = Update PerformSearch initialState
+        Jest.expect(newState.Search.IsLoading).toEqual true
+    )
+
+    Jest.test (
+      "Search results preserve snippet data",
+      fun () ->
+        let initialState = {
+          State.Default with
+              Search = { State.Default.Search with IsLoading = true }
+        }
+
+        let snippet = "This is a longer test snippet that should be preserved"
+
+        let testResults = [
+          {
+            NoteId = "note1"
+            Title = "Test Note"
+            Path = "/test.md"
+            Score = 10.0
+            Tags = []
+            ModifiedAt = System.DateTime.Now
+            Snippet = snippet
+          }
+        ]
+
+        let newState, _ = Update (SearchResultsReceived(Ok testResults)) initialState
+        Jest.expect(newState.Search.Results.[0].Snippet).toEqual snippet
+    )
 )

@@ -82,7 +82,7 @@ let getKeyPattern (e : KeyboardEvent) : KeyPattern =
 let handleKeydown (e : KeyboardEvent) : Msg option =
   match getKeyPattern e with
   | CmdCtrl "n" -> Some(ShowModal CreateNoteDialog)
-  | CmdCtrl "k" -> Some(ShowModal SearchDialog)
+  | CmdCtrl "k" -> Some(TogglePanel Panel.SearchPanel)
   | CmdCtrl "s" -> Some SaveNoteExplicitly
   | CmdCtrl "z" -> Some Undo
   | CmdCtrl "b" -> Some FormatBold
@@ -144,8 +144,8 @@ let getAllShortcuts () : ShortcutHelp list =
     }
     {
       Keys = $"{cmdKey}+K"
-      Description = "Open search/command palette"
-      Category = "Navigation"
+      Description = "Toggle search panel"
+      Category = "Panels"
     }
     {
       Keys = $"{cmdKey}+Shift+L"

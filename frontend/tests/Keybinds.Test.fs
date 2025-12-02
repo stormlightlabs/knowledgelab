@@ -28,11 +28,11 @@ Jest.describe (
     )
 
     Jest.test (
-      "Cmd/Ctrl+K opens search dialog",
+      "Cmd/Ctrl+K toggles search panel",
       fun () ->
         let event = createKeyEvent "k" true false false false
         let result = handleKeydown event
-        Jest.expect(result).toEqual (Some(ShowModal SearchDialog))
+        Jest.expect(result).toEqual (Some(TogglePanel Panel.SearchPanel))
     )
 
     Jest.test (

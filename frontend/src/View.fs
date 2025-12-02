@@ -513,6 +513,117 @@ module NoteEditor =
       ]
     ]
 
+module SearchPanel =
+  /// Renders a search result item
+  let private searchResultItem (result : SearchResult) (dispatch : Msg -> unit) =
+    Html.div [
+      prop.key result.NoteId
+      prop.className "p-3 hover:bg-base02 cursor-pointer border-b border-base02 transition-all"
+      prop.onClick (fun _ -> dispatch (SelectNote result.NoteId))
+      prop.children [
+        Html.div [ prop.className "font-medium text-base05 mb-1"; prop.text result.Title ]
+        Html.div [ prop.className "text-xs text-base03 mb-1"; prop.text result.Path ]
+        if result.Snippet <> "" then
+          Html.div [
+            prop.className "text-sm text-base04 mt-1 line-clamp-2"
+            prop.text result.Snippet
+          ]
+        if not (List.isEmpty result.Tags) then
+          Html.div [
+            prop.className "flex gap-1 mt-2 flex-wrap"
+            prop.children (
+              result.Tags
+              |> List.map (fun tag ->
+                Html.span [
+                  prop.key tag
+                  prop.className "text-xs bg-blue text-base00 px-2 py-0.5 rounded"
+                  prop.text $"#{tag}"
+                ])
+            )
+          ]
+      ]
+    ]
+
+  /// Renders the search panel
+  let Render (state : State) (dispatch : Msg -> unit) =
+    Html.div [
+      prop.className "w-80 bg-base01 border-l border-base02 flex flex-col h-full default-transition"
+      prop.children [
+        Html.div [
+          prop.className "p-4 border-b border-base02 shrink-0"
+          prop.children [
+            Html.h2 [ prop.className "font-bold text-lg text-base05 mb-3"; prop.text "Search" ]
+            Html.div [
+              prop.className "relative"
+              prop.children [
+                Html.input [
+                  prop.type' "text"
+                  prop.className
+                    "w-full px-3 py-2 pr-20 bg-base00 text-base05 border border-base02 rounded focus:outline-none focus:border-blue transition-colors"
+                  prop.placeholder "Search notes..."
+                  prop.value state.Search.Query
+                  prop.onChange (fun (value : string) -> dispatch (SearchQueryChanged value))
+                ]
+                if state.Search.Query <> "" then
+                  Html.button [
+                    prop.className
+                      "absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs bg-base02 hover:bg-red text-base04 hover:text-base00 rounded transition-all"
+                    prop.text "Clear"
+                    prop.onClick (fun _ -> dispatch SearchCleared)
+                  ]
+              ]
+            ]
+            if state.Search.IsLoading then
+              Html.div [ prop.className "text-xs text-base03 mt-2"; prop.text "Searching..." ]
+            elif state.Search.Query <> "" then
+              Html.div [
+                prop.className "text-xs text-base03 mt-2"
+                prop.text $"{state.Search.Results.Length} results"
+              ]
+          ]
+        ]
+
+        if state.Search.Query = "" then
+          Html.div [
+            prop.className "flex-1 flex items-center justify-center p-4"
+            prop.children [
+              Html.div [
+                prop.className "text-center text-base03 text-sm"
+                prop.children [
+                  Html.div [ prop.text "Type to search..." ]
+                  Html.div [ prop.className "mt-2 text-xs"; prop.text "Press Cmd/Ctrl+K to focus" ]
+                ]
+              ]
+            ]
+          ]
+        elif state.Search.IsLoading then
+          Html.div [
+            prop.className "flex-1 flex items-center justify-center p-4"
+            prop.children [
+              Html.div [ prop.className "text-base03 text-sm"; prop.text "Loading results..." ]
+            ]
+          ]
+        elif List.isEmpty state.Search.Results then
+          Html.div [
+            prop.className "flex-1 flex items-center justify-center p-4"
+            prop.children [
+              Html.div [
+                prop.className "text-center text-base03 text-sm"
+                prop.children [
+                  Html.div [ prop.text "No results found" ]
+                  Html.div [ prop.className "mt-2 text-xs"; prop.text $"Try a different query" ]
+                ]
+              ]
+            ]
+          ]
+        else
+          Html.div [
+            prop.className "flex-1 overflow-y-auto min-h-0"
+            prop.children (state.Search.Results |> List.map (fun r -> searchResultItem r dispatch))
+          ]
+      ]
+    ]
+
 module TagsPanel =
   /// Renders a tag item with count and selection state
   let private tagItem (tagInfo : TagInfo) (isSelected : bool) (dispatch : Msg -> unit) =
@@ -1200,6 +1311,16 @@ module NavigationBar =
           )
           prop.onClick (fun _ -> dispatch (TogglePanel TagsPanel))
         ]
+        Html.button [
+          prop.className "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
+          prop.text (
+            if state.VisiblePanels.Contains SearchPanel then
+              "Hide Search"
+            else
+              "Show Search"
+          )
+          prop.onClick (fun _ -> dispatch (TogglePanel SearchPanel))
+        ]
       ]
     ]
 
@@ -1294,6 +1415,17 @@ module App =
                 prop.key "tags-panel"
                 prop.className "default-transition"
                 prop.children [ TagsPanel.Render state dispatch ]
+              ]
+
+            if
+              state.VisiblePanels.Contains SearchPanel
+              && state.CurrentRoute <> WorkspacePicker
+              && state.CurrentRoute <> Settings
+            then
+              Html.div [
+                prop.key "search-panel"
+                prop.className "default-transition"
+                prop.children [ SearchPanel.Render state dispatch ]
               ]
           ]
         ]

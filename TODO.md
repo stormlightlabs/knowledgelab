@@ -41,14 +41,11 @@ Implemented tag parsing, indexing, and browsing with a filtering UI.
 
 ### Block-Based Outliner
 
-- Block ID support with parsing, generation (UUID v4), and round-trip preservation of Logseq-style block IDs.
-- Block operations including indentation (Tab/Shift+Tab), arrow key navigation, and focus/zoom state tracking.
+Block ID support (UUID v4), parsing, round-trip preservation, indentation (Tab/Shift+Tab), arrow key navigation, and focus/zoom state tracking.
 
 ### Task Management
 
-- Task parsing with support for unchecked (`- [ ]`) and completed (`- [x]`) task syntax, distinguished from regular list items.
-- Task state tracking with completion toggling via checkbox click or keyboard shortcut, including created and completed date metadata.
-- Task views with aggregation panel showing all tasks across notes, filterable by completion status, note, and date ranges.
+Task parsing (`- [ ]` / `- [x]`), completion toggling (checkbox/keyboard), date metadata tracking, aggregation panel with filtering by status/note/date.
 
 ## Markdown Dialect & Syntax
 
@@ -80,33 +77,14 @@ The following features are deferred to future releases after v1 launch:
 
 ## MVP Roadmap
 
-**State Management (Model.fs)**: Search state, editor state (preview, cursor, selection), UI state (panels, modals), and keyboard shortcut handlers (`Keybinds.fs`).
+**State Management (Model.fs)**: search state, editor state (preview, cursor, selection, history), UI state (panels, modals), and keyboard shortcuts.
 
 ### Core Functionality
 
 #### Search & Discovery: Core Infrastructure
 
-- Backend
-  - [x] Backend BM25 search index:
-    - [x] Implement BM25 scoring engine in `backend/service/search`
-    - [x] Index note titles, content, and frontmatter on workspace load
-  - [x] Fuzzy matching & typo tolerance:
-    - [x] Integrate edit distance scoring for query terms
-    - [x] Boost exact matches over fuzzy matches in ranking
-  - [x] Backend search query API:
-    - [x] Add `Search(query, limit)` method to Wails bindings
-    - [x] Return ranked results with scores and matched snippets
-
-- Frontend
-  - [ ] Search state management:
-    - [ ] Define `SearchState` type with query, results, loading states
-    - [ ] Add search messages (`SearchQueryChanged`, `SearchResultsReceived`, `SearchCleared`)
-  - [ ] Basic search UI component:
-    - [ ] Search input box in sidebar with clear button
-    - [x] Keyboard shortcut (Cmd/Ctrl+K) to focus search
-  - [ ] Search results list renderer:
-    - [ ] Render results list below search input
-    - [ ] Handle click to open note in editor
+BM25 search engine with fuzzy matching, edit distance scoring, indexed titles/content/frontmatter,
+SearchState with loading states, search panel UI (Cmd/Ctrl+K), results rendering with snippets/tags, and click-to-open functionality.
 
 #### Search UX & Discovery
 
@@ -125,7 +103,8 @@ The following features are deferred to future releases after v1 launch:
 
 #### Editor
 
-- [x] Editor with formatting shortcuts, cursor tracking, preview mode, split view, toolbar, status bar, and Shiki syntax highlighting.
+Formatting shortcuts (bold/italic/code/links/headings), cursor tracking, preview modes (edit/split/preview), toolbar, status bar, and Shiki syntax highlighting.
+
 - [ ] Wikilink autocomplete dropdown
 
 #### Settings
@@ -152,7 +131,7 @@ The following features are deferred to future releases after v1 launch:
 
 ### History Stack
 
-Undo/redo with keyboard shortcuts, toolbar buttons, per-note history preservation, and change tracking
+Undo/redo (Cmd/Ctrl+Z/Shift+Z), toolbar buttons, per-note history preservation, and change tracking with timestamps.
 
 ## Parking Lot
 
@@ -170,9 +149,7 @@ Undo/redo with keyboard shortcuts, toolbar buttons, per-note history preservatio
 
 ## Configuration
 
-TOML-based settings and workspace snapshots with SQLite graph database, debounced saves (800ms).
-
-User-level config (XDG/AppData) and workspace-level config (`.knowledgelab/`) with `backend/paths` package, Wails integration, and comprehensive tests.
+TOML-based settings, workspace snapshots with debounced saves (800ms), user-level (XDG/AppData) and workspace-level config (`.knowledgelab/`), and a SQLite graph database.
 
 ## Base16 Theming Engine
 

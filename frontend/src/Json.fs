@@ -137,6 +137,7 @@ let searchResultDecoder : Decoder<SearchResult> =
     Score = get.Required.Field "score" Decode.float
     Tags = get.Required.Field "tags" (Decode.list Decode.string)
     ModifiedAt = get.Required.Field "modifiedAt" Decode.datetimeUtc
+    Snippet = get.Optional.Field "snippet" Decode.string |> Option.defaultValue ""
   })
 
 /// Decodes a Workspace from JSON

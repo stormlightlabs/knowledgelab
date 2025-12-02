@@ -29,6 +29,14 @@ type SearchFilters = {
   DateTo : DateTime option
 }
 
+/// Search state holds all search-related data and UI state
+type SearchState = {
+  Query : string
+  Results : SearchResult list
+  IsLoading : bool
+  Filters : SearchFilters
+}
+
 /// Tag filtering mode for multi-tag selection
 type TagFilterMode =
   /// Notes must have ALL selected tags
@@ -91,9 +99,7 @@ type State = {
   CurrentRoute : Route
   CurrentUrl : string list
   VisiblePanels : Set<Panel>
-  SearchQuery : string
-  SearchFilters : SearchFilters
-  SearchResults : SearchResult list
+  Search : SearchState
   Graph : Graph option
   SelectedNode : string option
   HoveredNode : string option
@@ -128,14 +134,17 @@ type State = {
     CurrentRoute = WorkspacePicker
     CurrentUrl = []
     VisiblePanels = Set.ofList [ Backlinks ]
-    SearchQuery = ""
-    SearchFilters = {
-      Tags = []
-      PathPrefix = ""
-      DateFrom = None
-      DateTo = None
+    Search = {
+      Query = ""
+      Results = []
+      IsLoading = false
+      Filters = {
+        Tags = []
+        PathPrefix = ""
+        DateFrom = None
+        DateTo = None
+      }
     }
-    SearchResults = []
     Graph = None
     SelectedNode = None
     HoveredNode = None
@@ -211,6 +220,9 @@ type Msg =
   | NoteDeleted of Result<unit, string>
   | NavigateTo of Route
   | TogglePanel of Panel
+  | SearchQueryChanged of query : string
+  | SearchResultsReceived of Result<SearchResult list, string>
+  | SearchCleared
   | UpdateSearchQuery of query : string
   | PerformSearch
   | SearchCompleted of Result<SearchResult list, string>
@@ -908,29 +920,48 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
         state.VisiblePanels.Add panel
 
     { state with VisiblePanels = newPanels }, Cmd.none
-  | UpdateSearchQuery query -> { state with SearchQuery = query }, Cmd.none
+  | SearchQueryChanged query ->
+    let newSearch = { state.Search with Query = query; IsLoading = true }
+    { state with Search = newSearch }, Cmd.ofMsg PerformSearch
+  | SearchResultsReceived(Ok results) ->
+    let newSearch = { state.Search with Results = results; IsLoading = false }
+    { state with Search = newSearch; Error = None }, Cmd.none
+  | SearchResultsReceived(Error err) ->
+    let newSearch = { state.Search with IsLoading = false }
+    { state with Search = newSearch; Error = Some err }, Cmd.none
+  | SearchCleared ->
+    let newSearch = {
+      state.Search with
+          Query = ""
+          Results = []
+          IsLoading = false
+    }
+
+    { state with Search = newSearch }, Cmd.none
+  | UpdateSearchQuery query ->
+    let newSearch = { state.Search with Query = query }
+    { state with Search = newSearch }, Cmd.none
   | PerformSearch ->
     let query = {
-      Query = state.SearchQuery
-      Tags = state.SearchFilters.Tags
-      PathPrefix = state.SearchFilters.PathPrefix
-      DateFrom = state.SearchFilters.DateFrom
-      DateTo = state.SearchFilters.DateTo
+      Query = state.Search.Query
+      Tags = state.Search.Filters.Tags
+      PathPrefix = state.Search.Filters.PathPrefix
+      DateFrom = state.Search.Filters.DateFrom
+      DateTo = state.Search.Filters.DateTo
       Limit = 50
     }
 
-    { state with Loading = true },
-    Cmd.OfPromise.either Api.search query (safeArrayToList >> Ok >> SearchCompleted) (fun ex ->
-      SearchCompleted(Error ex.Message))
+    let newSearch = { state.Search with IsLoading = true }
+
+    { state with Search = newSearch },
+    Cmd.OfPromise.either Api.search query (safeArrayToList >> Ok >> SearchResultsReceived) (fun ex ->
+      SearchResultsReceived(Error ex.Message))
   | SearchCompleted(Ok results) ->
-    {
-      state with
-          SearchResults = results
-          Loading = false
-          Error = None
-    },
-    Cmd.none
-  | SearchCompleted(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
+    let newSearch = { state.Search with Results = results; IsLoading = false }
+    { state with Search = newSearch; Error = None }, Cmd.none
+  | SearchCompleted(Error err) ->
+    let newSearch = { state.Search with IsLoading = false }
+    { state with Search = newSearch; Error = Some err }, Cmd.none
   | LoadGraph ->
     { state with Loading = true },
     Cmd.OfPromise.either Api.getGraph () (Ok >> GraphLoaded) (fun ex -> GraphLoaded(Error ex.Message))
@@ -1057,7 +1088,9 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     | None -> state, Cmd.none
   | WorkspaceSnapshotSaved(Ok()) -> { state with Error = None }, Cmd.none
   | WorkspaceSnapshotSaved(Error err) -> { state with Error = Some err }, Cmd.none
-  | UpdateSearchFilters filters -> { state with SearchFilters = filters }, Cmd.none
+  | UpdateSearchFilters filters ->
+    let newSearch = { state.Search with Filters = filters }
+    { state with Search = newSearch }, Cmd.none
   | SetPreviewMode mode ->
     let newState = {
       state with

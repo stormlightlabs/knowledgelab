@@ -42,7 +42,19 @@ type PreviewMode =
   | PreviewOnly
   | SplitView
 
-/// Editor state including preview mode, cursor position, and selection
+/// Snapshot of editor content and cursor state for undo/redo
+type EditorSnapshot = {
+  Content : string
+  CursorPosition : int option
+  SelectionStart : int option
+  SelectionEnd : int option
+}
+
+/// Maximum number of undo/redo history entries to maintain
+[<Literal>]
+let MaxHistorySize = 100
+
+/// Editor state including preview mode, cursor position, selection, and undo/redo stacks
 type EditorState = {
   PreviewMode : PreviewMode
   CursorPosition : int option
@@ -51,6 +63,9 @@ type EditorState = {
   IsDirty : bool
   RenderedPreview : string option
   FocusedBlock : string option
+  UndoStack : EditorSnapshot list
+  RedoStack : EditorSnapshot list
+  LastChangeTimestamp : DateTime option
 }
 
 /// Modal dialog types that can be shown
@@ -154,6 +169,9 @@ type State = {
       IsDirty = false
       RenderedPreview = None
       FocusedBlock = None
+      UndoStack = []
+      RedoStack = []
+      LastChangeTimestamp = None
     }
     UIState = {
       SidebarWidth = 280
@@ -248,6 +266,9 @@ type Msg =
   | LoadTasksForNote of noteId : string
   | TasksLoaded of Result<TaskInfo, string>
   | UpdateTaskFilter of TaskFilter
+  | PushEditorSnapshot
+  | Undo
+  | Redo
 
 /// Debounce delay in milliseconds
 [<Literal>]
@@ -517,6 +538,48 @@ let private navigateBlock (content : string) (cursorPosition : int option) (dire
     else
       Some pos
   | None -> None
+
+/// Creates an editor snapshot from current note and editor state
+let private createEditorSnapshot (note : Note) (editorState : EditorState) : EditorSnapshot = {
+  Content = note.Content
+  CursorPosition = editorState.CursorPosition
+  SelectionStart = editorState.SelectionStart
+  SelectionEnd = editorState.SelectionEnd
+}
+
+/// Pushes a snapshot to the undo stack, maintaining max size
+let private pushToUndoStack (snapshot : EditorSnapshot) (undoStack : EditorSnapshot list) : EditorSnapshot list =
+  (snapshot :: undoStack) |> List.truncate MaxHistorySize
+
+/// Restores editor and note state from a snapshot
+let private restoreFromSnapshot
+  (snapshot : EditorSnapshot)
+  (note : Note)
+  (editorState : EditorState)
+  : Note * EditorState =
+  let restoredNote = { note with Content = snapshot.Content }
+
+  let restoredEditorState = {
+    editorState with
+        CursorPosition = snapshot.CursorPosition
+        SelectionStart = snapshot.SelectionStart
+        SelectionEnd = snapshot.SelectionEnd
+        IsDirty = true
+  }
+
+  (restoredNote, restoredEditorState)
+
+/// Debounce delay for grouping rapid edits (in milliseconds)
+[<Literal>]
+let private EditGroupingDelayMs = 1000
+
+/// Checks if two timestamps are within the edit grouping window
+let private shouldGroupEdits (lastChange : DateTime option) (currentTime : DateTime) : bool =
+  match lastChange with
+  | Some lastTime ->
+    let elapsed = (currentTime - lastTime).TotalMilliseconds
+    elapsed < float EditGroupingDelayMs
+  | None -> false
 
 /// Updates the workspace snapshot with a new recent page and triggers save
 let private updateRecentPage (noteId : string) (state : State) : State * Cmd<Msg> =
@@ -879,7 +942,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
             CurrentNote = Some updatedNote
             EditorState = { state.EditorState with IsDirty = true }
       },
-      Cmd.ofMsg (SaveNote updatedNote)
+      Cmd.batch [ Cmd.ofMsg PushEditorSnapshot; Cmd.ofMsg (SaveNote updatedNote) ]
     | None -> state, Cmd.none
   | GraphNodeHovered nodeId -> { state with HoveredNode = nodeId }, Cmd.none
   | GraphZoomChanged zoomState -> { state with ZoomState = zoomState }, Cmd.none
@@ -1206,3 +1269,70 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     Cmd.none
   | TasksLoaded(Error err) -> { state with IsLoadingTasks = false; Error = Some err }, Cmd.none
   | UpdateTaskFilter filter -> { state with TaskFilter = filter }, Cmd.ofMsg LoadAllTasks
+  | PushEditorSnapshot ->
+    match state.CurrentNote with
+    | Some note ->
+      let currentTime = DateTime.Now
+      let snapshot = createEditorSnapshot note state.EditorState
+
+      if shouldGroupEdits state.EditorState.LastChangeTimestamp currentTime then
+        {
+          state with
+              EditorState = {
+                state.EditorState with
+                    LastChangeTimestamp = Some currentTime
+              }
+        },
+        Cmd.none
+      else
+        {
+          state with
+              EditorState = {
+                state.EditorState with
+                    UndoStack = pushToUndoStack snapshot state.EditorState.UndoStack
+                    RedoStack = []
+                    LastChangeTimestamp = Some currentTime
+              }
+        },
+        Cmd.none
+    | None -> state, Cmd.none
+  | Undo ->
+    match state.CurrentNote, state.EditorState.UndoStack with
+    | Some note, head :: tail ->
+      let currentSnapshot = createEditorSnapshot note state.EditorState
+
+      let restoredNote, restoredEditorState =
+        restoreFromSnapshot head note state.EditorState
+
+      {
+        state with
+            CurrentNote = Some restoredNote
+            EditorState = {
+              restoredEditorState with
+                  UndoStack = tail
+                  RedoStack = currentSnapshot :: state.EditorState.RedoStack
+                  LastChangeTimestamp = Some DateTime.Now
+            }
+      },
+      Cmd.ofMsg (SaveNote restoredNote)
+    | _ -> state, Cmd.none
+  | Redo ->
+    match state.CurrentNote, state.EditorState.RedoStack with
+    | Some note, head :: tail ->
+      let currentSnapshot = createEditorSnapshot note state.EditorState
+
+      let restoredNote, restoredEditorState =
+        restoreFromSnapshot head note state.EditorState
+
+      {
+        state with
+            CurrentNote = Some restoredNote
+            EditorState = {
+              restoredEditorState with
+                  UndoStack = currentSnapshot :: state.EditorState.UndoStack
+                  RedoStack = tail
+                  LastChangeTimestamp = Some DateTime.Now
+            }
+      },
+      Cmd.ofMsg (SaveNote restoredNote)
+    | _ -> state, Cmd.none

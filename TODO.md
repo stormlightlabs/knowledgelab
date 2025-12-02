@@ -139,7 +139,33 @@ The following features are deferred to future releases after v1 launch:
 - [ ] Confirmation dialogs for destructive actions
 - [ ] Resizable panels (sidebar, backlinks panel)
 - [ ] Focus management for keyboard navigation
-- [ ] Implement undo/redo for editor
+
+### History Stack
+
+- [x] History stack data structures:
+  - [x] Add undo/redo stacks to Model for editor content and cursor position.
+  - [x] Configure max history size (default: 100 entries).
+- [x] Change tracking:
+  - [x] Push current state to undo stack on content edits.
+  - [x] Debounce rapid edits to group keystrokes.
+  - [x] Clear redo stack when new edit is made.
+- [x] Undo/Redo messages and update logic:
+  - [x] Implement `Undo` message (pop undo stack, push to redo stack).
+  - [x] Implement `Redo` message (pop redo stack, push to undo stack).
+  - [x] Restore content and cursor position on undo/redo.
+- [ ] Keyboard shortcuts:
+  - [ ] Add Cmd/Ctrl+Z for undo in Keybinds.fs.
+  - [ ] Add Cmd/Ctrl+Shift+Z for redo in Keybinds.fs.
+- [ ] UI integration:
+  - [ ] Enable/disable undo/redo toolbar buttons based on stack state.
+  - [ ] Display undo/redo availability in editor status bar.
+- [ ] Edge case handling:
+  - [ ] Preserve undo history per-note across note switches.
+  - [ ] Optional: clear history on explicit save.
+- [x] Tests:
+  - [x] Test undo/redo state transitions.
+  - [x] Test redo stack clearing on new edits.
+  - [x] Test cursor position restoration.
 
 ## Parking Lot
 
@@ -162,8 +188,27 @@ User-level config (XDG/AppData) and workspace-level config (`.knowledgelab/`) wi
 
 ## Base16 Theming Engine
 
-- [ ] Refactor existing styling to only use `--color-base0X` variables
-  - [ ] Retain any required colors to move into base24 territory
-- [ ] Document (publicly in `docs/theming.md`) how to customize the colors of the application
-- [ ] Store override color variable values in user settings
-- [ ] Settings UI for theming
+- [ ] Color variable audit:
+  - [ ] Survey existing CSS for all color values.
+  - [ ] Map current colors to base16 semantic roles (base00-base0F).
+  - [ ] Identify additional colors needed for base24 extension.
+- [ ] Base16 variable migration:
+  - [ ] Replace hardcoded colors with `--color-base0X` CSS variables.
+  - [ ] Define semantic color mappings (background, foreground, accents).
+  - [ ] Ensure all UI components use base16 variables consistently.
+- [ ] Theme file support:
+  - [ ] Parse base16 theme files (YAML format).
+  - [ ] Load bundled default themes (light, dark variants) & support user-provided theme files from config directory.
+- [ ] Settings integration:
+  - [ ] Store selected theme name & color override values in user settings.
+  - [ ] Apply theme on app startup and settings changes.
+- [ ] Theme picker UI:
+  - [ ] Add theme selector dropdown in settings panel.
+  - [ ] Display theme preview (live before saving) with sample colors.
+- [ ] Color customization UI:
+  - [ ] Add color picker for individual base16 color overrides with ability to reset to theme or color to default (Iceberg.vim).
+  - [ ] Export custom theme as YAML file.
+- [ ] Documentation (`docs/theming.md`):
+  - [ ] base16 color role descriptions.
+  - [ ] Document theme file format and location.
+  - [ ] Provide examples of custom theme creation.

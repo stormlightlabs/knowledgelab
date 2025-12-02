@@ -153,19 +153,19 @@ The following features are deferred to future releases after v1 launch:
   - [x] Implement `Undo` message (pop undo stack, push to redo stack).
   - [x] Implement `Redo` message (pop redo stack, push to undo stack).
   - [x] Restore content and cursor position on undo/redo.
-- [ ] Keyboard shortcuts:
-  - [ ] Add Cmd/Ctrl+Z for undo in Keybinds.fs.
-  - [ ] Add Cmd/Ctrl+Shift+Z for redo in Keybinds.fs.
+- [x] Keyboard shortcuts:
+  - [x] Add Cmd/Ctrl+Z for undo in Keybinds.fs.
+  - [x] Add Cmd/Ctrl+Shift+Z for redo in Keybinds.fs.
 - [ ] UI integration:
-  - [ ] Enable/disable undo/redo toolbar buttons based on stack state.
-  - [ ] Display undo/redo availability in editor status bar.
-- [ ] Edge case handling:
-  - [ ] Preserve undo history per-note across note switches.
-  - [ ] Optional: clear history on explicit save.
+  - [ ] Enable/disable undo/redo toolbar buttons based on stack state
+- [x] Edge case handling:
+  - [x] Preserve undo history per-note across note switches.
+  - [ ] Clear history on explicit save.
 - [x] Tests:
   - [x] Test undo/redo state transitions.
   - [x] Test redo stack clearing on new edits.
   - [x] Test cursor position restoration.
+  - [x] Test per-note history preservation across note switches.
 
 ## Parking Lot
 
@@ -174,6 +174,7 @@ The following features are deferred to future releases after v1 launch:
 - [ ] Add `go test ./...` CI job.
 - [x] Test serialization/deserialization of models used in Wails calls.
 - [ ] Virtualization for large note lists (>100 notes)
+- [ ] Keybind help screen/view
 
 ### Command Palette
 

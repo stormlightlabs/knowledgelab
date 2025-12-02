@@ -113,6 +113,7 @@ type State = {
   SnapshotSaveTimer : int option
   EditorState : EditorState
   UIState : UIState
+  NoteHistories : Map<string, EditorSnapshot list * EditorSnapshot list>
   Loading : bool
   Error : string option
   Success : string option
@@ -178,6 +179,7 @@ type State = {
       RightPanelWidth = 300
       ActiveModal = NoModal
     }
+    NoteHistories = Map.empty
     Loading = false
     Error = None
     Success = None
@@ -581,6 +583,32 @@ let private shouldGroupEdits (lastChange : DateTime option) (currentTime : DateT
     elapsed < float EditGroupingDelayMs
   | None -> false
 
+/// Saves the current note's undo/redo stacks to the per-note history map
+let private saveCurrentNoteHistory (state : State) : State =
+  match state.CurrentNote with
+  | Some note ->
+    let history = (state.EditorState.UndoStack, state.EditorState.RedoStack)
+
+    {
+      state with
+          NoteHistories = state.NoteHistories.Add(note.Id, history)
+    }
+  | None -> state
+
+/// Restores undo/redo stacks from the per-note history map for a specific note
+let private restoreNoteHistory
+  (noteId : string)
+  (editorState : EditorState)
+  (noteHistories : Map<string, EditorSnapshot list * EditorSnapshot list>)
+  : EditorState =
+  match noteHistories.TryFind noteId with
+  | Some(undoStack, redoStack) -> {
+      editorState with
+          UndoStack = undoStack
+          RedoStack = redoStack
+    }
+  | None -> { editorState with UndoStack = []; RedoStack = [] }
+
 /// Updates the workspace snapshot with a new recent page and triggers save
 let private updateRecentPage (noteId : string) (state : State) : State * Cmd<Msg> =
   if String.IsNullOrWhiteSpace noteId then
@@ -720,7 +748,9 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   | SelectNote noteId ->
     Browser.Dom.console.log ("SelectNote - Requesting note:", noteId)
 
-    { state with Loading = true },
+    let stateWithSavedHistory = saveCurrentNoteHistory state
+
+    { stateWithSavedHistory with Loading = true },
     Cmd.OfPromise.either Api.getNote noteId (Ok >> NoteLoaded) (fun ex -> NoteLoaded(Error ex.Message))
   | OpenRecentFile(workspacePath, noteId) ->
     let trimmedWorkspace = if isNull workspacePath then "" else workspacePath.Trim()
@@ -780,13 +810,18 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
 
     Browser.Dom.console.log ("  Content preview:", note.Content.Substring(0, min 100 note.Content.Length))
 
+    let baseEditorState = { state.EditorState with IsDirty = false }
+
+    let restoredEditorState =
+      restoreNoteHistory note.Id baseEditorState state.NoteHistories
+
     let stateWithNote = {
       state with
           CurrentNote = Some note
           CurrentRoute = NoteEditor note.Id
           Loading = false
           Error = None
-          EditorState = { state.EditorState with IsDirty = false }
+          EditorState = restoredEditorState
     }
 
     let stateWithRecent, recentCmd = updateRecentPage note.Id stateWithNote

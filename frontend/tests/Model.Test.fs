@@ -1841,6 +1841,198 @@ Jest.describe (
         Jest.expect(stateAfterSnapshot.EditorState.UndoStack.Length).toEqual 1
         Jest.expect(stateAfterSnapshot.EditorState.UndoStack.[0].Content).toEqual "New content"
     )
+
+    Jest.test (
+      "SelectNote saves current note's undo/redo history",
+      fun () ->
+        let currentNote = {
+          Id = "current-note-id"
+          Title = "Current Note"
+          Path = "/current"
+          Content = "Current content"
+          Frontmatter = Map.empty
+          Aliases = []
+          Type = ""
+          Blocks = []
+          Links = []
+          Tags = []
+          CreatedAt = System.DateTime.Now
+          ModifiedAt = System.DateTime.Now
+        }
+
+        let undoSnapshot = {
+          Content = "Old content"
+          CursorPosition = Some 5
+          SelectionStart = None
+          SelectionEnd = None
+        }
+
+        let redoSnapshot = {
+          Content = "Newer content"
+          CursorPosition = Some 10
+          SelectionStart = None
+          SelectionEnd = None
+        }
+
+        let initialState = {
+          State.Default with
+              CurrentNote = Some currentNote
+              EditorState = {
+                State.Default.EditorState with
+                    UndoStack = [ undoSnapshot ]
+                    RedoStack = [ redoSnapshot ]
+              }
+        }
+
+        let newState, _ = Update (SelectNote "other-note-id") initialState
+
+        match newState.NoteHistories.TryFind "current-note-id" with
+        | Some(savedUndo, savedRedo) ->
+          Jest.expect(savedUndo.Length).toEqual 1
+          Jest.expect(savedUndo.[0].Content).toEqual "Old content"
+          Jest.expect(savedRedo.Length).toEqual 1
+          Jest.expect(savedRedo.[0].Content).toEqual "Newer content"
+        | None -> failwith "Expected note history to be saved"
+    )
+
+    Jest.test (
+      "NoteLoaded restores saved undo/redo history",
+      fun () ->
+        let noteToLoad = {
+          Id = "note-to-load-id"
+          Title = "Note to Load"
+          Path = "/load"
+          Content = "Loaded content"
+          Frontmatter = Map.empty
+          Aliases = []
+          Type = ""
+          Blocks = []
+          Links = []
+          Tags = []
+          CreatedAt = System.DateTime.Now
+          ModifiedAt = System.DateTime.Now
+        }
+
+        let savedUndoSnapshot = {
+          Content = "Saved undo content"
+          CursorPosition = Some 8
+          SelectionStart = Some 5
+          SelectionEnd = Some 10
+        }
+
+        let savedRedoSnapshot = {
+          Content = "Saved redo content"
+          CursorPosition = Some 12
+          SelectionStart = None
+          SelectionEnd = None
+        }
+
+        let noteHistories =
+          Map.empty.Add("note-to-load-id", ([ savedUndoSnapshot ], [ savedRedoSnapshot ]))
+
+        let initialState = { State.Default with NoteHistories = noteHistories }
+
+        let newState, _ = Update (NoteLoaded(Ok noteToLoad)) initialState
+
+        Jest.expect(newState.EditorState.UndoStack.Length).toEqual 1
+        Jest.expect(newState.EditorState.UndoStack.[0].Content).toEqual "Saved undo content"
+        Jest.expect(newState.EditorState.UndoStack.[0].CursorPosition).toEqual (Some 8)
+        Jest.expect(newState.EditorState.RedoStack.Length).toEqual 1
+        Jest.expect(newState.EditorState.RedoStack.[0].Content).toEqual "Saved redo content"
+    )
+
+    Jest.test (
+      "NoteLoaded with no saved history starts with empty stacks",
+      fun () ->
+        let noteToLoad = {
+          Id = "new-note-id"
+          Title = "New Note"
+          Path = "/new"
+          Content = "New content"
+          Frontmatter = Map.empty
+          Aliases = []
+          Type = ""
+          Blocks = []
+          Links = []
+          Tags = []
+          CreatedAt = System.DateTime.Now
+          ModifiedAt = System.DateTime.Now
+        }
+
+        let initialState = { State.Default with NoteHistories = Map.empty }
+
+        let newState, _ = Update (NoteLoaded(Ok noteToLoad)) initialState
+
+        Jest.expect(newState.EditorState.UndoStack.Length).toEqual 0
+        Jest.expect(newState.EditorState.RedoStack.Length).toEqual 0
+    )
+
+    Jest.test (
+      "Switching between notes preserves independent undo histories",
+      fun () ->
+        let note1 = {
+          Id = "note-1"
+          Title = "Note 1"
+          Path = "/note1"
+          Content = "Note 1 content v2"
+          Frontmatter = Map.empty
+          Aliases = []
+          Type = ""
+          Blocks = []
+          Links = []
+          Tags = []
+          CreatedAt = System.DateTime.Now
+          ModifiedAt = System.DateTime.Now
+        }
+
+        let note2 = {
+          Id = "note-2"
+          Title = "Note 2"
+          Path = "/note2"
+          Content = "Note 2 content"
+          Frontmatter = Map.empty
+          Aliases = []
+          Type = ""
+          Blocks = []
+          Links = []
+          Tags = []
+          CreatedAt = System.DateTime.Now
+          ModifiedAt = System.DateTime.Now
+        }
+
+        let note1UndoSnapshot = {
+          Content = "Note 1 content v1"
+          CursorPosition = Some 5
+          SelectionStart = None
+          SelectionEnd = None
+        }
+
+        let stateWithNote1 = {
+          State.Default with
+              CurrentNote = Some note1
+              EditorState = {
+                State.Default.EditorState with
+                    UndoStack = [ note1UndoSnapshot ]
+                    RedoStack = []
+              }
+        }
+
+        let stateAfterSelectNote2, _ = Update (SelectNote "note-2") stateWithNote1
+
+        Jest.expect(stateAfterSelectNote2.NoteHistories.ContainsKey "note-1").toEqual true
+
+        let stateWithNote2Loaded, _ = Update (NoteLoaded(Ok note2)) stateAfterSelectNote2
+
+        Jest.expect(stateWithNote2Loaded.EditorState.UndoStack.Length).toEqual 0
+        Jest.expect(stateWithNote2Loaded.EditorState.RedoStack.Length).toEqual 0
+
+        let stateAfterSelectNote1, _ = Update (SelectNote "note-1") stateWithNote2Loaded
+
+        let stateWithNote1Reloaded, _ = Update (NoteLoaded(Ok note1)) stateAfterSelectNote1
+
+        Jest.expect(stateWithNote1Reloaded.EditorState.UndoStack.Length).toEqual 1
+        Jest.expect(stateWithNote1Reloaded.EditorState.UndoStack.[0].Content).toEqual "Note 1 content v1"
+    )
 )
 
 Jest.describe (

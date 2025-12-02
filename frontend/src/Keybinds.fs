@@ -44,6 +44,7 @@ let isKey (key : string) (e : KeyboardEvent) : bool =
 /// Keyboard shortcut patterns
 type KeyPattern =
   | CmdCtrl of string
+  | CmdCtrlShift of string
   | CtrlShift of string
   | Shift of string
   | Plain of string
@@ -60,6 +61,7 @@ let getKeyPattern (e : KeyboardEvent) : KeyPattern =
       e.ctrlKey
 
   let hasCtrlShift = e.ctrlKey && e.shiftKey && not e.altKey && not e.metaKey
+  let hasCmdCtrlShift = cmdModifier && e.shiftKey && not e.altKey
   let hasShift = e.shiftKey && not e.ctrlKey && not e.altKey && not e.metaKey
   let noModifiers = not e.ctrlKey && not e.shiftKey && not e.altKey && not e.metaKey
 
@@ -67,6 +69,8 @@ let getKeyPattern (e : KeyboardEvent) : KeyPattern =
     CmdCtrl key
   elif hasCtrlShift then
     CtrlShift key
+  elif hasCmdCtrlShift then
+    CmdCtrlShift key
   elif hasShift then
     Shift key
   elif noModifiers then
@@ -80,6 +84,7 @@ let handleKeydown (e : KeyboardEvent) : Msg option =
   | CmdCtrl "n" -> Some(ShowModal CreateNoteDialog)
   | CmdCtrl "k" -> Some(ShowModal SearchDialog)
   | CmdCtrl "s" -> None
+  | CmdCtrl "z" -> Some Undo
   | CmdCtrl "b" -> Some FormatBold
   | CmdCtrl "i" -> Some FormatItalic
   | CmdCtrl "e" -> Some FormatInlineCode
@@ -90,6 +95,8 @@ let handleKeydown (e : KeyboardEvent) : Msg option =
   | CmdCtrl "5" -> Some(SetHeadingLevel 5)
   | CmdCtrl "6" -> Some(SetHeadingLevel 6)
   | CmdCtrl "t" -> Some ToggleTaskAtCursor
+  | CmdCtrlShift "z" -> Some Redo
+  | CtrlShift "z" -> Some Redo
   | CtrlShift "f" -> Some(TogglePanel Panel.SearchPanel)
   | CtrlShift "t" -> Some(TogglePanel Panel.TagsPanel)
   | CtrlShift "x" -> Some(TogglePanel Panel.TasksPanel)
@@ -124,6 +131,16 @@ let getAllShortcuts () : ShortcutHelp list =
       Keys = $"{cmdKey}+S"
       Description = "Save note (auto-saves by default)"
       Category = "File"
+    }
+    {
+      Keys = $"{cmdKey}+Z"
+      Description = "Undo"
+      Category = "Editor"
+    }
+    {
+      Keys = $"{cmdKey}+Shift+Z"
+      Description = "Redo"
+      Category = "Editor"
     }
     {
       Keys = $"{cmdKey}+K"

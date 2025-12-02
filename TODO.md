@@ -119,8 +119,7 @@ The following features are deferred to future releases after v1 launch:
 
 #### Settings
 
-- [x] Settings panel with actual controls (theme picker, font size slider, editor preferences, auto-save, vim mode, spell check)
-- [x] Live preview of settings changes via SettingsChanged message with debounced save
+- Settings panel with controls (theme picker, font size slider, editor preferences, auto-save, vim mode, spell check) and live preview of settings changes via SettingsChanged message with debounced save
 
 #### Notes List
 
@@ -142,30 +141,7 @@ The following features are deferred to future releases after v1 launch:
 
 ### History Stack
 
-- [x] History stack data structures:
-  - [x] Add undo/redo stacks to Model for editor content and cursor position.
-  - [x] Configure max history size (default: 100 entries).
-- [x] Change tracking:
-  - [x] Push current state to undo stack on content edits.
-  - [x] Debounce rapid edits to group keystrokes.
-  - [x] Clear redo stack when new edit is made.
-- [x] Undo/Redo messages and update logic:
-  - [x] Implement `Undo` message (pop undo stack, push to redo stack).
-  - [x] Implement `Redo` message (pop redo stack, push to undo stack).
-  - [x] Restore content and cursor position on undo/redo.
-- [x] Keyboard shortcuts:
-  - [x] Add Cmd/Ctrl+Z for undo in Keybinds.fs.
-  - [x] Add Cmd/Ctrl+Shift+Z for redo in Keybinds.fs.
-- [ ] UI integration:
-  - [ ] Enable/disable undo/redo toolbar buttons based on stack state
-- [x] Edge case handling:
-  - [x] Preserve undo history per-note across note switches.
-  - [ ] Clear history on explicit save.
-- [x] Tests:
-  - [x] Test undo/redo state transitions.
-  - [x] Test redo stack clearing on new edits.
-  - [x] Test cursor position restoration.
-  - [x] Test per-note history preservation across note switches.
+Undo/redo with keyboard shortcuts, toolbar buttons, per-note history preservation, and change tracking
 
 ## Parking Lot
 

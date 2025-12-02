@@ -203,6 +203,8 @@ type Msg =
   | NoteLoaded of Result<Note, string>
   | SaveNote of Note
   | NoteSaved of Result<unit, string>
+  | SaveNoteExplicitly
+  | ExplicitSaveCompleted of Result<unit, string>
   | CreateNote of title : string * folder : string
   | NoteCreated of Result<Note, string>
   | DeleteNote of noteId : string
@@ -835,6 +837,30 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   | NoteSaved(Ok()) ->
     { state with Loading = false; Error = None }, Cmd.batch [ Cmd.ofMsg LoadNotes; Cmd.ofMsg LoadGraph ]
   | NoteSaved(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
+  | SaveNoteExplicitly ->
+    match state.CurrentNote with
+    | Some note ->
+      { state with Loading = true },
+      Cmd.OfPromise.either Api.saveNote note (fun _ -> ExplicitSaveCompleted(Ok())) (fun ex ->
+        ExplicitSaveCompleted(Error ex.Message))
+    | None -> state, Cmd.none
+  | ExplicitSaveCompleted(Ok()) ->
+    let clearedEditorState = {
+      state.EditorState with
+          UndoStack = []
+          RedoStack = []
+          IsDirty = false
+    }
+
+    {
+      state with
+          Loading = false
+          Error = None
+          Success = Some "Note saved"
+          EditorState = clearedEditorState
+    },
+    Cmd.batch [ Cmd.ofMsg LoadNotes; Cmd.ofMsg LoadGraph ]
+  | ExplicitSaveCompleted(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | CreateNote(title, folder) ->
     { state with Loading = true },
     Cmd.OfPromise.either (Api.createNote title) folder (Ok >> NoteCreated) (fun ex -> NoteCreated(Error ex.Message))

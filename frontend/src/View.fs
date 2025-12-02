@@ -234,19 +234,30 @@ module Sidebar =
 
 module NoteEditor =
   module Toolbar =
-    /// Renders a toolbar button with hover state and optional active state
-    let private toolbarButton (label : string) (title : string) (isActive : bool) (onClick : unit -> unit) =
+    /// Renders a toolbar button with hover state, optional active state, and disabled state
+    let private toolbarButton
+      (label : string)
+      (title : string)
+      (isActive : bool)
+      (isDisabled : bool)
+      (onClick : unit -> unit)
+      =
       Html.button [
         prop.className (
           "px-3 py-1.5 rounded text-sm font-medium transition-all "
-          + if isActive then
+          + if isDisabled then
+              "text-base03 cursor-not-allowed opacity-50"
+            elif isActive then
               "bg-blue text-base00"
             else
               "text-base05 hover:bg-base02"
         )
         prop.title title
         prop.text label
-        prop.onClick (fun _ -> onClick ())
+        prop.disabled isDisabled
+        prop.onClick (fun _ ->
+          if not isDisabled then
+            onClick ())
       ]
 
     /// Renders the editor toolbar with formatting buttons and preview toggles
@@ -257,9 +268,9 @@ module NoteEditor =
           Html.div [
             prop.className "flex items-center gap-1"
             prop.children [
-              toolbarButton "B" "Bold (Ctrl/Cmd+B)" false (fun () -> dispatch FormatBold)
-              toolbarButton "I" "Italic (Ctrl/Cmd+I)" false (fun () -> dispatch FormatItalic)
-              toolbarButton "</>" "Code (Ctrl/Cmd+E)" false (fun () -> dispatch FormatInlineCode)
+              toolbarButton "B" "Bold (Ctrl/Cmd+B)" false false (fun () -> dispatch FormatBold)
+              toolbarButton "I" "Italic (Ctrl/Cmd+I)" false false (fun () -> dispatch FormatItalic)
+              toolbarButton "</>" "Code (Ctrl/Cmd+E)" false false (fun () -> dispatch FormatInlineCode)
 
               Html.div [ prop.className "w-px h-6 bg-base02 mx-1" ]
 
@@ -281,6 +292,13 @@ module NoteEditor =
                   Html.option [ prop.value "6"; prop.text "Heading 6" ]
                 ]
               ]
+
+              Html.div [ prop.className "w-px h-6 bg-base02 mx-1" ]
+
+              toolbarButton "↶" "Undo (Ctrl/Cmd+Z)" false (List.isEmpty state.EditorState.UndoStack) (fun () ->
+                dispatch Undo)
+              toolbarButton "↷" "Redo (Ctrl/Cmd+Shift+Z)" false (List.isEmpty state.EditorState.RedoStack) (fun () ->
+                dispatch Redo)
             ]
           ]
 
@@ -289,14 +307,15 @@ module NoteEditor =
           Html.div [
             prop.className "flex items-center gap-1"
             prop.children [
-              toolbarButton "Edit" "Edit Only Mode" (state.EditorState.PreviewMode = EditOnly) (fun () ->
+              toolbarButton "Edit" "Edit Only Mode" (state.EditorState.PreviewMode = EditOnly) false (fun () ->
                 dispatch (SetPreviewMode EditOnly))
-              toolbarButton "Preview" "Preview Only Mode" (state.EditorState.PreviewMode = PreviewOnly) (fun () ->
+              toolbarButton "Preview" "Preview Only Mode" (state.EditorState.PreviewMode = PreviewOnly) false (fun () ->
                 dispatch (SetPreviewMode PreviewOnly))
               toolbarButton
                 "Split"
                 "Split View Mode (Ctrl/Cmd+Shift+P)"
                 (state.EditorState.PreviewMode = SplitView)
+                false
                 (fun () -> dispatch (SetPreviewMode SplitView))
             ]
           ]

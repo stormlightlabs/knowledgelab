@@ -83,7 +83,7 @@ let handleKeydown (e : KeyboardEvent) : Msg option =
   match getKeyPattern e with
   | CmdCtrl "n" -> Some(ShowModal CreateNoteDialog)
   | CmdCtrl "k" -> Some(ShowModal SearchDialog)
-  | CmdCtrl "s" -> None
+  | CmdCtrl "s" -> Some SaveNoteExplicitly
   | CmdCtrl "z" -> Some Undo
   | CmdCtrl "b" -> Some FormatBold
   | CmdCtrl "i" -> Some FormatItalic
@@ -129,7 +129,7 @@ let getAllShortcuts () : ShortcutHelp list =
     }
     {
       Keys = $"{cmdKey}+S"
-      Description = "Save note (auto-saves by default)"
+      Description = "Save note and clear undo history"
       Category = "File"
     }
     {

@@ -36,11 +36,11 @@ Jest.describe (
     )
 
     Jest.test (
-      "Cmd/Ctrl+S returns None (browser default save)",
+      "Cmd/Ctrl+S triggers explicit save and clears history",
       fun () ->
         let event = createKeyEvent "s" true false false false
         let result = handleKeydown event
-        Jest.expect(result).toEqual (None)
+        Jest.expect(result).toEqual (Some SaveNoteExplicitly)
     )
 
     Jest.test (

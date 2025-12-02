@@ -9,6 +9,19 @@ import (
 	"notes/backend/domain"
 )
 
+func cleanupTestWorkspace(t *testing.T, appName, workspaceName string) {
+	t.Helper()
+
+	dirs, err := NewAppDirs(appName, workspaceName)
+	if err != nil {
+		t.Fatalf("failed to create app dirs for cleanup: %v", err)
+	}
+
+	if err := os.RemoveAll(dirs.WorkspaceRoot); err != nil {
+		t.Fatalf("failed to clean workspace %q: %v", workspaceName, err)
+	}
+}
+
 func TestExtractTasks(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -216,6 +229,8 @@ func TestTaskService_IndexNote(t *testing.T) {
 	tmpDir := filepath.Join(os.TempDir(), "test-task-service")
 	defer os.RemoveAll(tmpDir)
 
+	cleanupTestWorkspace(t, "test-app", "test-workspace")
+
 	stores, err := NewStores("test-app", "test-workspace")
 	if err != nil {
 		t.Fatalf("failed to create stores: %v", err)
@@ -300,6 +315,8 @@ func TestTaskService_IndexNote(t *testing.T) {
 func TestTaskService_GetAllTasks(t *testing.T) {
 	tmpDir := filepath.Join(os.TempDir(), "test-task-getall")
 	defer os.RemoveAll(tmpDir)
+
+	cleanupTestWorkspace(t, "test-app", "test-workspace-2")
 
 	stores, err := NewStores("test-app", "test-workspace-2")
 	if err != nil {
@@ -413,6 +430,8 @@ func TestTaskService_UpdateTaskStatus(t *testing.T) {
 	tmpDir := filepath.Join(os.TempDir(), "test-task-update")
 	defer os.RemoveAll(tmpDir)
 
+	cleanupTestWorkspace(t, "test-app", "test-workspace-3")
+
 	stores, err := NewStores("test-app", "test-workspace-3")
 	if err != nil {
 		t.Fatalf("failed to create stores: %v", err)
@@ -482,6 +501,8 @@ func TestTaskService_RemoveNote(t *testing.T) {
 	tmpDir := filepath.Join(os.TempDir(), "test-task-remove")
 	defer os.RemoveAll(tmpDir)
 
+	cleanupTestWorkspace(t, "test-app", "test-workspace-4")
+
 	stores, err := NewStores("test-app", "test-workspace-4")
 	if err != nil {
 		t.Fatalf("failed to create stores: %v", err)
@@ -535,6 +556,8 @@ func ptrTime(t time.Time) *time.Time {
 func TestTaskService_AdvancedFiltering(t *testing.T) {
 	tmpDir := filepath.Join(os.TempDir(), "test-task-advanced-filtering")
 	defer os.RemoveAll(tmpDir)
+
+	cleanupTestWorkspace(t, "test-app", "test-advanced-filtering")
 
 	stores, err := NewStores("test-app", "test-advanced-filtering")
 	if err != nil {

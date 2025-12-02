@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -26,7 +27,6 @@ func TestSearchService_IndexNote(t *testing.T) {
 		t.Fatalf("IndexNote() error = %v", err)
 	}
 
-	// Verify note can be found
 	results, err := search.Search(SearchQuery{
 		Query: "test",
 		Limit: 10,
@@ -80,7 +80,7 @@ func TestSearchService_Search(t *testing.T) {
 		name      string
 		query     SearchQuery
 		wantCount int
-		wantFirst string // ID of first result (if any)
+		wantFirst string
 	}{
 		{
 			name: "simple query",
@@ -170,10 +170,8 @@ func TestSearchService_RemoveNote(t *testing.T) {
 
 	search.IndexAll(notes)
 
-	// Remove first note
 	search.RemoveNote("note1.md")
 
-	// Search should only find note2
 	results, err := search.Search(SearchQuery{
 		Query: "Content",
 		Limit: 10,
@@ -259,7 +257,6 @@ func TestSearchService_DateFilter(t *testing.T) {
 
 	search.IndexAll(notes)
 
-	// Filter for notes from today onwards
 	results, err := search.Search(SearchQuery{
 		Query:    "",
 		DateFrom: &now,
@@ -278,7 +275,6 @@ func TestSearchService_DateFilter(t *testing.T) {
 		t.Errorf("Search() returned wrong note: %q", results[0].NoteID)
 	}
 
-	// Filter for notes up to tomorrow
 	results, err = search.Search(SearchQuery{
 		Query:  "",
 		DateTo: &tomorrow,
@@ -330,7 +326,7 @@ func TestSearchService_Tokenization(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string
-		want  int // minimum expected tokens
+		want  int
 	}{
 		{
 			name:  "simple text",
@@ -404,7 +400,6 @@ func TestSearchService_ScoreSorting(t *testing.T) {
 		t.Fatalf("Search() returned %d results, want 3", len(results))
 	}
 
-	// Verify results are sorted by score in descending order
 	for i := 0; i < len(results)-1; i++ {
 		if results[i].Score < results[i+1].Score {
 			t.Errorf("Results not sorted correctly: result[%d].Score = %f < result[%d].Score = %f",
@@ -416,5 +411,374 @@ func TestSearchService_ScoreSorting(t *testing.T) {
 		t.Errorf("First result = %q, want %q (scores: %v)",
 			results[0].NoteID, "best-match.md",
 			[]float64{results[0].Score, results[1].Score, results[2].Score})
+	}
+}
+
+func TestSearchService_FrontmatterIndexing(t *testing.T) {
+	search := NewSearchService()
+
+	notes := []domain.Note{
+		{
+			ID:      "note1.md",
+			Title:   "Note 1",
+			Path:    "note1.md",
+			Content: "Basic content",
+			Aliases: []string{"FirstNote", "N1"},
+			Type:    "article",
+			Frontmatter: map[string]any{
+				"author":   "John Doe",
+				"category": "technology",
+				"keywords": []interface{}{"golang", "search"},
+			},
+			ModifiedAt: time.Now(),
+		},
+		{
+			ID:         "note2.md",
+			Title:      "Note 2",
+			Path:       "note2.md",
+			Content:    "Different content",
+			ModifiedAt: time.Now(),
+		},
+	}
+
+	err := search.IndexAll(notes)
+	if err != nil {
+		t.Fatalf("IndexAll() error = %v", err)
+	}
+
+	tests := []struct {
+		name      string
+		query     string
+		wantNotes []string
+	}{
+		{
+			name:      "search by alias",
+			query:     "FirstNote",
+			wantNotes: []string{"note1.md"},
+		},
+		{
+			name:      "search by type",
+			query:     "article",
+			wantNotes: []string{"note1.md"},
+		},
+		{
+			name:      "search by frontmatter string field",
+			query:     "technology",
+			wantNotes: []string{"note1.md"},
+		},
+		{
+			name:      "search by frontmatter array value",
+			query:     "golang",
+			wantNotes: []string{"note1.md"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			results, err := search.Search(SearchQuery{
+				Query: tt.query,
+				Limit: 10,
+			})
+			if err != nil {
+				t.Fatalf("Search() error = %v", err)
+			}
+
+			if len(results) != len(tt.wantNotes) {
+				t.Errorf("Search(%q) returned %d results, want %d", tt.query, len(results), len(tt.wantNotes))
+			}
+
+			for i, wantID := range tt.wantNotes {
+				if i >= len(results) {
+					break
+				}
+				if results[i].NoteID != wantID {
+					t.Errorf("Result[%d].NoteID = %q, want %q", i, results[i].NoteID, wantID)
+				}
+			}
+		})
+	}
+}
+
+func TestSearchService_ExactMatchBoosting(t *testing.T) {
+	search := NewSearchService()
+
+	notes := []domain.Note{
+		{
+			ID:         "exact-title.md",
+			Title:      "Go Programming",
+			Path:       "exact-title.md",
+			Content:    "This is about something else",
+			ModifiedAt: time.Now(),
+		},
+		{
+			ID:         "exact-content.md",
+			Title:      "Something",
+			Path:       "exact-content.md",
+			Content:    "Go Programming is great",
+			ModifiedAt: time.Now(),
+		},
+		{
+			ID:         "partial.md",
+			Title:      "Programming",
+			Path:       "partial.md",
+			Content:    "Various topics about Go",
+			ModifiedAt: time.Now(),
+		},
+	}
+
+	err := search.IndexAll(notes)
+	if err != nil {
+		t.Fatalf("IndexAll() error = %v", err)
+	}
+
+	results, err := search.Search(SearchQuery{
+		Query: "Go Programming",
+		Limit: 10,
+	})
+
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+
+	if len(results) < 2 {
+		t.Fatalf("Search() returned %d results, want at least 2", len(results))
+	}
+
+	if results[0].NoteID != "exact-title.md" {
+		t.Errorf("First result = %q, want %q (exact title match should rank first)", results[0].NoteID, "exact-title.md")
+	}
+}
+
+func TestSearchService_FuzzyMatching(t *testing.T) {
+	search := NewSearchService()
+
+	notes := []domain.Note{
+		{
+			ID:         "note1.md",
+			Title:      "Programming Guide",
+			Path:       "note1.md",
+			Content:    "Learn about programing concepts",
+			ModifiedAt: time.Now(),
+		},
+		{
+			ID:         "note2.md",
+			Title:      "Unrelated",
+			Path:       "note2.md",
+			Content:    "Completely different topic",
+			ModifiedAt: time.Now(),
+		},
+	}
+
+	err := search.IndexAll(notes)
+	if err != nil {
+		t.Fatalf("IndexAll() error = %v", err)
+	}
+
+	results, err := search.Search(SearchQuery{
+		Query: "programming",
+		Limit: 10,
+	})
+
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+
+	if len(results) == 0 {
+		t.Fatal("Search() found no results for fuzzy match")
+	}
+
+	found := false
+	for _, result := range results {
+		if result.NoteID == "note1.md" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Error("Fuzzy match should find note with similar spelling")
+	}
+}
+
+func TestSearchService_SnippetExtraction(t *testing.T) {
+	search := NewSearchService()
+
+	notes := []domain.Note{
+		{
+			ID:         "long-note.md",
+			Title:      "Long Note",
+			Path:       "long-note.md",
+			Content:    "This is a very long piece of content that contains many words and sentences. The important keyword appears somewhere in the middle of this text. We want to extract a snippet that shows the context around this keyword.",
+			ModifiedAt: time.Now(),
+		},
+		{
+			ID:         "short-note.md",
+			Title:      "Short Note",
+			Path:       "short-note.md",
+			Content:    "keyword here",
+			ModifiedAt: time.Now(),
+		},
+	}
+
+	err := search.IndexAll(notes)
+	if err != nil {
+		t.Fatalf("IndexAll() error = %v", err)
+	}
+
+	results, err := search.Search(SearchQuery{
+		Query: "keyword",
+		Limit: 10,
+	})
+
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+
+	if len(results) < 2 {
+		t.Fatalf("Search() returned %d results, want at least 2", len(results))
+	}
+
+	for _, result := range results {
+		if result.Snippet == "" {
+			t.Errorf("Result for %q has empty snippet", result.NoteID)
+		}
+
+		if result.NoteID == "long-note.md" {
+			if !strings.Contains(strings.ToLower(result.Snippet), "keyword") {
+				t.Errorf("Snippet for long note should contain 'keyword', got: %q", result.Snippet)
+			}
+
+			if !strings.Contains(result.Snippet, "...") {
+				t.Errorf("Long note snippet should contain ellipsis, got: %q", result.Snippet)
+			}
+		}
+	}
+}
+
+func TestLevenshteinDistance(t *testing.T) {
+	tests := []struct {
+		s1       string
+		s2       string
+		expected int
+	}{
+		{"", "", 0},
+		{"hello", "", 5},
+		{"", "hello", 5},
+		{"hello", "hello", 0},
+		{"hello", "helo", 1},
+		{"programming", "programing", 1},
+		{"kitten", "sitting", 3},
+		{"saturday", "sunday", 3},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.s1+"_"+tt.s2, func(t *testing.T) {
+			result := levenshteinDistance(tt.s1, tt.s2)
+			if result != tt.expected {
+				t.Errorf("levenshteinDistance(%q, %q) = %d, want %d", tt.s1, tt.s2, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSearchService_EmptySnippet(t *testing.T) {
+	search := NewSearchService()
+
+	notes := []domain.Note{
+		{
+			ID:         "note.md",
+			Title:      "Test Note",
+			Path:       "note.md",
+			Content:    "Some content here",
+			ModifiedAt: time.Now(),
+		},
+	}
+
+	err := search.IndexAll(notes)
+	if err != nil {
+		t.Fatalf("IndexAll() error = %v", err)
+	}
+
+	results, err := search.Search(SearchQuery{
+		Query: "",
+		Limit: 10,
+	})
+
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+
+	if len(results) == 0 {
+		t.Fatal("Search() with empty query should return all notes")
+	}
+
+	for _, result := range results {
+		if result.Snippet != "" {
+			t.Errorf("Empty query should return empty snippets, got: %q", result.Snippet)
+		}
+	}
+}
+
+func TestSearchService_CombinedScoring(t *testing.T) {
+	search := NewSearchService()
+
+	notes := []domain.Note{
+		{
+			ID:         "exact-match.md",
+			Title:      "Exact Python Match",
+			Path:       "exact-match.md",
+			Content:    "This note has Python in title and content",
+			ModifiedAt: time.Now(),
+		},
+		{
+			ID:         "fuzzy-match.md",
+			Title:      "Pyton Guide",
+			Path:       "fuzzy-match.md",
+			Content:    "Guide about Pyton programming",
+			ModifiedAt: time.Now(),
+		},
+		{
+			ID:         "bm25-match.md",
+			Title:      "Programming",
+			Path:       "bm25-match.md",
+			Content:    "Python Python Python Python Python",
+			ModifiedAt: time.Now(),
+		},
+	}
+
+	err := search.IndexAll(notes)
+	if err != nil {
+		t.Fatalf("IndexAll() error = %v", err)
+	}
+
+	results, err := search.Search(SearchQuery{
+		Query: "Python",
+		Limit: 10,
+	})
+
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+
+	if len(results) < 3 {
+		t.Fatalf("Search() returned %d results, want at least 3", len(results))
+	}
+
+	if results[0].NoteID != "exact-match.md" {
+		t.Logf("Result scores: %v", []struct {
+			id    string
+			score float64
+		}{
+			{results[0].NoteID, results[0].Score},
+			{results[1].NoteID, results[1].Score},
+			{results[2].NoteID, results[2].Score},
+		})
+		t.Errorf("First result = %q, want %q (exact match should rank highest)", results[0].NoteID, "exact-match.md")
+	}
+
+	for i, result := range results {
+		if result.Score <= 0 {
+			t.Errorf("Result[%d].Score = %f, want > 0", i, result.Score)
+		}
 	}
 }

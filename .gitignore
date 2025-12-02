@@ -22,3 +22,4 @@ docs/.vitepress/dist
 sandbox/
 STATUS.md
 !.claude/commands/STATUS.md
+coverage.out

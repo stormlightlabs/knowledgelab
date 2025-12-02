@@ -14,13 +14,10 @@ import (
 // SearchService provides full-text search capabilities using BM25 ranking.
 type SearchService struct {
 	mu sync.RWMutex
-
 	// BM25 index
 	index *bm25s.BM25S
-
 	// Document metadata (maps index position to note info)
 	docs []SearchDocument
-
 	// Tag index for fast tag filtering
 	tagIndex map[string][]int
 }
@@ -53,6 +50,7 @@ type SearchResult struct {
 	Score      float64   `json:"score"`
 	Tags       []string  `json:"tags"`
 	ModifiedAt time.Time `json:"modifiedAt" ts_type:"string"`
+	Snippet    string    `json:"snippet"` // Matched text snippet with context
 }
 
 // NewSearchService creates a new search service.
@@ -68,34 +66,31 @@ func (s *SearchService) IndexNote(note *domain.Note) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Extract tag names
 	tags := make([]string, len(note.Tags))
 	for i, tag := range note.Tags {
 		tags[i] = tag.Name
 	}
 
+	content := s.buildSearchableContent(note)
+
 	doc := SearchDocument{
 		NoteID:     note.ID,
 		Title:      note.Title,
 		Path:       note.Path,
-		Content:    note.Content,
+		Content:    content,
 		Tags:       tags,
 		ModifiedAt: note.ModifiedAt,
 	}
 
-	// Remove existing document if present
 	s.removeNoteFromIndex(note.ID)
 
-	// Add document
 	docIdx := len(s.docs)
 	s.docs = append(s.docs, doc)
 
-	// Update tag index
 	for _, tag := range tags {
 		s.tagIndex[tag] = append(s.tagIndex[tag], docIdx)
 	}
 
-	// Rebuild BM25 index
 	s.rebuildBM25Index()
 
 	return nil
@@ -119,7 +114,6 @@ func (s *SearchService) Search(query SearchQuery) ([]SearchResult, error) {
 		return []SearchResult{}, nil
 	}
 
-	// Apply filters to get candidate document indices
 	candidates := s.applyCandidateFilters(query)
 	if len(candidates) == 0 {
 		return []SearchResult{}, nil
@@ -137,22 +131,30 @@ func (s *SearchService) Search(query SearchQuery) ([]SearchResult, error) {
 				Score:      0,
 				Tags:       doc.Tags,
 				ModifiedAt: doc.ModifiedAt,
+				Snippet:    "",
 			})
 		}
 	} else {
+		queryTokens := s.tokenize(query.Query)
+
 		for _, idx := range candidates {
 			doc := s.docs[idx]
 
-			score := s.index.Score(idx, query.Query)
+			bm25Score := s.index.Score(idx, query.Query)
+			fuzzyBonus := s.calculateFuzzyBonus(doc, queryTokens)
+			exactBonus := s.calculateExactMatchBonus(doc, query.Query)
+			totalScore := bm25Score + (exactBonus * 2.0) + (fuzzyBonus * 0.5)
 
-			if score > 0 {
+			if totalScore > 0 {
+				snippet := s.extractSnippet(doc.Content, queryTokens)
 				results = append(results, SearchResult{
 					NoteID:     doc.NoteID,
 					Title:      doc.Title,
 					Path:       doc.Path,
-					Score:      score,
+					Score:      totalScore,
 					Tags:       doc.Tags,
 					ModifiedAt: doc.ModifiedAt,
+					Snippet:    snippet,
 				})
 			}
 		}
@@ -183,11 +185,13 @@ func (s *SearchService) IndexAll(notes []domain.Note) error {
 			tags[i] = tag.Name
 		}
 
+		content := s.buildSearchableContent(&note)
+
 		doc := SearchDocument{
 			NoteID:     note.ID,
 			Title:      note.Title,
 			Path:       note.Path,
-			Content:    note.Content,
+			Content:    content,
 			Tags:       tags,
 			ModifiedAt: note.ModifiedAt,
 		}
@@ -317,4 +321,187 @@ func (s *SearchService) tokenize(text string) []string {
 	}
 
 	return tokens
+}
+
+// buildSearchableContent combines note content with frontmatter fields for indexing.
+// Includes title, content, aliases, type, and frontmatter values.
+func (s *SearchService) buildSearchableContent(note *domain.Note) string {
+	var parts []string
+
+	parts = append(parts, note.Title)
+	parts = append(parts, note.Content)
+	parts = append(parts, note.Aliases...)
+
+	if note.Type != "" {
+		parts = append(parts, note.Type)
+	}
+
+	for key, value := range note.Frontmatter {
+		if str, ok := value.(string); ok {
+			parts = append(parts, key, str)
+		} else if arr, ok := value.([]interface{}); ok {
+			for _, item := range arr {
+				if str, ok := item.(string); ok {
+					parts = append(parts, str)
+				}
+			}
+		}
+	}
+
+	return strings.Join(parts, " ")
+}
+
+// calculateExactMatchBonus returns a score boost for exact phrase matches.
+// Exact matches in title get highest boost, content matches get moderate boost.
+func (s *SearchService) calculateExactMatchBonus(doc SearchDocument, query string) float64 {
+	queryLower := strings.ToLower(query)
+	titleLower := strings.ToLower(doc.Title)
+	contentLower := strings.ToLower(doc.Content)
+
+	score := 0.0
+
+	if strings.Contains(titleLower, queryLower) {
+		score += 10.0
+	}
+
+	if strings.Contains(contentLower, queryLower) {
+		score += 5.0
+	}
+	return score
+}
+
+// calculateFuzzyBonus returns a score boost for fuzzy matches using edit distance.
+// Rewards terms that are similar to query terms even if not exact matches.
+func (s *SearchService) calculateFuzzyBonus(doc SearchDocument, queryTokens []string) float64 {
+	if len(queryTokens) == 0 {
+		return 0.0
+	}
+
+	contentTokens := s.tokenize(doc.Content)
+	titleTokens := s.tokenize(doc.Title)
+
+	totalBonus := 0.0
+
+	for _, queryToken := range queryTokens {
+		for _, titleToken := range titleTokens {
+			distance := levenshteinDistance(queryToken, titleToken)
+			maxLen := max(len(queryToken), len(titleToken))
+
+			if distance <= 2 && float64(maxLen-distance)/float64(maxLen) > 0.6 {
+				totalBonus += 2.0 * (1.0 - float64(distance)/float64(maxLen))
+			}
+		}
+
+		for _, contentToken := range contentTokens {
+			distance := levenshteinDistance(queryToken, contentToken)
+			maxLen := max(len(queryToken), len(contentToken))
+
+			if distance <= 2 && float64(maxLen-distance)/float64(maxLen) > 0.6 {
+				totalBonus += 0.5 * (1.0 - float64(distance)/float64(maxLen))
+			}
+		}
+	}
+
+	return totalBonus
+}
+
+// extractSnippet extracts a text snippet showing query matches with context.
+func (s *SearchService) extractSnippet(content string, queryTokens []string) string {
+	if len(queryTokens) == 0 || content == "" {
+		return ""
+	}
+
+	contentLower := strings.ToLower(content)
+	snippetMaxLen := 150
+
+	bestPos := -1
+	bestToken := ""
+
+	for _, token := range queryTokens {
+		pos := strings.Index(contentLower, token)
+		if pos != -1 && (bestPos == -1 || pos < bestPos) {
+			bestPos = pos
+			bestToken = token
+		}
+	}
+
+	if bestPos == -1 {
+		if len(content) > snippetMaxLen {
+			return content[:snippetMaxLen] + "..."
+		}
+		return content
+	}
+
+	contextBefore := 40
+	contextAfter := snippetMaxLen - contextBefore - len(bestToken)
+
+	start := max(bestPos-contextBefore, 0)
+
+	end := bestPos + len(bestToken) + contextAfter
+	if end > len(content) {
+		end = len(content)
+	}
+
+	if start > 0 {
+		for start < len(content) && content[start] != ' ' && start < bestPos {
+			start++
+		}
+		if start < len(content) && content[start] == ' ' {
+			start++
+		}
+	}
+
+	if end < len(content) {
+		for end > bestPos && content[end] != ' ' && content[end] != '.' && content[end] != '!' && content[end] != '?' {
+			end--
+		}
+	}
+
+	snippet := strings.TrimSpace(content[start:end])
+
+	if start > 0 {
+		snippet = "..." + snippet
+	}
+	if end < len(content) {
+		snippet = snippet + "..."
+	}
+
+	return snippet
+}
+
+// levenshteinDistance calculates the edit distance between two strings.
+// Used for fuzzy matching to find similar but not identical terms.
+func levenshteinDistance(s1, s2 string) int {
+	if len(s1) == 0 {
+		return len(s2)
+	}
+	if len(s2) == 0 {
+		return len(s1)
+	}
+
+	matrix := make([][]int, len(s1)+1)
+	for i := range matrix {
+		matrix[i] = make([]int, len(s2)+1)
+		matrix[i][0] = i
+	}
+	for j := range matrix[0] {
+		matrix[0][j] = j
+	}
+
+	for i := 1; i <= len(s1); i++ {
+		for j := 1; j <= len(s2); j++ {
+			cost := 1
+			if s1[i-1] == s2[j-1] {
+				cost = 0
+			}
+
+			// Here we're getting the smallest of deletion, insertion, substitution
+			matrix[i][j] = min(min(
+				matrix[i-1][j]+1,
+				matrix[i][j-1]+1),
+				matrix[i-1][j-1]+cost)
+		}
+	}
+
+	return matrix[len(s1)][len(s2)]
 }

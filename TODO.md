@@ -1,10 +1,8 @@
 # Tasks
 
-High-level TODO list for the Obsidian / Logseq–style desktop app built with
-**F# (Fable + Elmish + React)** and **Wails (Go)**.
+High-level TODO list for the Obsidian / Logseq–style desktop app built with **F# (Fable + Elmish + React)** and **Wails (Go)**.
 
-The target is a local-first, Markdown- and outline-based PKM with backlinks and
-graph view similar to Obsidian and Logseq.
+The target is a local-first, Markdown- and outline-based PKM with backlinks and graph view similar to Obsidian and Logseq.
 
 ## Backend (Go + Wails)
 
@@ -18,28 +16,15 @@ Elmish MVU with three-panel layout, D3-force graph view (SVG/Canvas), daily note
 
 Local-first Markdown storage with wikilinks, backlinks, graph view, daily notes, and BM25 search.
 
-### Obsidian-Compatible Features
+## Obsidian-Compatible Features
 
-#### Tags System
+### Tags System
 
-- [x] Tag parsing:
-  - [x] Parse inline `#tags` from note body.
-  - [x] Parse frontmatter `tags:` field (array or comma-separated).
-  - [x] Support nested tags (`#parent/child`).
-- [x] Tag index:
-  - [x] Build tag index from parsed tags across all notes.
-  - [x] Track tag occurrence counts.
-  - [x] Update index incrementally on note changes.
-- [x] Tag browser UI:
-  - [x] Tag list panel showing all tags with counts.
-  - [x] Click tag to filter note list.
-  - [x] Nested tag tree view for hierarchical tags.
-- [x] Tag-based filtering:
-  - [x] Filter note list by single tag.
-  - [x] Multi-tag filtering with AND/OR logic.
-  - [ ] Tag search and autocomplete in search box.
+Implemented tag parsing, indexing, and browsing with a filtering UI.
 
-#### Templates
+- [ ] Tag search and autocomplete in search box.
+
+### Templates
 
 - [ ] Template creation:
   - [ ] Designate templates folder (e.g., `/templates/`).
@@ -52,35 +37,20 @@ Local-first Markdown storage with wikilinks, backlinks, graph view, daily notes,
   - [ ] Support `{{title}}` for note title insertion.
   - [ ] Integrate with daily note templates.
 
-#### Core Plugin Architecture
+## Logseq-Compatible Features
 
-- [ ] Define internal extension points:
-  - [ ] Toolbar command registration API.
-  - [ ] Sidebar panel registration API.
-  - [ ] Note context menu action hooks.
-- [ ] Implement plugin registry:
-  - [ ] Register built-in features (daily notes, backlinks, graph, search) as internal plugins.
-  - [ ] Enable/disable individual plugins via settings.
-  - [ ] Plugin lifecycle hooks (init, load, unload).
-- [ ] Document plugin constraints:
-  - [ ] Write internal extension API documentation.
-  - [ ] Define plugin security and sandbox model.
-  - [ ] Plan future public plugin API roadmap.
-
-### Logseq-Compatible Features
-
-#### Block-Based Outliner
+### Block-Based Outliner
 
 - Block ID support with parsing, generation (UUID v4), and round-trip preservation of Logseq-style block IDs.
 - Block operations including indentation (Tab/Shift+Tab), arrow key navigation, and focus/zoom state tracking.
 
-#### Task Management
+### Task Management
 
 - Task parsing with support for unchecked (`- [ ]`) and completed (`- [x]`) task syntax, distinguished from regular list items.
 - Task state tracking with completion toggling via checkbox click or keyboard shortcut, including created and completed date metadata.
 - Task views with aggregation panel showing all tasks across notes, filterable by completion status, note, and date ranges.
 
-### Markdown Dialect & Syntax
+## Markdown Dialect & Syntax
 
 **Frontmatter (YAML)**: Parse, preserve, and round-trip YAML frontmatter with support for aliases, tags, type, and timestamps.
 
@@ -88,29 +58,70 @@ Local-first Markdown storage with wikilinks, backlinks, graph view, daily notes,
 
 **Dialect Specification & Documentation**: CommonMark with Obsidian/Logseq extensions, wikilink resolution, daily notes, block IDs, and import guides.
 
-### Advanced Features (Deferred to Post-v1)
+## Advanced Features (Deferred to Post-v1)
 
 The following features are deferred to future releases after v1 launch:
 
-- **Community plugin API**: Public plugin API with marketplace/registry for third-party extensions.
-- **Sync/Publish**: Optional cloud-enabled sync and publish features (explicit opt-in, privacy-first design).
 - **Advanced block operations**: Block references, block embedding, block-level properties (`key:: value`).
 - **Datalog-style queries**: Advanced query language for filtering and aggregating blocks, tasks, tags, and properties.
 - **Whiteboards**: Visual whiteboard canvas for spatially arranging notes and blocks.
 - **Advanced task states**: Logseq-style task states beyond basic checkbox (`TODO`, `DOING`, `DONE`, `WAITING`, `CANCELLED`).
-- **Org-mode compatibility**: Optional Org-mode parsing layer for headings, TODO keywords, scheduled/deadline timestamps.
 
-## UI/UX Polish (MVP)
+### Plugin Architecture
+
+- [ ] Define internal extension points:
+  - [ ] Toolbar command registration API.
+  - [ ] Sidebar panel registration API.
+  - [ ] Note context menu action hooks.
+- [ ] Implement plugin registry
+- [ ] Plugin lifecycle hooks (init, load, unload)
+- [ ] Document plugin constraints
+- [ ] Public plugin API with marketplace/registry for third-party extensions
+
+## MVP Roadmap
 
 **State Management (Model.fs)**: Search state, editor state (preview, cursor, selection), UI state (panels, modals), and keyboard shortcut handlers (`Keybinds.fs`).
 
 ### Core Functionality
 
-#### Search & Discovery
+#### Search & Discovery: Core Infrastructure
 
-- [ ] Search UI with fuzzy matching
-- [ ] Search input in sidebar with live results
-- [x] Keyboard shortcuts for common actions (Cmd/Ctrl+N, Cmd/Ctrl+K, etc.)
+- Backend
+  - [x] Backend BM25 search index:
+    - [x] Implement BM25 scoring engine in `backend/service/search`
+    - [x] Index note titles, content, and frontmatter on workspace load
+  - [x] Fuzzy matching & typo tolerance:
+    - [x] Integrate edit distance scoring for query terms
+    - [x] Boost exact matches over fuzzy matches in ranking
+  - [x] Backend search query API:
+    - [x] Add `Search(query, limit)` method to Wails bindings
+    - [x] Return ranked results with scores and matched snippets
+
+- Frontend
+  - [ ] Search state management:
+    - [ ] Define `SearchState` type with query, results, loading states
+    - [ ] Add search messages (`SearchQueryChanged`, `SearchResultsReceived`, `SearchCleared`)
+  - [ ] Basic search UI component:
+    - [ ] Search input box in sidebar with clear button
+    - [x] Keyboard shortcut (Cmd/Ctrl+K) to focus search
+  - [ ] Search results list renderer:
+    - [ ] Render results list below search input
+    - [ ] Handle click to open note in editor
+
+#### Search UX & Discovery
+
+- [ ] Live search with debouncing:
+  - [ ] Add 300ms debounce timer in frontend update logic
+  - [ ] Cancel pending searches when query changes
+- [ ] Search result highlighting:
+  - [ ] Backend extracts matched text snippets with context windows
+  - [ ] Frontend renders highlighted terms using CSS classes
+- [ ] Search history & autocomplete:
+  - [ ] Store search history in workspace snapshot (last 20 queries)
+  - [ ] Render autocomplete dropdown with arrow key navigation
+- [ ] Empty states & error handling:
+  - [ ] Show "No results found" with search tips
+  - [ ] Display error toast when search API fails
 
 #### Editor
 

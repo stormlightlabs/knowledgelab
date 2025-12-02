@@ -41,7 +41,7 @@ func TestScaffoldWorkspace(t *testing.T) {
 	contentStr := string(content)
 
 	expectedSections := []string{
-		"# Welcome to Knowledge Lab",
+		"## What is Knowledge Lab?",
 		"## Getting Started",
 		"### Tags",
 		"### Wikilinks & Backlinks",

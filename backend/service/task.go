@@ -69,6 +69,15 @@ func (s *TaskService) IndexNote(noteID string, notePath string, tasks []domain.T
 
 				task.CompletedAt = existing.CompletedAt
 			}
+		} else {
+			if task.CreatedAt.IsZero() {
+				task.CreatedAt = time.Now()
+			}
+
+			if task.IsCompleted && task.CompletedAt == nil {
+				now := time.Now()
+				task.CompletedAt = &now
+			}
 		}
 
 		s.tasks[task.ID] = task

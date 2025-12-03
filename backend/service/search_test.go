@@ -428,7 +428,7 @@ func TestSearchService_FrontmatterIndexing(t *testing.T) {
 			Frontmatter: map[string]any{
 				"author":   "John Doe",
 				"category": "technology",
-				"keywords": []interface{}{"golang", "search"},
+				"keywords": []any{"golang", "search"},
 			},
 			ModifiedAt: time.Now(),
 		},

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/md5"
 	"fmt"
 	"io/fs"
@@ -23,6 +24,7 @@ type FilesystemService struct {
 	watcher          *fsnotify.Watcher
 	eventChan        chan FileEvent
 	stopChan         chan struct{}
+	logger           runtimeLogger
 }
 
 // FileEvent represents a filesystem change event.
@@ -56,11 +58,18 @@ func NewFilesystemService() (*FilesystemService, error) {
 	}, nil
 }
 
+// SetLogger attaches the runtime logger context.
+func (s *FilesystemService) SetLogger(ctx context.Context) {
+	s.logger.attach(ctx)
+}
+
 // OpenWorkspace opens or creates a workspace at the specified path.
 // Returns workspace information and begins filesystem watching.
 func (s *FilesystemService) OpenWorkspace(path string) (*domain.WorkspaceInfo, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	s.logger.Infof("opening workspace at %s", path)
 
 	// Validate path
 	absPath, err := filepath.Abs(path)
@@ -105,6 +114,7 @@ func (s *FilesystemService) OpenWorkspace(path string) (*domain.WorkspaceInfo, e
 	if err := s.startWatching(absPath); err != nil {
 		return nil, fmt.Errorf("failed to start filesystem watcher: %w", err)
 	}
+	s.logger.Infof("watching workspace %s for markdown changes", absPath)
 
 	return &domain.WorkspaceInfo{
 		Workspace: *workspace,
@@ -261,6 +271,7 @@ func (s *FilesystemService) Close() error {
 
 // startWatching begins filesystem watching for the workspace.
 func (s *FilesystemService) startWatching(rootPath string) error {
+	s.logger.Debugf("starting filesystem watcher for %s", rootPath)
 	if err := s.addWatchRecursive(rootPath); err != nil {
 		return err
 	}
@@ -273,6 +284,7 @@ func (s *FilesystemService) startWatching(rootPath string) error {
 // stopWatching stops filesystem watching.
 func (s *FilesystemService) stopWatching() {
 	if s.stopChan != nil {
+		s.logger.Debugf("stopping filesystem watcher")
 		close(s.stopChan)
 		s.stopChan = make(chan struct{})
 	}
@@ -304,6 +316,7 @@ func (s *FilesystemService) processEvents() {
 	for {
 		select {
 		case <-s.stopChan:
+			s.logger.Debugf("filesystem watcher received stop signal")
 			return
 		case event, ok := <-s.watcher.Events:
 			if !ok {
@@ -330,6 +343,7 @@ func (s *FilesystemService) processEvents() {
 			if isMarkdownFile(event.Name) {
 				relPath, err := filepath.Rel(s.currentWorkspace.RootPath, event.Name)
 				if err == nil {
+					s.logger.Debugf("filesystem %s detected for %s", op, relPath)
 					s.eventChan <- FileEvent{
 						Path:      relPath,
 						Operation: op,
@@ -343,7 +357,7 @@ func (s *FilesystemService) processEvents() {
 				return
 			}
 
-			fmt.Printf("Filesystem watcher error: %v\n", err)
+			s.logger.Errorf("filesystem watcher error: %v", err)
 		}
 	}
 }

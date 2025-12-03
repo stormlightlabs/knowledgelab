@@ -339,7 +339,7 @@ func (s *SearchService) buildSearchableContent(note *domain.Note) string {
 	for key, value := range note.Frontmatter {
 		if str, ok := value.(string); ok {
 			parts = append(parts, key, str)
-		} else if arr, ok := value.([]interface{}); ok {
+		} else if arr, ok := value.([]any); ok {
 			for _, item := range arr {
 				if str, ok := item.(string); ok {
 					parts = append(parts, str)

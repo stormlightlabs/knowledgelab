@@ -20,6 +20,8 @@
     <Compile Include="Model.Test.fs" />
     <Compile Include="Model.Search.Test.fs" />
     <Compile Include="Model.Theming.Test.fs" />
+    <Compile Include="Model.History.Test.fs" />
+    <Compile Include="Model.Save.Test.fs" />
     <Compile Include="Keybinds.Test.fs" />
     <Compile Include="Syntax.Test.fs" />
     <Compile Include="SyntaxHighlighter.Test.fs" />

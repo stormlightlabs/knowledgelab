@@ -21,6 +21,8 @@ type Panel =
   | SearchPanel
   | TasksPanel
 
+let panelOrder = [ Backlinks; TasksPanel; TagsPanel; SearchPanel ]
+
 /// Search filters for advanced search functionality
 type SearchFilters = {
   Tags : string list
@@ -80,6 +82,7 @@ type EditorState = {
   UndoStack : EditorSnapshot list
   RedoStack : EditorSnapshot list
   LastChangeTimestamp : DateTime option
+  PendingUndoSnapshot : EditorSnapshot option
 }
 
 /// Modal dialog types that can be shown
@@ -95,6 +98,9 @@ type UIState = {
   SidebarWidth : int
   RightPanelWidth : int
   ActiveModal : ModalDialog
+  IsSidebarCollapsed : bool
+  AreRightPanelsCollapsed : bool
+  ActivePanel : Panel option
 }
 
 /// App state holds all application data and UI state
@@ -196,11 +202,15 @@ type State = {
       UndoStack = []
       RedoStack = []
       LastChangeTimestamp = None
+      PendingUndoSnapshot = None
     }
     UIState = {
       SidebarWidth = 280
       RightPanelWidth = 300
       ActiveModal = NoModal
+      IsSidebarCollapsed = false
+      AreRightPanelsCollapsed = false
+      ActivePanel = Some Backlinks
     }
     NoteHistories = Map.empty
     AvailableThemes = []
@@ -236,6 +246,7 @@ type Msg =
   | NoteDeleted of Result<unit, string>
   | NavigateTo of Route
   | TogglePanel of Panel
+  | SetActivePanel of Panel
   | SearchQueryChanged of query : string
   | SearchResultsReceived of Result<SearchResult list, string>
   | SearchCleared
@@ -281,6 +292,8 @@ type Msg =
   | SetRightPanelWidth of int
   | ShowModal of ModalDialog
   | CloseModal
+  | ToggleSidebarCollapsed
+  | ToggleRightPanelsCollapsed
   | SetError of string
   | ClearError
   | ClearSuccess
@@ -298,7 +311,9 @@ type Msg =
   | BlockFocusToggle of blockId : string option
   | ToggleTaskAtCursor
   | ToggleTaskAtLine of lineNumber : int
-  | TaskToggled of Result<unit, string>
+  | ToggleTaskFromPanel of Task
+  | CurrentNoteRefreshed of Result<Note, string>
+  | TaskToggled of string option * bool * Result<unit, string>
   | LoadAllTasks
   | LoadTasksForNote of noteId : string
   | TasksLoaded of Result<TaskInfo, string>
@@ -631,6 +646,7 @@ let private restoreFromSnapshot
         SelectionStart = snapshot.SelectionStart
         SelectionEnd = snapshot.SelectionEnd
         IsDirty = true
+        PendingUndoSnapshot = None
   }
 
   (restoredNote, restoredEditorState)
@@ -670,8 +686,14 @@ let private restoreNoteHistory
       editorState with
           UndoStack = undoStack
           RedoStack = redoStack
+          PendingUndoSnapshot = None
     }
-  | None -> { editorState with UndoStack = []; RedoStack = [] }
+  | None -> {
+      editorState with
+          UndoStack = []
+          RedoStack = []
+          PendingUndoSnapshot = None
+    }
 
 /// Updates the workspace snapshot with a new recent page and triggers save
 let private updateRecentPage (noteId : string) (state : State) : State * Cmd<Msg> =
@@ -898,6 +920,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
           UndoStack = []
           RedoStack = []
           IsDirty = false
+          PendingUndoSnapshot = None
     }
 
     {
@@ -949,13 +972,45 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     },
     Cmd.none
   | TogglePanel panel ->
+    let isVisible = state.VisiblePanels.Contains panel
+
     let newPanels =
-      if state.VisiblePanels.Contains panel then
+      if isVisible then
         state.VisiblePanels.Remove panel
       else
         state.VisiblePanels.Add panel
 
-    { state with VisiblePanels = newPanels }, Cmd.none
+    let availablePanels = panelOrder |> List.filter (fun p -> newPanels.Contains p)
+
+    let newActive =
+      if not isVisible then
+        Some panel
+      else
+        match state.UIState.ActivePanel with
+        | Some active when newPanels.Contains active -> Some active
+        | _ -> availablePanels |> List.tryHead
+
+    {
+      state with
+          VisiblePanels = newPanels
+          UIState = { state.UIState with ActivePanel = newActive }
+    },
+    (if not isVisible && panel = TasksPanel then
+       Cmd.ofMsg LoadAllTasks
+     else
+       Cmd.none)
+  | SetActivePanel panel ->
+    if state.VisiblePanels.Contains panel then
+      {
+        state with
+            UIState = { state.UIState with ActivePanel = Some panel }
+      },
+      (if panel = TasksPanel then
+         Cmd.ofMsg LoadAllTasks
+       else
+         Cmd.none)
+    else
+      state, Cmd.none
   | SearchQueryChanged query ->
     cancelTimer state.Search.DebounceTimer
 
@@ -1125,13 +1180,19 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
       NoteCreated(Error ex.Message))
   | UpdateNoteContent content ->
     match state.CurrentNote with
+    | Some note when note.Content = content -> state, Cmd.none
     | Some note ->
+      let previousSnapshot = createEditorSnapshot note state.EditorState
       let updatedNote = { note with Content = content }
 
       {
         state with
             CurrentNote = Some updatedNote
-            EditorState = { state.EditorState with IsDirty = true }
+            EditorState = {
+              state.EditorState with
+                  IsDirty = true
+                  PendingUndoSnapshot = Some previousSnapshot
+            }
       },
       Cmd.batch [ Cmd.ofMsg PushEditorSnapshot; Cmd.ofMsg (SaveNote updatedNote) ]
     | None -> state, Cmd.none
@@ -1300,6 +1361,24 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     {
       state with
           UIState = { state.UIState with ActiveModal = NoModal }
+    },
+    Cmd.none
+  | ToggleSidebarCollapsed ->
+    {
+      state with
+          UIState = {
+            state.UIState with
+                IsSidebarCollapsed = not state.UIState.IsSidebarCollapsed
+          }
+    },
+    Cmd.none
+  | ToggleRightPanelsCollapsed ->
+    {
+      state with
+          UIState = {
+            state.UIState with
+                AreRightPanelsCollapsed = not state.UIState.AreRightPanelsCollapsed
+          }
     },
     Cmd.none
   | SetError err -> { state with Error = Some err; Success = None }, Cmd.none
@@ -1488,15 +1567,53 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
       Cmd.OfPromise.either
         (fun () -> Api.toggleTaskInNote note.Id lineNumber)
         ()
-        (fun _ -> TaskToggled(Ok()))
-        (fun ex -> TaskToggled(Error ex.Message))
+        (fun _ -> TaskToggled(Some note.Id, true, Ok()))
+        (fun ex -> TaskToggled(Some note.Id, true, Error ex.Message))
     | None -> state, Cmd.none
-  | TaskToggled(Ok()) ->
-    match state.CurrentNote with
-    | Some note ->
-      { state with Loading = false; Error = None }, Cmd.batch [ Cmd.ofMsg (SelectNote note.Id); Cmd.ofMsg LoadAllTasks ]
-    | None -> { state with Loading = false; Error = None }, Cmd.none
-  | TaskToggled(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
+  | ToggleTaskFromPanel task ->
+    state,
+    Cmd.OfPromise.either
+      (fun () -> Api.toggleTaskInNote task.NoteId task.LineNumber)
+      ()
+      (fun _ -> TaskToggled(Some task.NoteId, false, Ok()))
+      (fun ex -> TaskToggled(Some task.NoteId, false, Error ex.Message))
+  | TaskToggled(noteId, clearLoading, Ok()) ->
+    let updatedState =
+      if clearLoading then
+        { state with Loading = false; Error = None }
+      else
+        { state with Error = None }
+
+    let refreshNoteCmdOpt =
+      match noteId, state.CurrentNote with
+      | Some targetId, Some note when note.Id = targetId ->
+        Cmd.OfPromise.either Api.getNote targetId (Ok >> CurrentNoteRefreshed) (fun ex ->
+          CurrentNoteRefreshed(Error ex.Message))
+        |> Some
+      | _ -> None
+
+    let cmds =
+      match refreshNoteCmdOpt with
+      | Some refreshCmd -> [ refreshCmd; Cmd.ofMsg LoadAllTasks ]
+      | None -> [ Cmd.ofMsg LoadAllTasks ]
+
+    updatedState, Cmd.batch cmds
+  | TaskToggled(_, clearLoading, Error err) ->
+    let updatedState =
+      if clearLoading then
+        { state with Loading = false; Error = Some err }
+      else
+        { state with Error = Some err }
+
+    updatedState, Cmd.none
+  | CurrentNoteRefreshed(Ok note) ->
+    let newState =
+      match state.CurrentNote with
+      | Some current when current.Id = note.Id -> { state with CurrentNote = Some note }
+      | _ -> state
+
+    newState, Cmd.none
+  | CurrentNoteRefreshed(Error err) -> { state with Error = Some err }, Cmd.none
   | LoadAllTasks ->
     { state with IsLoadingTasks = true },
     Cmd.OfPromise.either Api.getAllTasks state.TaskFilter (Ok >> TasksLoaded) (fun ex -> TasksLoaded(Error ex.Message))
@@ -1516,10 +1633,17 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   | TasksLoaded(Error err) -> { state with IsLoadingTasks = false; Error = Some err }, Cmd.none
   | UpdateTaskFilter filter -> { state with TaskFilter = filter }, Cmd.ofMsg LoadAllTasks
   | PushEditorSnapshot ->
-    match state.CurrentNote with
-    | Some note ->
+    let snapshotToRecord =
+      match state.EditorState.PendingUndoSnapshot with
+      | Some snapshot -> Some snapshot
+      | None ->
+        match state.CurrentNote with
+        | Some note -> Some(createEditorSnapshot note state.EditorState)
+        | None -> None
+
+    match snapshotToRecord with
+    | Some snapshot ->
       let currentTime = DateTime.Now
-      let snapshot = createEditorSnapshot note state.EditorState
 
       if shouldGroupEdits state.EditorState.LastChangeTimestamp currentTime then
         {
@@ -1527,6 +1651,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
               EditorState = {
                 state.EditorState with
                     LastChangeTimestamp = Some currentTime
+                    PendingUndoSnapshot = None
               }
         },
         Cmd.none
@@ -1538,6 +1663,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
                     UndoStack = pushToUndoStack snapshot state.EditorState.UndoStack
                     RedoStack = []
                     LastChangeTimestamp = Some currentTime
+                    PendingUndoSnapshot = None
               }
         },
         Cmd.none

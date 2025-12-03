@@ -303,7 +303,7 @@ func (s *GraphService) extractTags(note *domain.Note) []domain.Tag {
 
 	if fmTags, ok := note.Frontmatter["tags"]; ok {
 		switch t := fmTags.(type) {
-		case []interface{}:
+		case []any:
 			for _, tag := range t {
 				if tagStr, ok := tag.(string); ok {
 					tagName := strings.TrimPrefix(tagStr, "#")

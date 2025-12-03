@@ -59,18 +59,22 @@ func NewApp() *App {
 	}
 }
 
-// startup is called when the app starts. The context is saved
-// so we can call the runtime methods
+// startup is called when the app starts. The context is saved so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	if a.fs != nil {
+		a.fs.SetLogger(ctx)
+	}
+	if a.tasks != nil {
+		a.tasks.SetLogger(ctx)
+	}
 
-	// Initialize user config directory
 	userConfigDir, err := paths.UserConfigDir("KnowledgeLab")
 	if err != nil {
-		fmt.Printf("Warning: failed to initialize user config directory: %v\n", err)
+		a.logWarning("failed to initialize user config directory: %v", err)
 	} else {
 		a.userConfigDir = userConfigDir
-		fmt.Printf("User config directory: %s\n", userConfigDir)
+		a.logInfo("user config directory: %s", userConfigDir)
 	}
 }
 
@@ -276,9 +280,11 @@ func (a *App) buildInitialIndex() {
 	a.indexing = true
 	defer func() { a.indexing = false }()
 
+	a.logInfo("starting initial workspace index build")
+
 	summaries, err := a.notes.ListNotes()
 	if err != nil {
-		fmt.Printf("Failed to list notes during indexing: %v\n", err)
+		a.logError("failed to list notes during indexing: %v", err)
 		return
 	}
 
@@ -286,27 +292,27 @@ func (a *App) buildInitialIndex() {
 	for _, summary := range summaries {
 		note, err := a.notes.GetNote(summary.ID)
 		if err != nil {
-			fmt.Printf("Failed to load note %s: %v\n", summary.ID, err)
+			a.logWarning("failed to load note %s: %v", summary.ID, err)
 			continue
 		}
 
 		if err := a.graph.IndexNote(note); err != nil {
-			fmt.Printf("Failed to index note %s in graph: %v\n", summary.ID, err)
+			a.logWarning("failed to index note %s in graph: %v", summary.ID, err)
 		}
 
 		tasks := a.notes.ExtractTasks(note.ID, note.Path, []byte(note.Content))
 		if err := a.tasks.IndexNote(note.ID, note.Path, tasks, note.ModifiedAt); err != nil {
-			fmt.Printf("Failed to index tasks for note %s: %v\n", summary.ID, err)
+			a.logWarning("failed to index tasks for note %s: %v", summary.ID, err)
 		}
 
 		notes = append(notes, *note)
 	}
 
 	if err := a.search.IndexAll(notes); err != nil {
-		fmt.Printf("Failed to build search index: %v\n", err)
+		a.logError("failed to build search index: %v", err)
 	}
 
-	fmt.Printf("Indexed %d notes\n", len(notes))
+	a.logInfo("indexed %d notes", len(notes))
 }
 
 // SelectDirectory opens a native directory picker dialog.
@@ -518,4 +524,28 @@ func (a *App) wrapError(msg string, err error) error {
 	default:
 		return fmt.Errorf("%s: %w", msg, err)
 	}
+}
+
+func (a *App) logInfo(format string, args ...any) {
+	if a.ctx != nil {
+		runtime.LogInfof(a.ctx, format, args...)
+		return
+	}
+	fmt.Printf("INFO: "+format+"\n", args...)
+}
+
+func (a *App) logWarning(format string, args ...any) {
+	if a.ctx != nil {
+		runtime.LogWarningf(a.ctx, format, args...)
+		return
+	}
+	fmt.Printf("WARN: "+format+"\n", args...)
+}
+
+func (a *App) logError(format string, args ...any) {
+	if a.ctx != nil {
+		runtime.LogErrorf(a.ctx, format, args...)
+		return
+	}
+	fmt.Printf("ERROR: "+format+"\n", args...)
 }

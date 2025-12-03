@@ -275,15 +275,13 @@ func TestNoteService_FrontmatterParsing(t *testing.T) {
 		name       string
 		content    string
 		wantTitle  string
-		wantFields map[string]interface{}
+		wantFields map[string]any
 	}{
 		{
-			name:      "with frontmatter",
-			content:   "---\ntitle: FM Note\nauthor: Test\n---\n\nContent",
-			wantTitle: "FM Note",
-			wantFields: map[string]interface{}{
-				"author": "Test",
-			},
+			name:       "with frontmatter",
+			content:    "---\ntitle: FM Note\nauthor: Test\n---\n\nContent",
+			wantTitle:  "FM Note",
+			wantFields: map[string]any{"author": "Test"},
 		},
 		{
 			name:      "without frontmatter",

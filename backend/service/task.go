@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -21,6 +22,8 @@ type TaskService struct {
 	noteModified map[string]time.Time
 	// store handles SQLite persistence
 	store *TaskStore
+	// logger records runtime diagnostics
+	logger runtimeLogger
 }
 
 // NewTaskService creates a new task service with SQLite persistence.
@@ -34,11 +37,19 @@ func NewTaskService(store *TaskStore) *TaskService {
 	}
 }
 
+// SetLogger attaches the runtime logger context.
+func (s *TaskService) SetLogger(ctx context.Context) {
+	s.logger.attach(ctx)
+}
+
 // IndexNote parses tasks from a note and updates the index.
 // Removes old tasks for the note and indexes new ones. Persists to SQLite and loads existing metadata.
 func (s *TaskService) IndexNote(noteID string, notePath string, tasks []domain.Task, modifiedAt time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	start := time.Now()
+	s.logger.Debugf("indexing %d tasks from note %s (%s)", len(tasks), noteID, notePath)
 
 	s.removeNoteFromIndexes(noteID)
 
@@ -85,10 +96,12 @@ func (s *TaskService) IndexNote(noteID string, notePath string, tasks []domain.T
 		s.byStatus[task.IsCompleted] = append(s.byStatus[task.IsCompleted], task.ID)
 
 		if err := s.store.SaveTask(task); err != nil {
+			s.logger.Errorf("failed to persist task %s (%s): %v", task.ID, noteID, err)
 			return err
 		}
 	}
 
+	s.logger.Infof("indexed %d tasks for note %s in %s", len(tasks), noteID, time.Since(start))
 	return nil
 }
 
@@ -97,6 +110,7 @@ func (s *TaskService) RemoveNote(noteID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.logger.Debugf("removing tasks for note %s", noteID)
 	s.removeNoteFromIndexes(noteID)
 	delete(s.noteModified, noteID)
 
@@ -108,6 +122,7 @@ func (s *TaskService) GetAllTasks(filter domain.TaskFilter) (domain.TaskInfo, er
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	start := time.Now()
 	var matchedTasks []domain.Task
 
 	for _, task := range s.tasks {
@@ -127,6 +142,14 @@ func (s *TaskService) GetAllTasks(filter domain.TaskFilter) (domain.TaskInfo, er
 			pendingCount++
 		}
 	}
+
+	s.logger.Debugf(
+		"task query returned %d total (%d completed, %d pending) in %s",
+		totalCount,
+		completedCount,
+		pendingCount,
+		time.Since(start),
+	)
 
 	return domain.TaskInfo{
 		Tasks:          matchedTasks,
@@ -164,6 +187,7 @@ func (s *TaskService) UpdateTaskStatus(taskID string, isCompleted bool) error {
 
 	task, ok := s.tasks[taskID]
 	if !ok {
+		s.logger.Warnf("attempted to update missing task %s", taskID)
 		return &domain.ErrNotFound{Resource: "task", ID: taskID}
 	}
 
@@ -179,7 +203,19 @@ func (s *TaskService) UpdateTaskStatus(taskID string, isCompleted bool) error {
 
 	s.removeTaskFromStatusIndex(taskID, oldStatus)
 	s.byStatus[isCompleted] = append(s.byStatus[isCompleted], taskID)
-	return s.store.SaveTask(task)
+	if err := s.store.SaveTask(task); err != nil {
+		s.logger.Errorf("failed to persist task %s status change: %v", taskID, err)
+		return err
+	}
+
+	s.logger.Infof(
+		"task %s toggled from %t to %t (note: %s)",
+		taskID,
+		oldStatus,
+		isCompleted,
+		task.NoteID,
+	)
+	return nil
 }
 
 // removeNoteFromIndexes removes all tasks for a note from in-memory indexes.

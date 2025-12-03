@@ -396,6 +396,8 @@ Jest.describe (
                     LastWorkspacePath = ""
                     GraphLayout = "force"
                     SearchHistory = []
+                    NotesSortBy = None
+                    NotesSortOrder = None
                   }
                 }
               Search = {

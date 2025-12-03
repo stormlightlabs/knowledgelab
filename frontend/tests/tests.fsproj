@@ -17,7 +17,14 @@
     <Compile Include="../src/StatusBar.fs" />
     <Compile Include="../src/GraphView.fs" />
     <Compile Include="Json.Test.fs" />
-    <Compile Include="Model.Test.fs" />
+    <Compile Include="Model.Core.Test.fs" />
+    <Compile Include="Model.Router.Test.fs" />
+    <Compile Include="Model.Graph.Test.fs" />
+    <Compile Include="Model.UI.Test.fs" />
+    <Compile Include="Model.Settings.Test.fs" />
+    <Compile Include="Model.Workspace.Test.fs" />
+    <Compile Include="Model.Note.Test.fs" />
+    <Compile Include="Model.Editor.Test.fs" />
     <Compile Include="Model.Search.Test.fs" />
     <Compile Include="Model.Theming.Test.fs" />
     <Compile Include="Model.History.Test.fs" />

@@ -16,6 +16,7 @@ export default defineConfig({
           { text: "Overview", link: "/overview" },
           { text: "Configuration", link: "/configuration" },
           { text: "Configuration Layout", link: "/config-layout" },
+          { text: "Theming", link: "/theming" },
         ],
       },
       {

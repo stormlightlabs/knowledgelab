@@ -22,19 +22,6 @@ Local-first Markdown storage with wikilinks, backlinks, graph view, daily notes,
 
 Implemented tag parsing, indexing, and browsing with a filtering UI and autocomplete.
 
-### Templates
-
-- [ ] Template creation:
-  - [ ] Designate templates folder (e.g., `/templates/`).
-  - [ ] Parse template files with frontmatter.
-- [ ] Template insertion:
-  - [ ] Insert template into current note via command/menu.
-  - [ ] Template picker UI (list available templates).
-- [ ] Template variables:
-  - [ ] Support `{{date}}` and `{{time}}` placeholders.
-  - [ ] Support `{{title}}` for note title insertion.
-  - [ ] Integrate with daily note templates.
-
 ## Logseq-Compatible Features
 
 ### Block-Based Outliner
@@ -53,26 +40,6 @@ Task parsing (`- [ ]` / `- [x]`), completion toggling (checkbox/keyboard), date 
 
 **Dialect Specification & Documentation**: CommonMark with Obsidian/Logseq extensions, wikilink resolution, daily notes, block IDs, and import guides.
 
-## Advanced Features (Deferred to Post-v1)
-
-The following features are deferred to future releases after v1 launch:
-
-- **Advanced block operations**: Block references, block embedding, block-level properties (`key:: value`).
-- **Datalog-style queries**: Advanced query language for filtering and aggregating blocks, tasks, tags, and properties.
-- **Whiteboards**: Visual whiteboard canvas for spatially arranging notes and blocks.
-- **Advanced task states**: Logseq-style task states beyond basic checkbox (`TODO`, `DOING`, `DONE`, `WAITING`, `CANCELLED`).
-
-### Plugin Architecture
-
-- [ ] Define internal extension points:
-  - [ ] Toolbar command registration API.
-  - [ ] Sidebar panel registration API.
-  - [ ] Note context menu action hooks.
-- [ ] Implement plugin registry
-- [ ] Plugin lifecycle hooks (init, load, unload)
-- [ ] Document plugin constraints
-- [ ] Public plugin API with marketplace/registry for third-party extensions
-
 ## MVP Roadmap
 
 **State Management (Model.fs)**: search state, editor state (preview, cursor, selection, history), UI state (panels, modals), and keyboard shortcuts.
@@ -86,7 +53,7 @@ SearchState with loading states, search panel UI (Cmd/Ctrl+K), results rendering
 
 #### Search UX & Discovery
 
-Live search with 300ms debouncing, snippet highlighting with [[ ]] markers rendered via CSS, search history autocomplete (last 20 queries) with arrow key navigation, and empty state handling.
+Live search with debouncing, snippet highlighting with [[ ]] markers rendered via CSS, search history autocomplete (last 20 queries) with arrow key navigation, and empty state handling.
 
 #### Editor
 
@@ -96,11 +63,11 @@ Formatting shortcuts (bold/italic/code/links/headings), cursor tracking, preview
 
 #### Settings
 
-- Settings panel with controls (theme picker, font size slider, editor preferences, auto-save, vim mode, spell check) and live preview of settings changes via SettingsChanged message with debounced save
+- Settings panel with controls (theme picker, font size slider, editor preferences, auto-save, vim mode, spell check) and live preview of settings changes with debounced save
 
 #### Notes List
 
-- [ ] Sorting options (title, date modified, date created)
+- [x] Sorting options (title, date modified, date created)
 - [ ] Empty state when no notes exist
 - [ ] Note metadata display (created/modified dates in list items)
 
@@ -119,21 +86,6 @@ Formatting shortcuts (bold/italic/code/links/headings), cursor tracking, preview
 ### History Stack
 
 Undo/redo (Cmd/Ctrl+Z/Shift+Z), toolbar buttons, per-note history preservation, and change tracking with timestamps.
-
-## Parking Lot
-
-- [ ] Basic mobile-friendly layout (for small windows).
-- [ ] Benchmarks for graph build on large workspaces.
-- [ ] Add `go test ./...` CI job.
-- [x] Test serialization/deserialization of models used in Wails calls.
-- [ ] Virtualization for large note lists (>100 notes)
-- [ ] Keybind help screen/view
-- [ ] Ensure snippet highlighting doesn't collide with wikilinks
-
-### Command Palette
-
-- [ ] Command palette for quick actions
-- [ ] Implement command palette state
 
 ## Configuration
 
@@ -161,7 +113,61 @@ TOML-based settings, workspace snapshots with debounced saves (800ms), user-leve
 - [ ] Color customization UI:
   - [ ] Add color picker for individual base16 color overrides with ability to reset to theme or color to default (Iceberg.vim).
   - [ ] Export custom theme as YAML file.
-- [ ] Documentation (`docs/theming.md`):
-  - [ ] base16 color role descriptions.
-  - [ ] Document theme file format and location.
-  - [ ] Provide examples of custom theme creation.
+- [x] Documentation (`docs/theming.md`):
+  - [x] base16 color role descriptions.
+  - [x] Document theme file format and location.
+  - [x] Provide examples of custom theme creation.
+
+## Parking Lot
+
+- [ ] Basic mobile-friendly layout (for small windows).
+- [ ] Keybind help screen/view
+- [ ] Ensure snippet highlighting doesn't collide with wikilinks
+
+### v1
+
+- [x] Test serialization/deserialization of models used in Wails calls.
+- [ ] Add `go test ./...` CI job.
+
+### Post-v1
+
+- [ ] Benchmarks for graph build on large workspaces.
+- [ ] Virtualization for large note lists (>100 notes)
+
+### Command Palette
+
+- [ ] Command palette for quick actions
+- [ ] Implement command palette state
+
+## Advanced Features (Deferred to Post-v1)
+
+The following features are deferred to future releases after v1 launch:
+
+- **Advanced block operations**: Block references, block embedding, block-level properties (`key:: value`).
+- **Datalog-style queries**: Advanced query language for filtering and aggregating blocks, tasks, tags, and properties.
+- **Whiteboards**: Visual whiteboard canvas for spatially arranging notes and blocks.
+- **Advanced task states**: Logseq-style task states beyond basic checkbox (`TODO`, `DOING`, `DONE`, `WAITING`, `CANCELLED`).
+
+### Plugin Architecture
+
+- [ ] Define internal extension points:
+  - [ ] Toolbar command registration API.
+  - [ ] Sidebar panel registration API.
+  - [ ] Note context menu action hooks.
+- [ ] Implement plugin registry
+- [ ] Plugin lifecycle hooks (init, load, unload)
+- [ ] Document plugin constraints
+- [ ] Public plugin API with marketplace/registry for third-party extensions
+
+### Templates
+
+- [ ] Template creation:
+  - [ ] Designate templates folder (e.g., `/templates/`).
+  - [ ] Parse template files with frontmatter.
+- [ ] Template insertion:
+  - [ ] Insert template into current note via command/menu.
+  - [ ] Template picker UI (list available templates).
+- [ ] Template variables:
+  - [ ] Support `{{date}}` and `{{time}}` placeholders.
+  - [ ] Support `{{title}}` for note title insertion.
+  - [ ] Integrate with daily note templates.

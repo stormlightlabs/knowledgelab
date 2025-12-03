@@ -158,3 +158,36 @@ type TaskInfo struct {
 	CompletedCount int    `json:"completedCount"` // Number of completed tasks
 	PendingCount   int    `json:"pendingCount"`   // Number of pending tasks
 }
+
+// Base16Palette holds the 16 base colors for a base16 theme.
+// Colors are stored as hex values without the # prefix (e.g., "282828").
+// See https://github.com/tinted-theming/home for the base16 specification.
+type Base16Palette struct {
+	Base00 string `json:"base00" yaml:"base00"` // Default background
+	Base01 string `json:"base01" yaml:"base01"` // Lighter background (status bars)
+	Base02 string `json:"base02" yaml:"base02"` // Selection background
+	Base03 string `json:"base03" yaml:"base03"` // Comments, invisibles
+	Base04 string `json:"base04" yaml:"base04"` // Dark foreground (status bars)
+	Base05 string `json:"base05" yaml:"base05"` // Default foreground
+	Base06 string `json:"base06" yaml:"base06"` // Light foreground
+	Base07 string `json:"base07" yaml:"base07"` // Lightest foreground
+	Base08 string `json:"base08" yaml:"base08"` // Red (variables)
+	Base09 string `json:"base09" yaml:"base09"` // Orange (integers)
+	Base0A string `json:"base0A" yaml:"base0A"` // Yellow (classes)
+	Base0B string `json:"base0B" yaml:"base0B"` // Green (strings)
+	Base0C string `json:"base0C" yaml:"base0C"` // Cyan (regex)
+	Base0D string `json:"base0D" yaml:"base0D"` // Blue (functions)
+	Base0E string `json:"base0E" yaml:"base0E"` // Magenta (keywords)
+	Base0F string `json:"base0F" yaml:"base0F"` // Brown (deprecated)
+}
+
+// Base16Theme represents a complete base16 color theme.
+// Themes are loaded from YAML files and can be applied to the UI.
+type Base16Theme struct {
+	System  string        `json:"system" yaml:"system"`   // Theme system identifier (e.g., "base16")
+	Name    string        `json:"name" yaml:"name"`       // Human-readable theme name
+	Author  string        `json:"author" yaml:"author"`   // Theme author
+	Slug    string        `json:"slug" yaml:"slug"`       // URL-friendly identifier
+	Variant string        `json:"variant" yaml:"variant"` // "light" or "dark"
+	Palette Base16Palette `json:"palette" yaml:"palette"` // The 16 base colors
+}

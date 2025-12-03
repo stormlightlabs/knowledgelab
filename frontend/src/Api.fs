@@ -98,6 +98,15 @@ module Raw =
   [<Import("ToggleTaskInNote", from = "@wailsjs/go/main/App")>]
   let toggleTaskInNote (noteId : string) (lineNumber : int) : JS.Promise<unit> = jsNative
 
+  [<Import("ListThemes", from = "@wailsjs/go/main/App")>]
+  let listThemes () : JS.Promise<string array> = jsNative
+
+  [<Import("LoadTheme", from = "@wailsjs/go/main/App")>]
+  let loadTheme (slug : string) : JS.Promise<obj> = jsNative
+
+  [<Import("GetDefaultTheme", from = "@wailsjs/go/main/App")>]
+  let getDefaultTheme () : JS.Promise<obj> = jsNative
+
 /// Helper to decode JSON response
 let decodeResponse<'T> (decoder : Decoder<'T>) (response : obj) : 'T =
   let json = JS.JSON.stringify response
@@ -231,3 +240,14 @@ let getTasksForNote (noteId : string) : JS.Promise<Task array> =
 
 /// Toggles the completion status of a task at the specified line number
 let toggleTaskInNote = Raw.toggleTaskInNote
+
+/// Lists all available theme slugs
+let listThemes = Raw.listThemes
+
+/// Loads a theme by its slug
+let loadTheme (slug : string) : JS.Promise<Base16Theme> =
+  Raw.loadTheme slug |> Promise.map (decodeResponse Json.base16ThemeDecoder)
+
+/// Gets the default theme
+let getDefaultTheme () : JS.Promise<Base16Theme> =
+  Raw.getDefaultTheme () |> Promise.map (decodeResponse Json.base16ThemeDecoder)

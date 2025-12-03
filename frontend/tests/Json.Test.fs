@@ -444,4 +444,144 @@ Jest.describe (
         | Ok _ -> failwith "Should have failed with missing SearchHistory field"
         | Error _ -> Jest.expect(true).toBe true
     )
+
+    Jest.test (
+      "Base16Palette decoder handles valid JSON",
+      fun () ->
+        let json =
+          """
+    {
+      "base00": "2e3440",
+      "base01": "3b4252",
+      "base02": "434c5e",
+      "base03": "4c566a",
+      "base04": "d8dee9",
+      "base05": "e5e9f0",
+      "base06": "eceff4",
+      "base07": "8fbcbb",
+      "base08": "bf616a",
+      "base09": "d08770",
+      "base0A": "ebcb8b",
+      "base0B": "a3be8c",
+      "base0C": "88c0d0",
+      "base0D": "81a1c1",
+      "base0E": "b48ead",
+      "base0F": "5e81ac"
+    }
+    """
+
+        let result = Decode.fromString base16PaletteDecoder json
+
+        match result with
+        | Ok palette ->
+          Jest.expect(palette.Base00).toEqual "2e3440"
+          Jest.expect(palette.Base05).toEqual "e5e9f0"
+          Jest.expect(palette.Base0D).toEqual "81a1c1"
+        | Error err -> failwith $"Decode failed: {err}"
+    )
+
+    Jest.test (
+      "Base16Theme decoder handles valid JSON",
+      fun () ->
+        let json =
+          """
+    {
+      "system": "base16",
+      "name": "Nord",
+      "author": "arcticicestudio",
+      "slug": "nord",
+      "variant": "dark",
+      "palette": {
+        "base00": "2e3440",
+        "base01": "3b4252",
+        "base02": "434c5e",
+        "base03": "4c566a",
+        "base04": "d8dee9",
+        "base05": "e5e9f0",
+        "base06": "eceff4",
+        "base07": "8fbcbb",
+        "base08": "bf616a",
+        "base09": "d08770",
+        "base0A": "ebcb8b",
+        "base0B": "a3be8c",
+        "base0C": "88c0d0",
+        "base0D": "81a1c1",
+        "base0E": "b48ead",
+        "base0F": "5e81ac"
+      }
+    }
+    """
+
+        let result = Decode.fromString base16ThemeDecoder json
+
+        match result with
+        | Ok theme ->
+          Jest.expect(theme.Name).toEqual "Nord"
+          Jest.expect(theme.Author).toEqual "arcticicestudio"
+          Jest.expect(theme.Slug).toEqual "nord"
+          Jest.expect(theme.Variant).toEqual "dark"
+          Jest.expect(theme.Palette.Base00).toEqual "2e3440"
+          Jest.expect(theme.Palette.Base0D).toEqual "81a1c1"
+        | Error err -> failwith $"Decode failed: {err}"
+    )
+
+    Jest.test (
+      "Base16Theme decoder handles light variant",
+      fun () ->
+        let json =
+          """
+    {
+      "system": "base16",
+      "name": "Solarized Light",
+      "author": "Ethan Schoonover",
+      "slug": "solarized-light",
+      "variant": "light",
+      "palette": {
+        "base00": "fdf6e3",
+        "base01": "eee8d5",
+        "base02": "93a1a1",
+        "base03": "839496",
+        "base04": "657b83",
+        "base05": "586e75",
+        "base06": "073642",
+        "base07": "002b36",
+        "base08": "dc322f",
+        "base09": "cb4b16",
+        "base0A": "b58900",
+        "base0B": "859900",
+        "base0C": "2aa198",
+        "base0D": "268bd2",
+        "base0E": "6c71c4",
+        "base0F": "d33682"
+      }
+    }
+    """
+
+        let result = Decode.fromString base16ThemeDecoder json
+
+        match result with
+        | Ok theme ->
+          Jest.expect(theme.Name).toEqual "Solarized Light"
+          Jest.expect(theme.Variant).toEqual "light"
+          Jest.expect(theme.Palette.Base00).toEqual "fdf6e3"
+        | Error err -> failwith $"Decode failed: {err}"
+    )
+
+    Jest.test (
+      "Base16Theme decoder rejects invalid JSON",
+      fun () ->
+        let json =
+          """
+    {
+      "system": "base16",
+      "name": "Incomplete Theme"
+    }
+    """
+
+        let result = Decode.fromString base16ThemeDecoder json
+
+        match result with
+        | Ok _ -> failwith "Should have failed with missing required fields"
+        | Error _ -> Jest.expect(true).toBe true
+    )
 )

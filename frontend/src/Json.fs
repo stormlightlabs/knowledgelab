@@ -236,3 +236,35 @@ let taskInfoDecoder : Decoder<TaskInfo> =
     CompletedCount = get.Required.Field "completedCount" Decode.int
     PendingCount = get.Required.Field "pendingCount" Decode.int
   })
+
+/// Decodes Base16Palette from JSON
+let base16PaletteDecoder : Decoder<Base16Palette> =
+  Decode.object (fun get -> {
+    Base00 = get.Required.Field "base00" Decode.string
+    Base01 = get.Required.Field "base01" Decode.string
+    Base02 = get.Required.Field "base02" Decode.string
+    Base03 = get.Required.Field "base03" Decode.string
+    Base04 = get.Required.Field "base04" Decode.string
+    Base05 = get.Required.Field "base05" Decode.string
+    Base06 = get.Required.Field "base06" Decode.string
+    Base07 = get.Required.Field "base07" Decode.string
+    Base08 = get.Required.Field "base08" Decode.string
+    Base09 = get.Required.Field "base09" Decode.string
+    Base0A = get.Required.Field "base0A" Decode.string
+    Base0B = get.Required.Field "base0B" Decode.string
+    Base0C = get.Required.Field "base0C" Decode.string
+    Base0D = get.Required.Field "base0D" Decode.string
+    Base0E = get.Required.Field "base0E" Decode.string
+    Base0F = get.Required.Field "base0F" Decode.string
+  })
+
+/// Decodes Base16Theme from JSON
+let base16ThemeDecoder : Decoder<Base16Theme> =
+  Decode.object (fun get -> {
+    System = get.Required.Field "system" Decode.string
+    Name = get.Required.Field "name" Decode.string
+    Author = get.Required.Field "author" Decode.string
+    Slug = get.Required.Field "slug" Decode.string
+    Variant = get.Required.Field "variant" Decode.string
+    Palette = get.Required.Field "palette" base16PaletteDecoder
+  })

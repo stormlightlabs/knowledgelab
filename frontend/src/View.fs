@@ -145,18 +145,6 @@ module Sidebar =
         prop.children [
           Html.div [ prop.className "font-semibold text-base05"; prop.text note.title ]
           Html.div [ prop.className "text-sm text-base03"; prop.text note.path ]
-          Html.div [
-            prop.className "flex gap-2 mt-1"
-            prop.children (
-              if isNull (box note.tags) then [] else note.tags
-              |> List.map (fun t ->
-                Html.span [
-                  prop.key $"#{t.NoteId}:{t.Name}"
-                  prop.className "text-xs bg-blue text-base00 px-2 py-1 rounded"
-                  prop.text $"#{t.Name}"
-                ])
-            )
-          ]
         ]
       ]
 
@@ -648,7 +636,7 @@ module SearchPanel =
                     prop.children (
                       state.Search.AvailableTags
                       |> List.map (fun tag ->
-                        Html.div [
+                        Html.button [
                           prop.key tag
                           prop.className "px-3 py-2 hover:bg-base02 cursor-pointer transition-colors"
                           prop.onClick (fun _ ->

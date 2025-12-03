@@ -250,3 +250,55 @@ type TaskInfo = {
   CompletedCount : int
   PendingCount : int
 }
+
+/// Base16Palette holds the 16 base colors for a base16 theme
+type Base16Palette = {
+  /// Default background
+  Base00 : string
+  /// Lighter background (status bars)
+  Base01 : string
+  /// Selection background
+  Base02 : string
+  /// Comments, invisibles
+  Base03 : string
+  /// Dark foreground (status bars)
+  Base04 : string
+  /// Default foreground
+  Base05 : string
+  /// Light foreground
+  Base06 : string
+  /// Lightest foreground
+  Base07 : string
+  /// Red (variables)
+  Base08 : string
+  /// Orange (integers)
+  Base09 : string
+  /// Yellow (classes)
+  Base0A : string
+  /// Green (strings)
+  Base0B : string
+  /// Cyan (regex)
+  Base0C : string
+  /// Blue (functions)
+  Base0D : string
+  /// Magenta (keywords)
+  Base0E : string
+  /// Brown (deprecated)
+  Base0F : string
+}
+
+/// Base16Theme represents a complete base16 color theme
+type Base16Theme = {
+  /// Theme system identifier (e.g., "base16")
+  System : string
+  /// Human-readable theme name
+  Name : string
+  /// Theme author
+  Author : string
+  /// URL-friendly identifier
+  Slug : string
+  /// "light" or "dark"
+  Variant : string
+  /// The 16 base colors
+  Palette : Base16Palette
+}

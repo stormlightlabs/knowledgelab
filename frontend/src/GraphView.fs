@@ -5,6 +5,33 @@ open Fable.Core.JsInterop
 open Feliz
 open Domain
 open Model
+open Browser.Dom
+
+/// CSS variable helper module for reading theme colors
+module CssVars =
+  /// Get computed style for an element
+  [<Emit("window.getComputedStyle($0)")>]
+  let private getComputedStyle (element : Browser.Types.Element) : obj = jsNative
+
+  /// Get a CSS variable value from the document root
+  let get (varName : string) : string =
+    let root = document.documentElement
+    let computedStyle = getComputedStyle root
+    let value = computedStyle?getPropertyValue (varName) |> string
+    let trimmed = value.Trim()
+
+    if System.String.IsNullOrEmpty(trimmed) then
+      printfn "Warning: CSS variable '%s' not found" varName
+      "#ffffff" // fallback
+    else
+      trimmed
+
+  // Cache theme colors on module load for performance
+  let base03 = get "--base03" // comments/links
+  let base05 = get "--base05" // default foreground
+  let base09 = get "--base09" // orange/selected stroke
+  let base0D = get "--base0D" // blue/nodes
+  let base0DBright = get "--base0D-bright" // bright blue/hover
 
 /// D3 force simulation interop bindings
 module D3 =
@@ -275,7 +302,7 @@ let SvgGraph (state : State) (dispatch : Msg -> unit) =
                               createObj [
                                 "key" ==> $"{link.Source}-{link.Target}"
                                 "className" ==> getLinkClass link
-                                "stroke" ==> "#6b7089"
+                                "stroke" ==> CssVars.base03
                                 "strokeWidth" ==> 1.5
                                 "data-source" ==> link.Source
                                 "data-target" ==> link.Target
@@ -289,8 +316,8 @@ let SvgGraph (state : State) (dispatch : Msg -> unit) =
                                 "key" ==> $"node-{node.Id}"
                                 "className" ==> getNodeClass node.Id
                                 "r" ==> (5.0 + float node.Degree)
-                                "fill" ==> "#84a0c6"
-                                "stroke" ==> "#c6c8d1"
+                                "fill" ==> CssVars.base0D
+                                "stroke" ==> CssVars.base05
                                 "strokeWidth" ==> 1.5
                                 "data-id" ==> node.Id
                                 "onClick"
@@ -321,7 +348,7 @@ let SvgGraph (state : State) (dispatch : Msg -> unit) =
                               createObj [
                                 "key" ==> $"label-{node.Id}"
                                 "className" ==> getLabelClass node.Id
-                                "fill" ==> "#c6c8d1"
+                                "fill" ==> CssVars.base05
                                 "fontSize" ==> "10px"
                                 "textAnchor" ==> "middle"
                                 "dy" ==> "-10"
@@ -409,7 +436,7 @@ let CanvasGraph (state : State) (dispatch : Msg -> unit) =
           ctx.beginPath ()
           ctx.moveTo (sx, sy)
           ctx.lineTo (tx, ty)
-          ctx.strokeStyle <- U3.Case1 "#6b7089"
+          ctx.strokeStyle <- U3.Case1 CssVars.base03
           ctx.lineWidth <- if isHighlighted then 2.5 else 1.5
 
           ctx.globalAlpha <-
@@ -440,14 +467,14 @@ let CanvasGraph (state : State) (dispatch : Msg -> unit) =
         ctx.arc (x, y, radius, 0.0, 2.0 * System.Math.PI)
 
         if isSelected then
-          ctx.fillStyle <- U3.Case1 "#91acd1"
-          ctx.strokeStyle <- U3.Case1 "#e2a478"
+          ctx.fillStyle <- U3.Case1 CssVars.base0DBright
+          ctx.strokeStyle <- U3.Case1 CssVars.base09
         else if isHovered then
-          ctx.fillStyle <- U3.Case1 "#84a0c6"
-          ctx.strokeStyle <- U3.Case1 "#91acd1"
+          ctx.fillStyle <- U3.Case1 CssVars.base0D
+          ctx.strokeStyle <- U3.Case1 CssVars.base0DBright
         else
-          ctx.fillStyle <- U3.Case1 "#84a0c6"
-          ctx.strokeStyle <- U3.Case1 "#c6c8d1"
+          ctx.fillStyle <- U3.Case1 CssVars.base0D
+          ctx.strokeStyle <- U3.Case1 CssVars.base05
 
         ctx.globalAlpha <- if isDimmed then 0.2 else 1.0
         ctx.fill ()
@@ -465,7 +492,14 @@ let CanvasGraph (state : State) (dispatch : Msg -> unit) =
           else
             "10px sans-serif"
 
-        ctx.fillStyle <- U3.Case1(if isLabelHighlighted then "#91acd1" else "#c6c8d1")
+        ctx.fillStyle <-
+          U3.Case1(
+            if isLabelHighlighted then
+              CssVars.base0DBright
+            else
+              CssVars.base05
+          )
+
         ctx.textAlign <- "center"
         ctx.globalAlpha <- if isDimmed then 0.2 else 1.0
         ctx.fillText (node.Label, x, y - radius - 5.0)

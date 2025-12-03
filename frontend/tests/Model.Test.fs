@@ -3,8 +3,14 @@
 module ModelTests
 
 open Fable.Jester
+open Elmish
 open Model
 open Domain
+
+let private collectCommands (cmd : Cmd<Msg>) =
+  let dispatched = ResizeArray<Msg>()
+  cmd |> List.iter (fun sub -> sub (fun msg -> dispatched.Add msg))
+  dispatched |> Seq.toList
 
 Jest.describe (
   "Model.Update",
@@ -408,6 +414,55 @@ Jest.describe (
           Jest.expect(s.UI.RecentPages.Length).toEqual 1
           Jest.expect(s.UI.RecentPages.[0]).toEqual "note-a.md"
         | None -> failwith "Expected workspace snapshot to be present"
+    )
+
+    Jest.test (
+      "WorkspaceSnapshotLoaded auto-opens last workspace when remembered path exists",
+      fun () ->
+        let snapshot = {
+          UI = {
+            ActivePage = ""
+            SidebarVisible = true
+            SidebarWidth = 280
+            RightPanelVisible = false
+            RightPanelWidth = 300
+            PinnedPages = []
+            RecentPages = []
+            LastWorkspacePath = "/workspace/path"
+            GraphLayout = "force"
+            SearchHistory = []
+          }
+        }
+
+        let _, cmd = Update (WorkspaceSnapshotLoaded(Ok snapshot)) State.Default
+        let dispatched = collectCommands cmd
+
+        match dispatched with
+        | [ OpenWorkspace path ] -> Jest.expect(path).toEqual "/workspace/path"
+        | _ -> failwith "Expected OpenWorkspace command to be dispatched"
+    )
+
+    Jest.test (
+      "WorkspaceSnapshotLoaded skips auto-open when no workspace path is stored",
+      fun () ->
+        let snapshot = {
+          UI = {
+            ActivePage = ""
+            SidebarVisible = true
+            SidebarWidth = 280
+            RightPanelVisible = false
+            RightPanelWidth = 300
+            PinnedPages = []
+            RecentPages = []
+            LastWorkspacePath = ""
+            GraphLayout = "force"
+            SearchHistory = []
+          }
+        }
+
+        let _, cmd = Update (WorkspaceSnapshotLoaded(Ok snapshot)) State.Default
+        let dispatched = collectCommands cmd
+        Jest.expect(dispatched.Length).toEqual 0
     )
 
     Jest.test (

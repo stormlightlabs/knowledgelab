@@ -22,6 +22,7 @@ type App struct {
 	graph                     *service.GraphService
 	search                    *service.SearchService
 	tasks                     *service.TaskService
+	themes                    *service.ThemeService
 	stores                    *service.Stores
 	indexing                  bool
 	userConfigDir             string
@@ -38,6 +39,7 @@ func NewApp() *App {
 	notes := service.NewNoteService(fs)
 	graph := service.NewGraphService()
 	search := service.NewSearchService()
+	themes := service.NewThemeService()
 
 	stores, err := service.NewStores("notes", "default")
 	if err != nil {
@@ -52,6 +54,7 @@ func NewApp() *App {
 		graph:  graph,
 		search: search,
 		tasks:  tasks,
+		themes: themes,
 		stores: stores,
 	}
 }
@@ -481,6 +484,21 @@ func (a *App) ToggleTaskInNote(noteID string, lineNumber int) error {
 		return a.SaveNote(note)
 	}
 	return a.wrapError("line is not a task", fmt.Errorf("line %d does not contain a task", lineNumber))
+}
+
+// ListThemes returns a list of all available theme slugs.
+func (a *App) ListThemes() ([]string, error) {
+	return a.themes.ListThemes()
+}
+
+// LoadTheme loads a theme by its slug and returns the full theme data.
+func (a *App) LoadTheme(slug string) (*domain.Base16Theme, error) {
+	return a.themes.LoadTheme(slug)
+}
+
+// GetDefaultTheme returns the default theme.
+func (a *App) GetDefaultTheme() (*domain.Base16Theme, error) {
+	return a.themes.GetDefaultTheme()
 }
 
 // wrapError converts domain errors to user-friendly messages.

@@ -126,6 +126,8 @@ type State = {
   EditorState : EditorState
   UIState : UIState
   NoteHistories : Map<string, EditorSnapshot list * EditorSnapshot list>
+  AvailableThemes : string list
+  CurrentTheme : Base16Theme option
   Loading : bool
   Error : string option
   Success : string option
@@ -201,6 +203,8 @@ type State = {
       ActiveModal = NoModal
     }
     NoteHistories = Map.empty
+    AvailableThemes = []
+    CurrentTheme = None
     Loading = false
     Error = None
     Success = None
@@ -300,6 +304,11 @@ type Msg =
   | TasksLoaded of Result<TaskInfo, string>
   | UpdateTaskFilter of TaskFilter
   | PushEditorSnapshot
+  | LoadThemes
+  | ThemesLoaded of Result<string list, string>
+  | LoadTheme of slug : string
+  | ThemeLoaded of Result<Base16Theme, string>
+  | ApplyTheme of Base16Theme
   | Undo
   | Redo
 
@@ -788,24 +797,10 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     { state with Loading = true },
     Cmd.OfPromise.either Api.listNotes () (safeArrayToList >> Ok >> NotesLoaded) (fun ex ->
       NotesLoaded(Error ex.Message))
-  | NotesLoaded(Ok notes) ->
-    Browser.Dom.console.log ("NotesLoaded - count:", notes.Length)
-
-    notes
-    |> List.iteri (fun i note ->
-      Browser.Dom.console.log ($"Note {i}:", note)
-      Browser.Dom.console.log ($"  id:", note.id)
-      Browser.Dom.console.log ($"  title:", note.title)
-      Browser.Dom.console.log ($"  path:", note.path))
-
-    { state with Notes = notes; Loading = false; Error = None }, Cmd.none
+  | NotesLoaded(Ok notes) -> { state with Notes = notes; Loading = false; Error = None }, Cmd.none
   | NotesLoaded(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | SelectNote noteId ->
-    Browser.Dom.console.log ("SelectNote - Requesting note:", noteId)
-
-    let stateWithSavedHistory = saveCurrentNoteHistory state
-
-    { stateWithSavedHistory with Loading = true },
+    { saveCurrentNoteHistory state with Loading = true },
     Cmd.OfPromise.either Api.getNote noteId (Ok >> NoteLoaded) (fun ex -> NoteLoaded(Error ex.Message))
   | OpenRecentFile(workspacePath, noteId) ->
     let trimmedWorkspace = if isNull workspacePath then "" else workspacePath.Trim()
@@ -1149,24 +1144,29 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
       Cmd.OfPromise.either Api.loadSettings () (Ok >> SettingsLoaded) (fun ex -> SettingsLoaded(Error ex.Message))
       Cmd.OfPromise.either Api.loadWorkspaceSnapshot () (Ok >> WorkspaceSnapshotLoaded) (fun ex ->
         WorkspaceSnapshotLoaded(Error ex.Message))
+      Cmd.ofMsg LoadThemes
+      Cmd.OfPromise.either Api.getDefaultTheme () (Ok >> ThemeLoaded) (fun ex -> Error ex.Message |> ThemeLoaded)
     ]
   | SettingsLoaded(Ok settings) -> { state with Settings = Some settings; Error = None }, Cmd.none
   | SettingsLoaded(Error err) -> { state with Error = Some err }, Cmd.none
   | WorkspaceSnapshotLoaded(Ok snapshot) ->
     let sanitizedSnapshot = sanitizeSnapshot snapshot
 
-    Browser.Dom.console.log ("WorkspaceSnapshotLoaded - Snapshot data:", sanitizedSnapshot)
-    Browser.Dom.console.log ("  ActivePage:", sanitizedSnapshot.UI.ActivePage)
-    Browser.Dom.console.log ("  RecentPages:", sanitizedSnapshot.UI.RecentPages)
-    Browser.Dom.console.log ("  RecentPages count:", sanitizedSnapshot.UI.RecentPages.Length)
-    Browser.Dom.console.log ("  LastWorkspacePath:", sanitizedSnapshot.UI.LastWorkspacePath)
+    let autoOpenCmd =
+      if
+        state.Workspace.IsNone
+        && not (String.IsNullOrWhiteSpace sanitizedSnapshot.UI.LastWorkspacePath)
+      then
+        Cmd.ofMsg (OpenWorkspace sanitizedSnapshot.UI.LastWorkspacePath)
+      else
+        Cmd.none
 
     {
       state with
           WorkspaceSnapshot = Some sanitizedSnapshot
           Error = None
     },
-    Cmd.none
+    autoOpenCmd
   | WorkspaceSnapshotLoaded(Error err) -> { state with Error = Some err }, Cmd.none
   | SettingsChanged settings ->
     cancelTimer state.SettingsSaveTimer
@@ -1582,3 +1582,22 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
       },
       Cmd.ofMsg (SaveNote restoredNote)
     | _ -> state, Cmd.none
+  | LoadThemes ->
+    let cmd =
+      Cmd.OfPromise.either Api.listThemes () (safeArrayToList >> Ok >> ThemesLoaded) (fun ex ->
+        Error ex.Message |> ThemesLoaded)
+
+    state, cmd
+
+  | ThemesLoaded(Ok themes) -> { state with AvailableThemes = themes }, Cmd.none
+  | ThemesLoaded(Error err) -> { state with Error = Some $"Failed to load themes: {err}" }, Cmd.none
+  | LoadTheme slug ->
+    let cmd =
+      Cmd.OfPromise.either Api.loadTheme slug (Ok >> ThemeLoaded) (fun ex -> Error ex.Message |> ThemeLoaded)
+
+    state, cmd
+  | ThemeLoaded(Ok theme) -> { state with CurrentTheme = Some theme }, Cmd.ofMsg (ApplyTheme theme)
+  | ThemeLoaded(Error err) -> { state with Error = Some $"Failed to load theme: {err}" }, Cmd.none
+  | ApplyTheme theme ->
+    let _ = Theme.ApplyTheme theme
+    state, Cmd.none

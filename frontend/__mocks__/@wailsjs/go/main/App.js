@@ -143,6 +143,7 @@ export const LoadWorkspaceSnapshot = () =>
       RightPanelWidth: 300,
       PinnedPages: [],
       RecentPages: [],
+      SearchHistory: [],
       LastWorkspacePath: "/mock/workspace/directory",
       GraphLayout: "force",
     },
@@ -160,6 +161,7 @@ export const ClearRecentFiles = () =>
       RightPanelWidth: 300,
       PinnedPages: [],
       RecentPages: [],
+      SearchHistory: [],
       LastWorkspacePath: "/mock/workspace/directory",
       GraphLayout: "force",
     },
@@ -181,3 +183,89 @@ export const GetAllTasks = () =>
 export const GetTasksForNote = () => Promise.resolve([]);
 
 export const ToggleTaskInNote = () => Promise.resolve();
+
+export const ListThemes = () =>
+  Promise.resolve(["iceberg", "nord", "solarized-light", "solarized-dark", "dracula"]);
+
+export const LoadTheme = (slug) => {
+  if (slug === "iceberg") {
+    return Promise.resolve({
+      system: "base16",
+      name: "Iceberg",
+      author: "cocopon",
+      slug: "iceberg",
+      variant: "dark",
+      palette: {
+        base00: "161821",
+        base01: "1e2132",
+        base02: "2a3158",
+        base03: "6b7089",
+        base04: "818596",
+        base05: "c6c8d1",
+        base06: "d2d4de",
+        base07: "e8e9f0",
+        base08: "e27878",
+        base09: "e2a478",
+        base0A: "e2a478",
+        base0B: "b4be82",
+        base0C: "89b8c2",
+        base0D: "84a0c6",
+        base0E: "a093c7",
+        base0F: "b4a382",
+      },
+    });
+  }
+
+  return Promise.resolve({
+    system: "base16",
+    name: slug === "nord" ? "Nord" : "Solarized Light",
+    author: slug === "nord" ? "arcticicestudio" : "Ethan Schoonover",
+    slug: slug,
+    variant: slug === "nord" ? "dark" : "light",
+    palette: {
+      base00: "2e3440",
+      base01: "3b4252",
+      base02: "434c5e",
+      base03: "4c566a",
+      base04: "d8dee9",
+      base05: "e5e9f0",
+      base06: "eceff4",
+      base07: "8fbcbb",
+      base08: "bf616a",
+      base09: "d08770",
+      base0A: "ebcb8b",
+      base0B: "a3be8c",
+      base0C: "88c0d0",
+      base0D: "81a1c1",
+      base0E: "b48ead",
+      base0F: "5e81ac",
+    },
+  });
+};
+
+export const GetDefaultTheme = () =>
+  Promise.resolve({
+    system: "base16",
+    name: "Iceberg",
+    author: "cocopon",
+    slug: "iceberg",
+    variant: "dark",
+    palette: {
+      base00: "161821",
+      base01: "1e2132",
+      base02: "2a3158",
+      base03: "6b7089",
+      base04: "818596",
+      base05: "c6c8d1",
+      base06: "d2d4de",
+      base07: "e8e9f0",
+      base08: "e27878",
+      base09: "e2a478",
+      base0A: "e2a478",
+      base0B: "b4be82",
+      base0C: "89b8c2",
+      base0D: "84a0c6",
+      base0E: "a093c7",
+      base0F: "b4a382",
+    },
+  });

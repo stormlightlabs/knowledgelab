@@ -93,30 +93,7 @@ TOML-based settings, workspace snapshots with debounced saves (800ms), user-leve
 
 ## Base16 Theming Engine
 
-- [x] Color variable audit:
-  - [x] Survey existing CSS for all color values.
-  - [x] Map current colors to base16 semantic roles (base00-base0F)
-- [x] Base16 variable migration:
-  - [x] Replace hardcoded colors with `--color-base0X` CSS variables.
-  - [x] Define semantic color mappings (background, foreground, accents).
-  - [x] Ensure all UI components use base16 variables consistently.
-- [x] Theme file support:
-  - [x] Support curated subset of themes from [tinted-theming](https://github.com/tinted-theming/schemes/tree/spec-0.11/base16)
-  - [x] Parse base16 theme files (YAML format).
-  - [x] Load bundled default themes (light, dark variants) & support user-provided theme files from config directory.
-- [x] Settings integration:
-  - [ ] Store selected theme name & color override values in user settings.
-  - [x] Apply theme on app startup and settings changes.
-- [ ] Theme picker UI:
-  - [ ] Add theme selector dropdown in settings panel.
-  - [ ] Display theme preview (live before saving) with sample colors.
-- [ ] Color customization UI:
-  - [ ] Add color picker for individual base16 color overrides with ability to reset to theme or color to default (Iceberg.vim).
-  - [ ] Export custom theme as YAML file.
-- [x] Documentation (`docs/theming.md`):
-  - [x] base16 color role descriptions.
-  - [x] Document theme file format and location.
-  - [x] Provide examples of custom theme creation.
+Base16 color system with bundled themes, CSS variable migration, theme picker UI with live preview, per-color customization with reset, YAML export, and persistence in user settings.
 
 ## Parking Lot
 

@@ -212,4 +212,178 @@ Jest.describe (
         Jest.expect(state.CurrentTheme.Value.Palette.Base0D).toEqual "81a1c1"
         Jest.expect(state.CurrentTheme.Value.Palette.Base0F).toEqual "5e81ac"
     )
+
+    Jest.test (
+      "UpdateColorOverride adds override to ColorOverrides map",
+      fun () ->
+        let state = State.Default
+        let newState, _ = Update (UpdateColorOverride("base00", "#ff0000")) state
+
+        Jest.expect(newState.ColorOverrides.Count).toEqual 1
+        Jest.expect(newState.ColorOverrides.["base00"]).toEqual "#ff0000"
+    )
+
+    Jest.test (
+      "UpdateColorOverride replaces existing override",
+      fun () ->
+        let state = {
+          State.Default with
+              ColorOverrides = Map.ofList [ ("base00", "#ff0000") ]
+        }
+
+        let newState, _ = Update (UpdateColorOverride("base00", "#00ff00")) state
+
+        Jest.expect(newState.ColorOverrides.Count).toEqual 1
+        Jest.expect(newState.ColorOverrides.["base00"]).toEqual "#00ff00"
+    )
+
+    Jest.test (
+      "Multiple color overrides can be added",
+      fun () ->
+        let state = State.Default
+        let state1, _ = Update (UpdateColorOverride("base00", "#ff0000")) state
+        let state2, _ = Update (UpdateColorOverride("base05", "#00ff00")) state1
+        let state3, _ = Update (UpdateColorOverride("base0D", "#0000ff")) state2
+
+        Jest.expect(state3.ColorOverrides.Count).toEqual 3
+        Jest.expect(state3.ColorOverrides.["base00"]).toEqual "#ff0000"
+        Jest.expect(state3.ColorOverrides.["base05"]).toEqual "#00ff00"
+        Jest.expect(state3.ColorOverrides.["base0D"]).toEqual "#0000ff"
+    )
+
+    Jest.test (
+      "ResetColorOverride removes specific override",
+      fun () ->
+        let state = {
+          State.Default with
+              ColorOverrides = Map.ofList [ ("base00", "#ff0000"); ("base05", "#00ff00") ]
+        }
+
+        let newState, _ = Update (ResetColorOverride "base00") state
+
+        Jest.expect(newState.ColorOverrides.Count).toEqual 1
+        Jest.expect(newState.ColorOverrides.ContainsKey("base00")).toEqual false
+        Jest.expect(newState.ColorOverrides.["base05"]).toEqual "#00ff00"
+    )
+
+    Jest.test (
+      "ResetColorOverride on non-existent key is safe",
+      fun () ->
+        let state = {
+          State.Default with
+              ColorOverrides = Map.ofList [ ("base00", "#ff0000") ]
+        }
+
+        let newState, _ = Update (ResetColorOverride "base05") state
+
+        Jest.expect(newState.ColorOverrides.Count).toEqual 1
+        Jest.expect(newState.ColorOverrides.["base00"]).toEqual "#ff0000"
+    )
+
+    Jest.test (
+      "ResetAllColorOverrides clears all overrides",
+      fun () ->
+        let state = {
+          State.Default with
+              ColorOverrides = Map.ofList [ ("base00", "#ff0000"); ("base05", "#00ff00"); ("base0D", "#0000ff") ]
+        }
+
+        let newState, _ = Update ResetAllColorOverrides state
+
+        Jest.expect(newState.ColorOverrides.Count).toEqual 0
+        Jest.expect(newState.ColorOverrides.IsEmpty).toEqual true
+    )
+
+    Jest.test (
+      "ExportCustomTheme with no theme returns error",
+      fun () ->
+        let state = {
+          State.Default with
+              ColorOverrides = Map.ofList [ ("base00", "#ff0000") ]
+        }
+
+        let newState, _ = Update ExportCustomTheme state
+
+        Jest.expect(newState.Error).not.toEqual None
+        Jest.expect(newState.Error.Value).toContain "No theme"
+    )
+
+    Jest.test (
+      "ExportCustomTheme with no overrides returns error",
+      fun () ->
+        let theme = createSampleTheme "nord" "Nord" "dark"
+
+        let state = {
+          State.Default with
+              CurrentTheme = Some theme
+              ColorOverrides = Map.empty
+        }
+
+        let newState, _ = Update ExportCustomTheme state
+
+        Jest.expect(newState.Error).not.toEqual None
+        Jest.expect(newState.Error.Value).toContain "No theme or color overrides"
+    )
+
+    Jest.test (
+      "CustomThemeExported with Ok sets success message",
+      fun () ->
+        let state = State.Default
+        let filepath = "/path/to/custom-theme.yaml"
+        let newState, _ = Update (CustomThemeExported(Ok filepath)) state
+
+        Jest.expect(newState.Success).not.toEqual None
+        Jest.expect(newState.Success.Value).toContain filepath
+        Jest.expect(newState.Error).toEqual None
+    )
+
+    Jest.test (
+      "CustomThemeExported with Error sets error message",
+      fun () ->
+        let state = State.Default
+        let errorMsg = "Failed to save file"
+        let newState, _ = Update (CustomThemeExported(Error errorMsg)) state
+
+        Jest.expect(newState.Error).not.toEqual None
+        Jest.expect(newState.Error.Value).toContain errorMsg
+        Jest.expect(newState.Success).toEqual None
+    )
+
+    Jest.test (
+      "Color overrides workflow: UpdateColorOverride -> ResetColorOverride",
+      fun () ->
+        let state = State.Default
+
+        let state1, _ = Update (UpdateColorOverride("base00", "#ff0000")) state
+        Jest.expect(state1.ColorOverrides.Count).toEqual 1
+
+        let state2, _ = Update (UpdateColorOverride("base05", "#00ff00")) state1
+        Jest.expect(state2.ColorOverrides.Count).toEqual 2
+
+        let state3, _ = Update (ResetColorOverride "base00") state2
+        Jest.expect(state3.ColorOverrides.Count).toEqual 1
+        Jest.expect(state3.ColorOverrides.ContainsKey("base05")).toEqual true
+
+        let state4, _ = Update ResetAllColorOverrides state3
+        Jest.expect(state4.ColorOverrides.IsEmpty).toEqual true
+    )
+
+    Jest.test (
+      "ColorOverrides persist across theme changes",
+      fun () ->
+        let theme1 = createSampleTheme "nord" "Nord" "dark"
+        let state = State.Default
+
+        let state1, _ = Update (UpdateColorOverride("base00", "#ff0000")) state
+        let state2, _ = Update (ThemeLoaded(Ok theme1)) state1
+
+        Jest.expect(state2.ColorOverrides.Count).toEqual 1
+        Jest.expect(state2.ColorOverrides.["base00"]).toEqual "#ff0000"
+
+        let theme2 = createSampleTheme "dracula" "Dracula" "dark"
+        let state3, _ = Update (ThemeLoaded(Ok theme2)) state2
+
+        Jest.expect(state3.ColorOverrides.Count).toEqual 1
+        Jest.expect(state3.ColorOverrides.["base00"]).toEqual "#ff0000"
+    )
 )

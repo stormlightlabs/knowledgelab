@@ -24,6 +24,10 @@ type GeneralSettings struct {
 	AutoSave bool `toml:"auto_save"`
 	// AutoSaveInterval specifies the interval in seconds between auto-saves
 	AutoSaveInterval int `toml:"auto_save_interval"`
+	// Base16Theme specifies the selected base16 theme slug (optional)
+	Base16Theme *string `toml:"base16_theme,omitempty"`
+	// ColorOverrides contains custom color overrides for base16 colors
+	ColorOverrides map[string]string `toml:"color_overrides,omitempty"`
 }
 
 // EditorSettings contains editor-specific preferences.

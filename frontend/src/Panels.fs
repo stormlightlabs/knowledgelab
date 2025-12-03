@@ -781,6 +781,151 @@ module SettingsPanel =
       ]
     ]
 
+  /// Base16 color descriptions
+  let private base16Descriptions =
+    Map.ofList [
+      "base00", "Default Background"
+      "base01", "Lighter Background (status bars)"
+      "base02", "Selection Background"
+      "base03", "Comments, Secondary Text"
+      "base04", "Dark Foreground"
+      "base05", "Default Foreground"
+      "base06", "Light Foreground"
+      "base07", "Lightest Foreground"
+      "base08", "Red (errors, variables)"
+      "base09", "Orange (numbers)"
+      "base0A", "Yellow (classes, search)"
+      "base0B", "Green (strings, success)"
+      "base0C", "Cyan (regex, links)"
+      "base0D", "Blue (functions, primary)"
+      "base0E", "Magenta (keywords)"
+      "base0F", "Brown (deprecated)"
+    ]
+
+  /// Gets the color value from theme or override
+  let private getColorValue
+    (colorName : string)
+    (theme : Base16Theme option)
+    (overrides : Map<string, string>)
+    : string =
+    match overrides.TryFind(colorName) with
+    | Some overrideValue -> overrideValue
+    | None ->
+      match theme with
+      | Some t ->
+        match colorName with
+        | "base00" -> t.Palette.Base00
+        | "base01" -> t.Palette.Base01
+        | "base02" -> t.Palette.Base02
+        | "base03" -> t.Palette.Base03
+        | "base04" -> t.Palette.Base04
+        | "base05" -> t.Palette.Base05
+        | "base06" -> t.Palette.Base06
+        | "base07" -> t.Palette.Base07
+        | "base08" -> t.Palette.Base08
+        | "base09" -> t.Palette.Base09
+        | "base0A" -> t.Palette.Base0A
+        | "base0B" -> t.Palette.Base0B
+        | "base0C" -> t.Palette.Base0C
+        | "base0D" -> t.Palette.Base0D
+        | "base0E" -> t.Palette.Base0E
+        | "base0F" -> t.Palette.Base0F
+        | _ -> "#000000"
+      | None -> "#000000"
+
+  /// Renders a single color customization row
+  let private colorCustomizationRow
+    (colorName : string)
+    (theme : Base16Theme option)
+    (overrides : Map<string, string>)
+    (dispatch : Msg -> unit)
+    =
+    let currentColor = getColorValue colorName theme overrides
+
+    let description =
+      base16Descriptions.TryFind(colorName) |> Option.defaultValue colorName
+
+    let hasOverride = overrides.ContainsKey(colorName)
+
+    Html.div [
+      prop.className "flex items-center gap-3 mb-2 p-2 rounded hover:bg-base01 transition-colors"
+      prop.children [
+        Html.div [
+          prop.className "w-12 h-8 rounded border-2 border-base02 shrink-0"
+          prop.style [ style.backgroundColor currentColor ]
+        ]
+        Html.div [
+          prop.className "flex-1 min-w-0"
+          prop.children [
+            Html.div [
+              prop.className "font-mono text-sm font-semibold text-base05"
+              prop.text colorName
+            ]
+            Html.div [ prop.className "text-xs text-base03"; prop.text description ]
+          ]
+        ]
+        Html.input [
+          prop.type' "color"
+          prop.value currentColor
+          prop.className "w-12 h-8 cursor-pointer"
+          prop.onChange (fun (value : string) -> dispatch (UpdateColorOverride(colorName, value)))
+        ]
+        Html.div [
+          prop.className "font-mono text-xs text-base04 w-20 text-center"
+          prop.text currentColor
+        ]
+        if hasOverride then
+          Html.button [
+            prop.className
+              "px-2 py-1 text-xs bg-base02 hover:bg-red text-base05 hover:text-base00 rounded transition-all"
+            prop.text "Reset"
+            prop.onClick (fun _ -> dispatch (ResetColorOverride colorName))
+          ]
+        else
+          Html.div [ prop.className "w-14" ]
+      ]
+    ]
+
+  /// Renders theme preview swatches
+  let private themePreview (theme : Base16Theme option) (overrides : Map<string, string>) =
+    match theme with
+    | Some t ->
+      let colors = [
+        "base00"
+        "base01"
+        "base02"
+        "base03"
+        "base04"
+        "base05"
+        "base06"
+        "base07"
+        "base08"
+        "base09"
+        "base0A"
+        "base0B"
+        "base0C"
+        "base0D"
+        "base0E"
+        "base0F"
+      ]
+
+      Html.div [
+        prop.className "grid grid-cols-8 gap-1 mt-2"
+        prop.children (
+          colors
+          |> List.map (fun colorName ->
+            let color = getColorValue colorName (Some t) overrides
+
+            Html.div [
+              prop.key colorName
+              prop.title $"{colorName}: {color}"
+              prop.className "h-8 rounded border border-base02 cursor-help"
+              prop.style [ style.backgroundColor color ]
+            ])
+        )
+      ]
+    | None -> Html.none
+
   /// Renders the settings panel with actual controls
   let Render (state : State) (dispatch : Msg -> unit) =
     let settings =
@@ -791,6 +936,8 @@ module SettingsPanel =
           Language = "en"
           AutoSave = true
           AutoSaveInterval = 30
+          Base16Theme = None
+          ColorOverrides = Map.empty
         }
         Editor = {
           FontFamily = "monospace"
@@ -852,6 +999,123 @@ module SettingsPanel =
 
           numberField "Auto Save Interval (seconds)" settings.General.AutoSaveInterval 5 120 (fun interval ->
             updateGeneral (fun g -> { g with AutoSaveInterval = interval }))
+        ]
+
+        section "Color Theme" [
+          Html.div [
+            prop.className "mb-3"
+            prop.children [
+              Html.label [
+                prop.className "block text-sm font-medium text-base04 mb-1"
+                prop.text "Base16 Theme"
+              ]
+              Html.select [
+                prop.className
+                  "w-full bg-base00 border border-base02 rounded px-3 py-2 text-base05 focus:outline-none focus:border-blue"
+                prop.value (state.CurrentTheme |> Option.map (fun t -> t.Slug) |> Option.defaultValue "")
+                prop.onChange (fun (slug : string) ->
+                  if not (System.String.IsNullOrEmpty slug) then
+                    dispatch (LoadTheme slug))
+                prop.children (
+                  Html.option [ prop.value ""; prop.text "Select a theme..." ]
+                  :: (state.AvailableThemes
+                      |> List.map (fun slug -> Html.option [ prop.value slug; prop.text slug ]))
+                )
+              ]
+            ]
+          ]
+
+          match state.CurrentTheme with
+          | Some theme ->
+            Html.div [
+              prop.className "mb-3"
+              prop.children [
+                Html.div [
+                  prop.className "text-sm text-base04 mb-1"
+                  prop.text $"Current: {theme.Name} by {theme.Author} ({theme.Variant})"
+                ]
+                themePreview (Some theme) state.ColorOverrides
+              ]
+            ]
+          | None -> Html.none
+        ]
+
+        section "Color Customization" [
+          Html.div [
+            prop.className "mb-3"
+            prop.children [
+              Html.p [
+                prop.className "text-sm text-base04 mb-3"
+                prop.text "Customize individual base16 colors. Changes are applied in real-time."
+              ]
+
+              if state.ColorOverrides.IsEmpty then
+                Html.div [
+                  prop.className "text-xs text-base03 italic p-3 bg-base00 rounded border border-base02"
+                  prop.text "No color overrides. Select colors below to customize the theme."
+                ]
+              else
+                Html.div [
+                  prop.className
+                    "flex items-center justify-between mb-3 p-2 bg-blue bg-opacity-10 rounded border border-blue"
+                  prop.children [
+                    Html.span [
+                      prop.className "text-sm text-blue"
+                      prop.text $"{state.ColorOverrides.Count} color(s) customized"
+                    ]
+                    Html.button [
+                      prop.className
+                        "px-3 py-1 text-xs bg-red hover:bg-red-bright text-base00 rounded transition-all font-medium"
+                      prop.text "Reset All"
+                      prop.onClick (fun _ -> dispatch ResetAllColorOverrides)
+                    ]
+                  ]
+                ]
+            ]
+          ]
+
+          Html.div [
+            prop.className "space-y-1 max-h-96 overflow-y-auto pr-2"
+            prop.children (
+              [
+                "base00"
+                "base01"
+                "base02"
+                "base03"
+                "base04"
+                "base05"
+                "base06"
+                "base07"
+                "base08"
+                "base09"
+                "base0A"
+                "base0B"
+                "base0C"
+                "base0D"
+                "base0E"
+                "base0F"
+              ]
+              |> List.map (fun colorName ->
+                colorCustomizationRow colorName state.CurrentTheme state.ColorOverrides dispatch)
+            )
+          ]
+
+          if not state.ColorOverrides.IsEmpty then
+            Html.div [
+              prop.className "mt-4 pt-4 border-t border-base02"
+              prop.children [
+                Html.button [
+                  prop.className
+                    "w-full bg-blue hover:bg-blue-bright text-base00 font-medium py-2 px-4 rounded transition-all"
+                  prop.text "Export Custom Theme as YAML"
+                  prop.onClick (fun _ -> dispatch ExportCustomTheme)
+                ]
+                Html.p [
+                  prop.className "text-xs text-base03 mt-2 text-center"
+                  prop.text "Save your customized theme as a YAML file"
+                ]
+              ]
+            ]
         ]
 
         section "Editor" [

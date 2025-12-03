@@ -42,7 +42,6 @@ func NewApp() *App {
 	search := service.NewSearchService()
 	themes := service.NewThemeService()
 
-	// Note: logger not yet available, will be attached in startup()
 	stores, err := service.NewStores("notes", "default", nil)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create stores: %v", err))
@@ -530,6 +529,41 @@ func (a *App) LoadTheme(slug string) (*domain.Base16Theme, error) {
 // GetDefaultTheme returns the default theme.
 func (a *App) GetDefaultTheme() (*domain.Base16Theme, error) {
 	return a.themes.GetDefaultTheme()
+}
+
+// SaveCustomTheme saves a custom theme to a YAML file.
+// Opens a save file dialog for the user to choose the destination.
+func (a *App) SaveCustomTheme(theme *domain.Base16Theme, suggestedFilename string) (string, error) {
+	if suggestedFilename == "" {
+		suggestedFilename = fmt.Sprintf("%s-custom.yaml", theme.Slug)
+	}
+
+	filepath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		DefaultFilename: suggestedFilename,
+		Title:           "Save Custom Theme",
+		Filters: []runtime.FileFilter{
+			{
+				DisplayName: "YAML Files (*.yaml, *.yml)",
+				Pattern:     "*.yaml;*.yml",
+			},
+		},
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("failed to open save dialog: %w", err)
+	}
+
+	if filepath == "" {
+		return "", fmt.Errorf("save cancelled")
+	}
+
+	savedPath, err := a.themes.SaveCustomTheme(theme, filepath)
+	if err != nil {
+		return "", err
+	}
+
+	a.logInfo("Custom theme saved path=%s", savedPath)
+	return savedPath, nil
 }
 
 // wrapError converts domain errors to user-friendly messages.

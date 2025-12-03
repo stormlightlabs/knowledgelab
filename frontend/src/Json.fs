@@ -169,6 +169,11 @@ let workspaceInfoDecoder : Decoder<WorkspaceInfo> =
     TotalBlocks = get.Required.Field "totalBlocks" Decode.int
   })
 
+/// Decodes a string-to-string map from JSON
+let stringMapDecoder : Decoder<Map<string, string>> =
+  Decode.dict Decode.string
+  |> Decode.map (fun dict -> dict |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq)
+
 /// Decodes GeneralSettings from JSON (Go sends PascalCase for Settings fields)
 let generalSettingsDecoder : Decoder<GeneralSettings> =
   Decode.object (fun get -> {
@@ -176,6 +181,10 @@ let generalSettingsDecoder : Decoder<GeneralSettings> =
     Language = get.Required.Field "Language" Decode.string
     AutoSave = get.Required.Field "AutoSave" Decode.bool
     AutoSaveInterval = get.Required.Field "AutoSaveInterval" Decode.int
+    Base16Theme = get.Optional.Field "Base16Theme" Decode.string
+    ColorOverrides =
+      get.Optional.Field "ColorOverrides" stringMapDecoder
+      |> Option.defaultValue Map.empty
   })
 
 /// Decodes EditorSettings from JSON (Go sends PascalCase for Settings fields)

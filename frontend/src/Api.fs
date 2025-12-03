@@ -107,6 +107,9 @@ module Raw =
   [<Import("GetDefaultTheme", from = "@wailsjs/go/main/App")>]
   let getDefaultTheme () : JS.Promise<obj> = jsNative
 
+  [<Import("SaveCustomTheme", from = "@wailsjs/go/main/App")>]
+  let saveCustomTheme (theme : Base16Theme) (filepath : string) : JS.Promise<string> = jsNative
+
 /// Helper to decode JSON response
 let decodeResponse<'T> (decoder : Decoder<'T>) (response : obj) : 'T =
   let json = JS.JSON.stringify response
@@ -251,3 +254,7 @@ let loadTheme (slug : string) : JS.Promise<Base16Theme> =
 /// Gets the default theme
 let getDefaultTheme () : JS.Promise<Base16Theme> =
   Raw.getDefaultTheme () |> Promise.map (decodeResponse Json.base16ThemeDecoder)
+
+/// Saves a custom theme to a YAML file and returns the filepath
+let saveCustomTheme (theme : Base16Theme) (suggestedPath : string) : JS.Promise<string> =
+  Raw.saveCustomTheme theme suggestedPath

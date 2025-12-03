@@ -269,3 +269,8 @@ export const GetDefaultTheme = () =>
       base0F: "b4a382",
     },
   });
+
+export const SaveCustomTheme = (theme, suggestedPath) => {
+  const filepath = suggestedPath || `/tmp/${theme.slug}-custom.yaml`;
+  return Promise.resolve(filepath);
+};

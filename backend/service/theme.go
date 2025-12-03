@@ -3,6 +3,7 @@ package service
 import (
 	"embed"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -102,4 +103,18 @@ func (s *ThemeService) GetDefaultTheme() (*domain.Base16Theme, error) {
 	}
 
 	return s.LoadTheme(themes[0])
+}
+
+// SaveCustomTheme saves a theme to a YAML file at the specified path.
+func (s *ThemeService) SaveCustomTheme(theme *domain.Base16Theme, filepath string) (string, error) {
+	data, err := yaml.Marshal(theme)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal theme: %w", err)
+	}
+
+	if err := os.WriteFile(filepath, data, 0644); err != nil {
+		return "", fmt.Errorf("failed to write theme file: %w", err)
+	}
+
+	return filepath, nil
 }

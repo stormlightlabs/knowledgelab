@@ -18,6 +18,8 @@ Jest.describe (
             Language = "en"
             AutoSave = true
             AutoSaveInterval = 30
+            Base16Theme = None
+            ColorOverrides = Map.empty
           }
           Editor = {
             FontFamily = "monospace"
@@ -61,6 +63,8 @@ Jest.describe (
             Language = "en"
             AutoSave = false
             AutoSaveInterval = 60
+            Base16Theme = None
+            ColorOverrides = Map.empty
           }
           Editor = {
             FontFamily = "Inter"
@@ -109,6 +113,8 @@ Jest.describe (
             Language = "en"
             AutoSave = true
             AutoSaveInterval = 30
+            Base16Theme = None
+            ColorOverrides = Map.empty
           }
           Editor = {
             FontFamily = "monospace"
@@ -144,6 +150,8 @@ Jest.describe (
             Language = "es"
             AutoSave = false
             AutoSaveInterval = 60
+            Base16Theme = None
+            ColorOverrides = Map.empty
           }
           Editor = {
             FontFamily = "JetBrains Mono"
@@ -182,6 +190,8 @@ Jest.describe (
             Language = "en"
             AutoSave = true
             AutoSaveInterval = 30
+            Base16Theme = None
+            ColorOverrides = Map.empty
           }
           Editor = {
             FontFamily = "monospace"
@@ -216,6 +226,8 @@ Jest.describe (
             Language = "en"
             AutoSave = true
             AutoSaveInterval = 30
+            Base16Theme = None
+            ColorOverrides = Map.empty
           }
           Editor = {
             FontFamily = "monospace"
@@ -250,6 +262,8 @@ Jest.describe (
             Language = "en"
             AutoSave = true
             AutoSaveInterval = 5
+            Base16Theme = None
+            ColorOverrides = Map.empty
           }
           Editor = {
             FontFamily = "monospace"
@@ -281,6 +295,8 @@ Jest.describe (
             Language = "en"
             AutoSave = true
             AutoSaveInterval = 120
+            Base16Theme = None
+            ColorOverrides = Map.empty
           }
           Editor = {
             FontFamily = "monospace"

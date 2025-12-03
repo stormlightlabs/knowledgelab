@@ -145,6 +145,7 @@ type State = {
   NoteHistories : Map<string, EditorSnapshot list * EditorSnapshot list>
   AvailableThemes : string list
   CurrentTheme : Base16Theme option
+  ColorOverrides : Map<string, string>
   NotesSortBy : SortOption
   NotesSortOrder : SortOrder
   Loading : bool
@@ -228,6 +229,7 @@ type State = {
     NoteHistories = Map.empty
     AvailableThemes = []
     CurrentTheme = None
+    ColorOverrides = Map.empty
     NotesSortBy = ModifiedDate
     NotesSortOrder = Descending
     Loading = false
@@ -341,6 +343,11 @@ type Msg =
   | LoadTheme of slug : string
   | ThemeLoaded of Result<Base16Theme, string>
   | ApplyTheme of Base16Theme
+  | UpdateColorOverride of colorName : string * hexValue : string
+  | ResetColorOverride of colorName : string
+  | ResetAllColorOverrides
+  | ExportCustomTheme
+  | CustomThemeExported of Result<string, string>
   | Undo
   | Redo
 
@@ -1304,7 +1311,20 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
       Cmd.ofMsg LoadThemes
       Cmd.OfPromise.either Api.getDefaultTheme () (Ok >> ThemeLoaded) (fun ex -> Error ex.Message |> ThemeLoaded)
     ]
-  | SettingsLoaded(Ok settings) -> { state with Settings = Some settings; Error = None }, Cmd.none
+  | SettingsLoaded(Ok settings) ->
+    let newState = {
+      state with
+          Settings = Some settings
+          ColorOverrides = settings.General.ColorOverrides
+          Error = None
+    }
+
+    let themeCmd =
+      match settings.General.Base16Theme with
+      | Some slug -> Cmd.ofMsg (LoadTheme slug)
+      | None -> Cmd.none
+
+    newState, themeCmd
   | SettingsLoaded(Error err) -> { state with Error = Some err }, Cmd.none
   | WorkspaceSnapshotLoaded(Ok snapshot) ->
     let sanitizedSnapshot = sanitizeSnapshot snapshot
@@ -1834,8 +1854,134 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
       Cmd.OfPromise.either Api.loadTheme slug (Ok >> ThemeLoaded) (fun ex -> Error ex.Message |> ThemeLoaded)
 
     state, cmd
-  | ThemeLoaded(Ok theme) -> { state with CurrentTheme = Some theme }, Cmd.ofMsg (ApplyTheme theme)
+  | ThemeLoaded(Ok theme) ->
+    let updatedSettings =
+      state.Settings
+      |> Option.map (fun s -> {
+        s with
+            General = { s.General with Base16Theme = Some theme.Slug }
+      })
+
+    let newState = {
+      state with
+          CurrentTheme = Some theme
+          Settings = updatedSettings
+    }
+
+    let settingsCmd =
+      match updatedSettings with
+      | Some s -> Cmd.ofMsg (SettingsChanged s)
+      | None -> Cmd.none
+
+    newState, Cmd.batch [ Cmd.ofMsg (ApplyTheme theme); settingsCmd ]
   | ThemeLoaded(Error err) -> { state with Error = Some $"Failed to load theme: {err}" }, Cmd.none
   | ApplyTheme theme ->
-    let _ = Theme.ApplyTheme theme
+    let _ = Theme.ApplyTheme theme state.ColorOverrides
     state, Cmd.none
+  | UpdateColorOverride(colorName, hexValue) ->
+    let updatedOverrides = state.ColorOverrides.Add(colorName, hexValue)
+
+    let updatedSettings =
+      state.Settings
+      |> Option.map (fun s -> {
+        s with
+            General = { s.General with ColorOverrides = updatedOverrides }
+      })
+
+    match state.CurrentTheme with
+    | Some theme ->
+      let _ = Theme.ApplyTheme theme updatedOverrides
+
+      let newState = {
+        state with
+            ColorOverrides = updatedOverrides
+            Settings = updatedSettings
+      }
+
+      let settingsCmd =
+        match updatedSettings with
+        | Some s -> Cmd.ofMsg (SettingsChanged s)
+        | None -> Cmd.none
+
+      newState, settingsCmd
+    | None -> { state with ColorOverrides = updatedOverrides }, Cmd.none
+  | ResetColorOverride colorName ->
+    let updatedOverrides = state.ColorOverrides.Remove(colorName)
+
+    let updatedSettings =
+      state.Settings
+      |> Option.map (fun s -> {
+        s with
+            General = { s.General with ColorOverrides = updatedOverrides }
+      })
+
+    match state.CurrentTheme with
+    | Some theme ->
+      let _ = Theme.ApplyTheme theme updatedOverrides
+
+      let newState = {
+        state with
+            ColorOverrides = updatedOverrides
+            Settings = updatedSettings
+      }
+
+      let settingsCmd =
+        match updatedSettings with
+        | Some s -> Cmd.ofMsg (SettingsChanged s)
+        | None -> Cmd.none
+
+      newState, settingsCmd
+    | None -> { state with ColorOverrides = updatedOverrides }, Cmd.none
+  | ResetAllColorOverrides ->
+    let updatedSettings =
+      state.Settings
+      |> Option.map (fun s -> {
+        s with
+            General = { s.General with ColorOverrides = Map.empty }
+      })
+
+    match state.CurrentTheme with
+    | Some theme ->
+      let _ = Theme.ApplyTheme theme Map.empty
+
+      let newState = {
+        state with
+            ColorOverrides = Map.empty
+            Settings = updatedSettings
+      }
+
+      let settingsCmd =
+        match updatedSettings with
+        | Some s -> Cmd.ofMsg (SettingsChanged s)
+        | None -> Cmd.none
+
+      newState, settingsCmd
+    | None -> { state with ColorOverrides = Map.empty }, Cmd.none
+  | ExportCustomTheme ->
+    match state.CurrentTheme with
+    | Some theme when not state.ColorOverrides.IsEmpty ->
+      let themeWithOverrides = Theme.CreateCustomTheme theme state.ColorOverrides
+
+      state,
+      Cmd.OfPromise.either (Api.saveCustomTheme themeWithOverrides) "" (Ok >> CustomThemeExported) (fun ex ->
+        CustomThemeExported(Error ex.Message))
+    | _ ->
+      {
+        state with
+            Error = Some "No theme or color overrides to export"
+      },
+      Cmd.none
+  | CustomThemeExported(Ok filepath) ->
+    {
+      state with
+          Success = Some $"Theme exported to: {filepath}"
+          Error = None
+    },
+    Cmd.none
+  | CustomThemeExported(Error err) ->
+    {
+      state with
+          Error = Some $"Failed to export theme: {err}"
+          Success = None
+    },
+    Cmd.none

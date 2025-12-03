@@ -176,6 +176,8 @@ type GeneralSettings = {
   Language : string
   AutoSave : bool
   AutoSaveInterval : int
+  Base16Theme : string option
+  ColorOverrides : Map<string, string>
 }
 
 /// EditorSettings contains editor-specific preferences

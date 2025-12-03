@@ -137,6 +137,26 @@ module WorkspacePicker =
 
 module Sidebar =
   module NoteList =
+    /// Formats a DateTime as a relative time string (e.g., "2 days ago", "1 week ago")
+    let private formatRelativeTime (date : DateTime) : string =
+      let now = DateTime.UtcNow
+      let diff = now - date
+
+      if diff.TotalMinutes < 1.0 then
+        "just now"
+      elif diff.TotalMinutes < 60.0 then
+        $"{int diff.TotalMinutes}m ago"
+      elif diff.TotalHours < 24.0 then
+        $"{int diff.TotalHours}h ago"
+      elif diff.TotalDays < 7.0 then
+        $"{int diff.TotalDays}d ago"
+      elif diff.TotalDays < 30.0 then
+        $"{int (diff.TotalDays / 7.0)}w ago"
+      elif diff.TotalDays < 365.0 then
+        $"{int (diff.TotalDays / 30.0)}mo ago"
+      else
+        $"{int (diff.TotalDays / 365.0)}y ago"
+
     /// Renders a note list item
     let private noteListItem (note : NoteSummary) (dispatch : Msg -> unit) =
       Html.div [
@@ -146,6 +166,10 @@ module Sidebar =
         prop.children [
           Html.div [ prop.className "font-semibold text-base05"; prop.text note.title ]
           Html.div [ prop.className "text-sm text-base03"; prop.text note.path ]
+          Html.div [
+            prop.className "text-xs text-base04 mt-1"
+            prop.text $"Modified {formatRelativeTime note.modifiedAt} • Created {formatRelativeTime note.createdAt}"
+          ]
         ]
       ]
 
@@ -172,6 +196,17 @@ module Sidebar =
       let filteredNotes =
         filterNotesByTags state.Notes state.SelectedTags state.TagFilterMode
 
+      let sortByText =
+        match state.NotesSortBy with
+        | Title -> "Title"
+        | ModifiedDate -> "Modified"
+        | CreatedDate -> "Created"
+
+      let sortOrderIcon =
+        match state.NotesSortOrder with
+        | Ascending -> "↑"
+        | Descending -> "↓"
+
       Html.div [
         prop.className "w-full bg-base01 border-r border-base02 flex flex-col h-full"
         prop.children [
@@ -189,6 +224,42 @@ module Sidebar =
                     ]
                 ]
               ]
+
+              Html.div [
+                prop.className "flex gap-2 mb-2"
+                prop.children [
+                  Html.div [
+                    prop.className "flex-1"
+                    prop.children [
+                      Html.select [
+                        prop.className
+                          "w-full bg-base02 text-base05 text-sm px-2 py-1 rounded border border-base03 cursor-pointer"
+                        prop.value sortByText
+                        prop.onChange (fun (value : string) ->
+                          let sortBy =
+                            match value with
+                            | "Title" -> Title
+                            | "Created" -> CreatedDate
+                            | _ -> ModifiedDate
+
+                          dispatch (SetNotesSortBy sortBy))
+                        prop.children [
+                          Html.option [ prop.text "Title"; prop.value "Title" ]
+                          Html.option [ prop.text "Modified"; prop.value "Modified" ]
+                          Html.option [ prop.text "Created"; prop.value "Created" ]
+                        ]
+                      ]
+                    ]
+                  ]
+                  Html.button [
+                    prop.className
+                      "bg-base02 hover:bg-base03 text-base05 text-sm px-3 py-1 rounded border border-base03 default-transition"
+                    prop.text sortOrderIcon
+                    prop.onClick (fun _ -> dispatch ToggleNotesSortOrder)
+                  ]
+                ]
+              ]
+
               Html.button [
                 prop.className
                   "mt-2 w-full bg-blue hover:bg-blue-bright text-base00 text-sm font-bold py-1 px-2 rounded default-transition"
@@ -206,7 +277,20 @@ module Sidebar =
           Html.div [
             prop.className "flex-1 overflow-y-auto min-h-0"
             prop.children (
-              if List.isEmpty filteredNotes then
+              if List.isEmpty state.Notes then
+                [
+                  Html.div [
+                    prop.className "p-8 text-center"
+                    prop.children [
+                      Html.div [ prop.className "text-base04 text-sm mb-2"; prop.text "No notes yet" ]
+                      Html.div [
+                        prop.className "text-base03 text-xs"
+                        prop.text "Create your first note to get started"
+                      ]
+                    ]
+                  ]
+                ]
+              elif List.isEmpty filteredNotes then
                 [
                   Html.div [
                     prop.className "p-4 text-center text-base03 text-sm"
@@ -428,6 +512,7 @@ module App =
       | [] -> Html.none
       | panels ->
         let collapsed = state.UIState.AreRightPanelsCollapsed
+
         let panelWidth =
           if collapsed then
             0.0
@@ -473,6 +558,7 @@ module App =
                     panels
                     |> List.map (fun panel ->
                       let isActive = panel = activePanel
+
                       Html.button [
                         prop.key (panelLabel panel)
                         prop.className (

@@ -65,6 +65,7 @@ type NoteSummary = {
   path : string
   tags : Tag list
   modifiedAt : DateTime
+  createdAt : DateTime
 }
 
 /// Workspace represents a workspace configuration
@@ -202,6 +203,8 @@ type WorkspaceUI = {
   LastWorkspacePath : string
   GraphLayout : string
   SearchHistory : string list
+  NotesSortBy : string option
+  NotesSortOrder : string option
 }
 
 /// WorkspaceSnapshot represents the UI state for a specific workspace

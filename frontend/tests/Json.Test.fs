@@ -22,6 +22,7 @@ Jest.describe (
         {"name": "testing", "noteId": "test-note-1"},
         {"name": "fsharp", "noteId": "test-note-1"}
       ],
+      "createdAt": "2025-01-28T10:00:00Z",
       "modifiedAt": "2025-01-28T12:00:00Z"
     }
     """
@@ -48,6 +49,7 @@ Jest.describe (
       "title": "Note Without Tags",
       "path": "/notes/no-tags.md",
       "tags": [],
+      "createdAt": "2025-01-28T10:00:00Z",
       "modifiedAt": "2025-01-28T12:00:00Z"
     }
     """

@@ -49,6 +49,7 @@ let noteSummaryDecoder : Decoder<NoteSummary> =
     path = get.Required.Field "path" Decode.string
     tags = get.Required.Field "tags" (Decode.list tagDecoder)
     modifiedAt = get.Required.Field "modifiedAt" Decode.datetimeUtc
+    createdAt = get.Required.Field "createdAt" Decode.datetimeUtc
   })
 
 /// Decodes a Block from JSON
@@ -208,6 +209,8 @@ let workspaceUIDecoder : Decoder<WorkspaceUI> =
     SearchHistory = get.Required.Field "SearchHistory" (Decode.list Decode.string)
     LastWorkspacePath = get.Optional.Field "LastWorkspacePath" Decode.string |> Option.defaultValue ""
     GraphLayout = get.Required.Field "GraphLayout" Decode.string
+    NotesSortBy = get.Optional.Field "NotesSortBy" Decode.string
+    NotesSortOrder = get.Optional.Field "NotesSortOrder" Decode.string
   })
 
 /// Decodes WorkspaceSnapshot from JSON (Go sends PascalCase for WorkspaceSnapshot)

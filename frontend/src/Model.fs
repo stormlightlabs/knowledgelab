@@ -52,6 +52,17 @@ type TagFilterMode =
   /// Notes must have ANY of the selected tags
   | Or
 
+/// Sort option for notes list
+type SortOption =
+  | Title
+  | ModifiedDate
+  | CreatedDate
+
+/// Sort order direction
+type SortOrder =
+  | Ascending
+  | Descending
+
 /// Editor preview mode
 type PreviewMode =
   | EditOnly
@@ -134,6 +145,8 @@ type State = {
   NoteHistories : Map<string, EditorSnapshot list * EditorSnapshot list>
   AvailableThemes : string list
   CurrentTheme : Base16Theme option
+  NotesSortBy : SortOption
+  NotesSortOrder : SortOrder
   Loading : bool
   Error : string option
   Success : string option
@@ -215,6 +228,8 @@ type State = {
     NoteHistories = Map.empty
     AvailableThemes = []
     CurrentTheme = None
+    NotesSortBy = ModifiedDate
+    NotesSortOrder = Descending
     Loading = false
     Error = None
     Success = None
@@ -267,6 +282,8 @@ type Msg =
   | ToggleTagFilter of tagName : string
   | SetTagFilterMode of TagFilterMode
   | ClearTagFilters
+  | SetNotesSortBy of SortOption
+  | ToggleNotesSortOrder
   | LoadBacklinks of noteId : string
   | BacklinksLoaded of Result<Link list, string>
   | OpenDailyNote
@@ -420,6 +437,18 @@ let private addToRecentPages (noteId : string) (recentPages : string list) : str
     let newList = noteId :: filtered
     newList |> List.truncate MaxRecentFiles
 
+/// Sorts notes according to the specified option and order
+let private sortNotes (sortBy : SortOption) (order : SortOrder) (notes : NoteSummary list) : NoteSummary list =
+  let sorted =
+    match sortBy with
+    | Title -> notes |> List.sortBy (fun n -> n.title.ToLowerInvariant())
+    | ModifiedDate -> notes |> List.sortBy (fun n -> n.modifiedAt)
+    | CreatedDate -> notes |> List.sortBy (fun n -> n.createdAt)
+
+  match order with
+  | Ascending -> sorted
+  | Descending -> List.rev sorted
+
 /// Adds a search query to the search history list, maintaining max size and moving duplicates to front
 let private addToSearchHistory (query : string) (searchHistory : string list) : string list =
   if String.IsNullOrWhiteSpace query then
@@ -447,12 +476,12 @@ let private applyMarkdownFormat
 
     let newStart = start + prefix.Length
     let newEnd = newStart + selectedText.Length
-    (newContent, newStart, newEnd)
+    newContent, newStart, newEnd
   | Some pos, _ ->
     let formattedText = prefix + suffix
     let newContent = content.Substring(0, pos) + formattedText + content.Substring(pos)
     let newPos = pos + prefix.Length
-    (newContent, newPos, newPos)
+    newContent, newPos, newPos
   | _ -> (content, 0, 0)
 
 /// Applies heading formatting to the current line
@@ -480,7 +509,7 @@ let private applyHeadingFormat (content : string) (cursorPosition : int option) 
     let newContent = System.String.Join("\n", lines)
     let newPos = currentPos + headingPrefix.Length
 
-    (newContent, newPos)
+    newContent, newPos
   | None -> (content, 0)
 
 /// Applies indentation (2 spaces) to the current line or selected lines
@@ -526,7 +555,7 @@ let private applyBlockIndent
     let newContent = System.String.Join("\n", lines)
     let newCursor = Some(pos + 2)
 
-    (newContent, newCursor)
+    newContent, newCursor
   | None -> (content, None)
 
 /// Removes indentation (up to 2 spaces) from the current line or selected lines
@@ -585,8 +614,8 @@ let private applyBlockOutdent
     let newContent = System.String.Join("\n", lines)
     let newCursor = Some(max 0 (pos - removedChars))
 
-    (newContent, newCursor)
-  | None -> (content, None)
+    newContent, newCursor
+  | None -> content, None
 
 /// Navigates cursor to the previous or next line (direction: -1 for up, 1 for down)
 let private navigateBlock (content : string) (cursorPosition : int option) (direction : int) : int option =
@@ -819,7 +848,16 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     { state with Loading = true },
     Cmd.OfPromise.either Api.listNotes () (safeArrayToList >> Ok >> NotesLoaded) (fun ex ->
       NotesLoaded(Error ex.Message))
-  | NotesLoaded(Ok notes) -> { state with Notes = notes; Loading = false; Error = None }, Cmd.none
+  | NotesLoaded(Ok notes) ->
+    let sortedNotes = sortNotes state.NotesSortBy state.NotesSortOrder notes
+
+    {
+      state with
+          Notes = sortedNotes
+          Loading = false
+          Error = None
+    },
+    Cmd.none
   | NotesLoaded(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | SelectNote noteId ->
     { saveCurrentNoteHistory state with Loading = true },
@@ -1157,6 +1195,64 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     { state with SelectedTags = newSelectedTags }, Cmd.none
   | SetTagFilterMode mode -> { state with TagFilterMode = mode }, Cmd.none
   | ClearTagFilters -> { state with SelectedTags = [] }, Cmd.none
+  | SetNotesSortBy sortBy ->
+    let sortedNotes = sortNotes sortBy state.NotesSortOrder state.Notes
+
+    let updatedSnapshot =
+      match state.WorkspaceSnapshot with
+      | Some snapshot ->
+        let sortByStr =
+          match sortBy with
+          | Title -> "title"
+          | ModifiedDate -> "modified"
+          | CreatedDate -> "created"
+
+        Some {
+          snapshot with
+              UI = { snapshot.UI with NotesSortBy = Some sortByStr }
+        }
+      | None -> None
+
+    {
+      state with
+          NotesSortBy = sortBy
+          Notes = sortedNotes
+          WorkspaceSnapshot = updatedSnapshot
+    },
+    (match updatedSnapshot with
+     | Some snapshot -> Cmd.ofMsg (WorkspaceSnapshotChanged snapshot)
+     | None -> Cmd.none)
+  | ToggleNotesSortOrder ->
+    let newOrder =
+      match state.NotesSortOrder with
+      | Ascending -> Descending
+      | Descending -> Ascending
+
+    let sortedNotes = sortNotes state.NotesSortBy newOrder state.Notes
+
+    let updatedSnapshot =
+      match state.WorkspaceSnapshot with
+      | Some snapshot ->
+        let orderStr =
+          match newOrder with
+          | Ascending -> "asc"
+          | Descending -> "desc"
+
+        Some {
+          snapshot with
+              UI = { snapshot.UI with NotesSortOrder = Some orderStr }
+        }
+      | None -> None
+
+    {
+      state with
+          NotesSortOrder = newOrder
+          Notes = sortedNotes
+          WorkspaceSnapshot = updatedSnapshot
+    },
+    (match updatedSnapshot with
+     | Some snapshot -> Cmd.ofMsg (WorkspaceSnapshotChanged snapshot)
+     | None -> Cmd.none)
   | LoadBacklinks noteId ->
     { state with Loading = true },
     Cmd.OfPromise.either Api.getBacklinks noteId (safeArrayToList >> Ok >> BacklinksLoaded) (fun ex ->
@@ -1222,9 +1318,25 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
       else
         Cmd.none
 
+    // Restore sort preferences from snapshot
+    let sortBy =
+      match sanitizedSnapshot.UI.NotesSortBy with
+      | Some "title" -> Title
+      | Some "modified" -> ModifiedDate
+      | Some "created" -> CreatedDate
+      | _ -> state.NotesSortBy
+
+    let sortOrder =
+      match sanitizedSnapshot.UI.NotesSortOrder with
+      | Some "asc" -> Ascending
+      | Some "desc" -> Descending
+      | _ -> state.NotesSortOrder
+
     {
       state with
           WorkspaceSnapshot = Some sanitizedSnapshot
+          NotesSortBy = sortBy
+          NotesSortOrder = sortOrder
           Error = None
     },
     autoOpenCmd

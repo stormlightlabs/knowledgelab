@@ -14,7 +14,6 @@
     <Compile Include="src/Theme.fs" />
     <Compile Include="src/Model.fs" />
     <Compile Include="src/Keybinds.fs" />
-    <Compile Include="src/Icons.fs" />
     <Compile Include="src/StatusBar.fs" />
     <Compile Include="src/GraphView.fs" />
     <Compile Include="src/Panels.fs" />

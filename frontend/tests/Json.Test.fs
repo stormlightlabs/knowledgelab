@@ -35,7 +35,7 @@ Jest.describe (
           Jest.expect(note.path).toEqual ("/notes/test.md")
           Jest.expect(note.tags.Length).toEqual (2)
           Jest.expect(note.tags.[0].Name).toEqual ("testing")
-        | Error err -> failwith ($"Decode failed: {err}")
+        | Error err -> failwith $"Decode failed: {err}"
     )
 
     Jest.test (
@@ -326,5 +326,122 @@ Jest.describe (
           Jest.expect(block.Level).toEqual (1)
           Jest.expect(block.Children.Length).toEqual (2)
         | Error err -> failwith $"Decode failed: {err}"
+    )
+
+    Jest.test (
+      "WorkspaceUI decoder handles valid JSON with SearchHistory",
+      fun () ->
+        let json =
+          """
+    {
+      "ActivePage": "notes/current.md",
+      "SidebarVisible": true,
+      "SidebarWidth": 320,
+      "RightPanelVisible": true,
+      "RightPanelWidth": 400,
+      "PinnedPages": ["index.md", "todo.md"],
+      "RecentPages": ["notes/current.md", "daily/2025-01-28.md"],
+      "LastWorkspacePath": "/home/user/notes",
+      "GraphLayout": "force",
+      "SearchHistory": ["python programming", "golang tutorial", "react hooks"]
+    }
+    """
+
+        let result = Decode.fromString workspaceUIDecoder json
+
+        match result with
+        | Ok ui ->
+          Jest.expect(ui.ActivePage).toEqual "notes/current.md"
+          Jest.expect(ui.SearchHistory.Length).toEqual 3
+          Jest.expect(ui.SearchHistory.[0]).toEqual "python programming"
+          Jest.expect(ui.SearchHistory.[1]).toEqual "golang tutorial"
+          Jest.expect(ui.SearchHistory.[2]).toEqual "react hooks"
+        | Error err -> failwith $"Decode failed: {err}"
+    )
+
+    Jest.test (
+      "WorkspaceUI decoder handles empty SearchHistory",
+      fun () ->
+        let json =
+          """
+    {
+      "ActivePage": "",
+      "SidebarVisible": true,
+      "SidebarWidth": 280,
+      "RightPanelVisible": false,
+      "RightPanelWidth": 300,
+      "PinnedPages": [],
+      "RecentPages": [],
+      "LastWorkspacePath": "",
+      "GraphLayout": "force",
+      "SearchHistory": []
+    }
+    """
+
+        let result = Decode.fromString workspaceUIDecoder json
+
+        match result with
+        | Ok ui ->
+          Jest.expect(ui.SearchHistory.Length).toEqual 0
+          Jest.expect(ui.SidebarVisible).toEqual true
+        | Error err -> failwith $"Decode failed: {err}"
+    )
+
+    Jest.test (
+      "WorkspaceSnapshot decoder handles valid JSON with SearchHistory",
+      fun () ->
+        let json =
+          """
+    {
+      "UI": {
+        "ActivePage": "notes/test.md",
+        "SidebarVisible": true,
+        "SidebarWidth": 280,
+        "RightPanelVisible": false,
+        "RightPanelWidth": 300,
+        "PinnedPages": ["notes/important.md"],
+        "RecentPages": ["notes/test.md", "notes/other.md"],
+        "LastWorkspacePath": "/workspace/path",
+        "GraphLayout": "tree",
+        "SearchHistory": ["first query", "second query"]
+      }
+    }
+    """
+
+        let result = Decode.fromString workspaceSnapshotDecoder json
+
+        match result with
+        | Ok snapshot ->
+          Jest.expect(snapshot.UI.ActivePage).toEqual "notes/test.md"
+          Jest.expect(snapshot.UI.SearchHistory.Length).toEqual 2
+          Jest.expect(snapshot.UI.SearchHistory.[0]).toEqual "first query"
+          Jest.expect(snapshot.UI.SearchHistory.[1]).toEqual "second query"
+          Jest.expect(snapshot.UI.GraphLayout).toEqual "tree"
+        | Error err -> failwith $"Decode failed: {err}"
+    )
+
+    Jest.test (
+      "WorkspaceUI decoder rejects JSON missing SearchHistory",
+      fun () ->
+        let json =
+          """
+    {
+      "ActivePage": "",
+      "SidebarVisible": true,
+      "SidebarWidth": 280,
+      "RightPanelVisible": false,
+      "RightPanelWidth": 300,
+      "PinnedPages": [],
+      "RecentPages": [],
+      "LastWorkspacePath": "",
+      "GraphLayout": "force"
+    }
+    """
+
+        let result = Decode.fromString workspaceUIDecoder json
+
+        match result with
+        | Ok _ -> failwith "Should have failed with missing SearchHistory field"
+        | Error _ -> Jest.expect(true).toBe true
     )
 )

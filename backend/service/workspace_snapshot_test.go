@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -344,5 +345,129 @@ func TestRecentPages_Persistence(t *testing.T) {
 		if loaded.UI.RecentPages[i] != page {
 			t.Errorf("recent_pages[%d] mismatch: got %q, want %q", i, loaded.UI.RecentPages[i], page)
 		}
+	}
+}
+
+func TestSearchHistory_DefaultEmpty(t *testing.T) {
+	snapshot := DefaultWorkspaceSnapshot()
+	if len(snapshot.UI.SearchHistory) != 0 {
+		t.Errorf("expected empty search_history, got %d items", len(snapshot.UI.SearchHistory))
+	}
+}
+
+func TestSearchHistory_AddNewQuery(t *testing.T) {
+	snapshot := DefaultWorkspaceSnapshot()
+
+	query := "test search query"
+	snapshot.UI.SearchHistory = append([]string{query}, snapshot.UI.SearchHistory...)
+
+	if len(snapshot.UI.SearchHistory) != 1 {
+		t.Fatalf("expected 1 search history item, got %d", len(snapshot.UI.SearchHistory))
+	}
+	if snapshot.UI.SearchHistory[0] != query {
+		t.Errorf("expected %q, got %q", query, snapshot.UI.SearchHistory[0])
+	}
+}
+
+func TestSearchHistory_DuplicateMovesToFront(t *testing.T) {
+	snapshot := WorkspaceSnapshot{
+		UI: WorkspaceUI{
+			SearchHistory: []string{"query1", "query2", "query3"},
+		},
+	}
+
+	queryToRepeat := "query2"
+
+	filtered := []string{}
+	for _, q := range snapshot.UI.SearchHistory {
+		if q != queryToRepeat {
+			filtered = append(filtered, q)
+		}
+	}
+
+	snapshot.UI.SearchHistory = append([]string{queryToRepeat}, filtered...)
+
+	if len(snapshot.UI.SearchHistory) != 3 {
+		t.Fatalf("expected 3 search history items, got %d", len(snapshot.UI.SearchHistory))
+	}
+	if snapshot.UI.SearchHistory[0] != "query2" {
+		t.Errorf("expected 'query2' at front, got %q", snapshot.UI.SearchHistory[0])
+	}
+	if snapshot.UI.SearchHistory[1] != "query1" {
+		t.Errorf("expected 'query1' at index 1, got %q", snapshot.UI.SearchHistory[1])
+	}
+	if snapshot.UI.SearchHistory[2] != "query3" {
+		t.Errorf("expected 'query3' at index 2, got %q", snapshot.UI.SearchHistory[2])
+	}
+}
+
+func TestSearchHistory_TruncateToMaxSize(t *testing.T) {
+	const maxSearchHistory = 20
+
+	searchHistory := []string{}
+	for range 25 {
+		searchHistory = append(searchHistory, fmt.Sprintf("query-%d", len(searchHistory)))
+	}
+
+	snapshot := WorkspaceSnapshot{
+		UI: WorkspaceUI{
+			SearchHistory: searchHistory,
+		},
+	}
+
+	if len(snapshot.UI.SearchHistory) > maxSearchHistory {
+		snapshot.UI.SearchHistory = snapshot.UI.SearchHistory[:maxSearchHistory]
+	}
+
+	if len(snapshot.UI.SearchHistory) != maxSearchHistory {
+		t.Errorf("expected %d search history items after truncation, got %d", maxSearchHistory, len(snapshot.UI.SearchHistory))
+	}
+}
+
+func TestSearchHistory_Persistence(t *testing.T) {
+	tempDir := t.TempDir()
+	snapshotPath := filepath.Join(tempDir, "workspace.toml")
+
+	original := WorkspaceSnapshot{
+		UI: WorkspaceUI{
+			SearchHistory: []string{"python programming", "golang tutorial", "react hooks"},
+		},
+	}
+
+	err := SaveWorkspaceSnapshot(snapshotPath, original)
+	if err != nil {
+		t.Fatalf("SaveWorkspaceSnapshot() error = %v", err)
+	}
+
+	loaded, err := LoadWorkspaceSnapshot(snapshotPath)
+	if err != nil {
+		t.Fatalf("LoadWorkspaceSnapshot() error = %v", err)
+	}
+
+	if len(loaded.UI.SearchHistory) != len(original.UI.SearchHistory) {
+		t.Fatalf("search_history length mismatch: got %d, want %d", len(loaded.UI.SearchHistory), len(original.UI.SearchHistory))
+	}
+
+	for i, query := range original.UI.SearchHistory {
+		if loaded.UI.SearchHistory[i] != query {
+			t.Errorf("search_history[%d] mismatch: got %q, want %q", i, loaded.UI.SearchHistory[i], query)
+		}
+	}
+}
+
+func TestSearchHistory_EmptyQueriesNotAdded(t *testing.T) {
+	snapshot := DefaultWorkspaceSnapshot()
+
+	emptyQueries := []string{"", "   ", "\t", "\n"}
+
+	for _, query := range emptyQueries {
+		trimmed := strings.TrimSpace(query)
+		if trimmed != "" {
+			snapshot.UI.SearchHistory = append([]string{trimmed}, snapshot.UI.SearchHistory...)
+		}
+	}
+
+	if len(snapshot.UI.SearchHistory) != 0 {
+		t.Errorf("expected empty search_history after filtering whitespace, got %d items", len(snapshot.UI.SearchHistory))
 	}
 }

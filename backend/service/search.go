@@ -406,6 +406,7 @@ func (s *SearchService) calculateFuzzyBonus(doc SearchDocument, queryTokens []st
 }
 
 // extractSnippet extracts a text snippet showing query matches with context.
+// Matched terms are wrapped with [[ ]] markers for frontend highlighting.
 func (s *SearchService) extractSnippet(content string, queryTokens []string) string {
 	if len(queryTokens) == 0 || content == "" {
 		return ""
@@ -459,6 +460,8 @@ func (s *SearchService) extractSnippet(content string, queryTokens []string) str
 
 	snippet := strings.TrimSpace(content[start:end])
 
+	snippet = s.highlightMatches(snippet, queryTokens)
+
 	if start > 0 {
 		snippet = "..." + snippet
 	}
@@ -467,6 +470,79 @@ func (s *SearchService) extractSnippet(content string, queryTokens []string) str
 	}
 
 	return snippet
+}
+
+// highlightMatches wraps matched query tokens with [[ ]] markers for frontend highlighting.
+func (s *SearchService) highlightMatches(snippet string, queryTokens []string) string {
+	type match struct {
+		start int
+		end   int
+	}
+
+	snippetLower := strings.ToLower(snippet)
+	matches := []match{}
+
+	for _, token := range queryTokens {
+		tokenLower := strings.ToLower(token)
+		searchPos := 0
+
+		for {
+			pos := strings.Index(snippetLower[searchPos:], tokenLower)
+			if pos == -1 {
+				break
+			}
+
+			actualPos := searchPos + pos
+			matches = append(matches, match{start: actualPos, end: actualPos + len(token)})
+			searchPos = actualPos + len(token)
+		}
+	}
+
+	if len(matches) == 0 {
+		return snippet
+	}
+
+	sortedMatches := make([]match, len(matches))
+	copy(sortedMatches, matches)
+
+	for i := 0; i < len(sortedMatches)-1; i++ {
+		for j := i + 1; j < len(sortedMatches); j++ {
+			if sortedMatches[j].start < sortedMatches[i].start {
+				sortedMatches[i], sortedMatches[j] = sortedMatches[j], sortedMatches[i]
+			}
+		}
+	}
+
+	mergedMatches := []match{}
+	if len(sortedMatches) > 0 {
+		current := sortedMatches[0]
+		for i := 1; i < len(sortedMatches); i++ {
+			if sortedMatches[i].start <= current.end {
+				if sortedMatches[i].end > current.end {
+					current.end = sortedMatches[i].end
+				}
+			} else {
+				mergedMatches = append(mergedMatches, current)
+				current = sortedMatches[i]
+			}
+		}
+		mergedMatches = append(mergedMatches, current)
+	}
+
+	result := strings.Builder{}
+	lastEnd := 0
+
+	for _, m := range mergedMatches {
+		result.WriteString(snippet[lastEnd:m.start])
+		result.WriteString("[[")
+		result.WriteString(snippet[m.start:m.end])
+		result.WriteString("]]")
+		lastEnd = m.end
+	}
+
+	result.WriteString(snippet[lastEnd:])
+
+	return result.String()
 }
 
 // levenshteinDistance calculates the edit distance between two strings.

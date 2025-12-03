@@ -241,3 +241,7 @@ code {
 button {
   @apply hover:cursor-pointer;
 }
+
+.search-highlight {
+  @apply bg-yellow-bright text-base00 px-0.5 rounded-sm font-medium;
+}

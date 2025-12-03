@@ -366,6 +366,7 @@ Jest.describe (
             RecentPages = [ "recent1.md" ]
             LastWorkspacePath = "/workspace"
             GraphLayout = "force"
+            SearchHistory = []
           }
         }
 
@@ -395,6 +396,7 @@ Jest.describe (
             RecentPages = [ ""; "note-a.md"; " " ]
             LastWorkspacePath = "/workspace"
             GraphLayout = "force"
+            SearchHistory = []
           }
         }
 
@@ -432,6 +434,7 @@ Jest.describe (
             RecentPages = [ "note-a"; "note-b" ]
             LastWorkspacePath = "/workspace"
             GraphLayout = "force"
+            SearchHistory = []
           }
         }
 
@@ -454,6 +457,7 @@ Jest.describe (
             RecentPages = []
             LastWorkspacePath = "/workspace"
             GraphLayout = "force"
+            SearchHistory = []
           }
         }
 
@@ -528,6 +532,7 @@ Jest.describe (
             RecentPages = []
             LastWorkspacePath = ""
             GraphLayout = "force"
+            SearchHistory = []
           }
         }
 
@@ -615,6 +620,7 @@ Jest.describe (
             RecentPages = []
             LastWorkspacePath = "/workspace"
             GraphLayout = "tree"
+            SearchHistory = []
           }
         }
 
@@ -711,6 +717,7 @@ Jest.describe (
             RecentPages = []
             LastWorkspacePath = "/workspace"
             GraphLayout = "force"
+            SearchHistory = []
           }
         }
 
@@ -766,6 +773,7 @@ Jest.describe (
             RecentPages = []
             LastWorkspacePath = "/workspace"
             GraphLayout = "force"
+            SearchHistory = []
           }
         }
 
@@ -893,6 +901,7 @@ Jest.describe (
             RecentPages = []
             LastWorkspacePath = "/workspace"
             GraphLayout = "force"
+            SearchHistory = []
           }
         }
 
@@ -936,6 +945,7 @@ Jest.describe (
             RecentPages = [ "existing.md" ]
             LastWorkspacePath = "/workspace"
             GraphLayout = "force"
+            SearchHistory = []
           }
         }
 
@@ -978,6 +988,7 @@ Jest.describe (
             RecentPages = [ "note-a"; "note-b"; "note-c" ]
             LastWorkspacePath = "/workspace"
             GraphLayout = "force"
+            SearchHistory = []
           }
         }
 

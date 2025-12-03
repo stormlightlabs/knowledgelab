@@ -782,3 +782,177 @@ func TestSearchService_CombinedScoring(t *testing.T) {
 		}
 	}
 }
+
+func TestSearchService_SnippetHighlighting(t *testing.T) {
+	search := NewSearchService()
+
+	tests := []struct {
+		name         string
+		content      string
+		query        string
+		wantContains []string
+	}{
+		{
+			name:         "single term highlighting",
+			content:      "This is a test document with the keyword test appearing multiple times for testing.",
+			query:        "test",
+			wantContains: []string{"[[test]]"},
+		},
+		{
+			name:         "multiple term highlighting",
+			content:      "Go programming language is great. Go is simple and Go is fast.",
+			query:        "Go programming",
+			wantContains: []string{"[[Go]]", "[[programming]]"},
+		},
+		{
+			name:         "case insensitive highlighting",
+			content:      "Python Programming and python development are related topics.",
+			query:        "python",
+			wantContains: []string{"[[Python]]", "[[python]]"},
+		},
+		{
+			name:         "overlapping matches merged",
+			content:      "Programming programmer programs",
+			query:        "program",
+			wantContains: []string{"[[Program", "program]]"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			note := &domain.Note{
+				ID:         "test.md",
+				Title:      "Test",
+				Path:       "test.md",
+				Content:    tt.content,
+				ModifiedAt: time.Now(),
+			}
+
+			err := search.IndexNote(note)
+			if err != nil {
+				t.Fatalf("IndexNote() error = %v", err)
+			}
+
+			results, err := search.Search(SearchQuery{
+				Query: tt.query,
+				Limit: 10,
+			})
+
+			if err != nil {
+				t.Fatalf("Search() error = %v", err)
+			}
+
+			if len(results) == 0 {
+				t.Fatal("Search() returned no results")
+			}
+
+			snippet := results[0].Snippet
+			t.Logf("Snippet: %q", snippet)
+
+			for _, want := range tt.wantContains {
+				if !strings.Contains(snippet, want) {
+					t.Errorf("Snippet should contain %q, got: %q", want, snippet)
+				}
+			}
+		})
+	}
+}
+
+func TestHighlightMatches(t *testing.T) {
+	search := NewSearchService()
+
+	tests := []struct {
+		name         string
+		snippet      string
+		queryTokens  []string
+		wantContains []string
+	}{
+		{
+			name:         "single match",
+			snippet:      "The quick brown fox",
+			queryTokens:  []string{"quick"},
+			wantContains: []string{"[[quick]]"},
+		},
+		{
+			name:         "multiple non-overlapping matches",
+			snippet:      "The quick brown fox jumps quickly",
+			queryTokens:  []string{"quick"},
+			wantContains: []string{"[[quick]]", "[[quick]]ly"},
+		},
+		{
+			name:         "case insensitive",
+			snippet:      "Python and PYTHON and python",
+			queryTokens:  []string{"python"},
+			wantContains: []string{"[[Python]]", "[[PYTHON]]", "[[python]]"},
+		},
+		{
+			name:         "no matches",
+			snippet:      "The quick brown fox",
+			queryTokens:  []string{"elephant"},
+			wantContains: []string{},
+		},
+		{
+			name:         "overlapping tokens merged",
+			snippet:      "programming language",
+			queryTokens:  []string{"program", "programming"},
+			wantContains: []string{"[[programming]]"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := search.highlightMatches(tt.snippet, tt.queryTokens)
+
+			for _, want := range tt.wantContains {
+				if !strings.Contains(result, want) {
+					t.Errorf("highlightMatches() result should contain %q, got: %q", want, result)
+				}
+			}
+
+			if len(tt.wantContains) == 0 && strings.Contains(result, "[[") {
+				t.Errorf("highlightMatches() should not add markers when no matches, got: %q", result)
+			}
+
+			openCount := strings.Count(result, "[[")
+			closeCount := strings.Count(result, "]]")
+			if openCount != closeCount {
+				t.Errorf("highlightMatches() unbalanced markers: %d [[ vs %d ]]", openCount, closeCount)
+			}
+		})
+	}
+}
+
+func TestSearchService_SnippetPreservesOriginalCase(t *testing.T) {
+	search := NewSearchService()
+
+	note := &domain.Note{
+		ID:         "test.md",
+		Title:      "Test",
+		Path:       "test.md",
+		Content:    "This contains UPPERCASE and lowercase versions of Python.",
+		ModifiedAt: time.Now(),
+	}
+
+	err := search.IndexNote(note)
+	if err != nil {
+		t.Fatalf("IndexNote() error = %v", err)
+	}
+
+	results, err := search.Search(SearchQuery{
+		Query: "python",
+		Limit: 10,
+	})
+
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+
+	if len(results) == 0 {
+		t.Fatal("Search() returned no results")
+	}
+
+	snippet := results[0].Snippet
+	if !strings.Contains(snippet, "[[Python]]") {
+		t.Errorf("Snippet should preserve original case 'Python', got: %q", snippet)
+	}
+}

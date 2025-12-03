@@ -34,6 +34,8 @@ type WorkspaceUI struct {
 	LastWorkspacePath string `toml:"last_workspace_path"`
 	// GraphLayout stores the last graph view layout (e.g., "force", "tree")
 	GraphLayout string `toml:"graph_layout"`
+	// SearchHistory contains recent search queries (most recent first, max 20)
+	SearchHistory []string `toml:"search_history"`
 }
 
 // DefaultWorkspaceSnapshot returns a WorkspaceSnapshot with sensible defaults.
@@ -49,6 +51,7 @@ func DefaultWorkspaceSnapshot() WorkspaceSnapshot {
 			RecentPages:       []string{},
 			LastWorkspacePath: "",
 			GraphLayout:       "force",
+			SearchHistory:     []string{},
 		},
 	}
 }

@@ -39,6 +39,8 @@ type SearchState = {
   ShowTagAutocomplete : bool
   TagAutocompleteQuery : string
   AvailableTags : string list
+  ShowHistoryAutocomplete : bool
+  SelectedHistoryIndex : int option
 }
 
 /// Tag filtering mode for multi-tag selection
@@ -152,6 +154,8 @@ type State = {
       ShowTagAutocomplete = false
       TagAutocompleteQuery = ""
       AvailableTags = []
+      ShowHistoryAutocomplete = false
+      SelectedHistoryIndex = None
     }
     Graph = None
     SelectedNode = None
@@ -236,6 +240,9 @@ type Msg =
   | SearchCompleted of Result<SearchResult list, string>
   | DebouncedSearch
   | UpdateTagAutocomplete of show : bool * query : string
+  | ShowSearchHistory of show : bool
+  | NavigateSearchHistory of direction : int
+  | SelectSearchHistoryItem of query : string
   | LoadGraph
   | GraphLoaded of Result<Graph, string>
   | LoadTags
@@ -359,6 +366,10 @@ let private cancelTimer (timerId : int option) : unit =
 [<Literal>]
 let private MaxRecentFiles = 20
 
+/// Maximum number of search history queries to track
+[<Literal>]
+let private MaxSearchHistory = 20
+
 /// Removes blank or whitespace-only entries from the recent files list
 let private sanitizeRecentPages (recentPages : string list) =
   recentPages |> List.filter (String.IsNullOrWhiteSpace >> not)
@@ -384,6 +395,15 @@ let private addToRecentPages (noteId : string) (recentPages : string list) : str
 
     let newList = noteId :: filtered
     newList |> List.truncate MaxRecentFiles
+
+/// Adds a search query to the search history list, maintaining max size and moving duplicates to front
+let private addToSearchHistory (query : string) (searchHistory : string list) : string list =
+  if String.IsNullOrWhiteSpace query then
+    searchHistory
+  else
+    let filtered = searchHistory |> List.filter ((<>) query)
+    let newList = query :: filtered
+    newList |> List.truncate MaxSearchHistory
 
 /// Applies markdown formatting to the selected text or inserts formatting markers at cursor
 let private applyMarkdownFormat
@@ -953,6 +973,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
             DebounceTimer = None
             ShowTagAutocomplete = false
       }
+
       { state with Search = newSearch }, Cmd.none
     else
       let newSearch = {
@@ -961,13 +982,20 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
             IsLoading = true
             DebounceTimer = None
       }
+
       { state with Search = newSearch }, debounceSearchCmd DebouncedSearch SearchDebounceDelayMs
   | SearchResultsReceived(Ok results) ->
     let newSearch = { state.Search with Results = results; IsLoading = false }
     { state with Search = newSearch; Error = None }, Cmd.none
   | SearchResultsReceived(Error err) ->
     let newSearch = { state.Search with IsLoading = false; Results = [] }
-    { state with Search = newSearch; Error = Some $"Search failed: {err}" }, Cmd.none
+
+    {
+      state with
+          Search = newSearch
+          Error = Some $"Search failed: {err}"
+    },
+    Cmd.none
   | DebouncedSearch ->
     let query = {
       Query = state.Search.Query
@@ -978,13 +1006,30 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
       Limit = 50
     }
 
-    let newSearch = { state.Search with IsLoading = true }
+    let newSearch = {
+      state.Search with
+          IsLoading = true
+          ShowHistoryAutocomplete = false
+    }
 
-    { state with Search = newSearch },
-    Cmd.OfPromise.either Api.search query (safeArrayToList >> Ok >> SearchResultsReceived) (fun ex ->
-      SearchResultsReceived(Error ex.Message))
+    let updatedState, snapshotCmd =
+      match state.WorkspaceSnapshot with
+      | Some snapshot when not (String.IsNullOrWhiteSpace state.Search.Query) ->
+        let updatedHistory = addToSearchHistory state.Search.Query snapshot.UI.SearchHistory
+        let updatedUI = { snapshot.UI with SearchHistory = updatedHistory }
+        let updatedSnapshot = { snapshot with UI = updatedUI }
+        { state with WorkspaceSnapshot = Some updatedSnapshot }, Cmd.ofMsg (WorkspaceSnapshotChanged updatedSnapshot)
+      | _ -> state, Cmd.none
+
+    { updatedState with Search = newSearch },
+    Cmd.batch [
+      Cmd.OfPromise.either Api.search query (safeArrayToList >> Ok >> SearchResultsReceived) (fun ex ->
+        SearchResultsReceived(Error ex.Message))
+      snapshotCmd
+    ]
   | SearchCleared ->
     cancelTimer state.Search.DebounceTimer
+
     let newSearch = {
       state.Search with
           Query = ""
@@ -992,6 +1037,8 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
           IsLoading = false
           DebounceTimer = None
           ShowTagAutocomplete = false
+          ShowHistoryAutocomplete = false
+          SelectedHistoryIndex = None
     }
 
     { state with Search = newSearch }, Cmd.none
@@ -1164,7 +1211,38 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
           TagAutocompleteQuery = query
           AvailableTags = filteredTags
     }
+
     { state with Search = newSearch }, Cmd.none
+  | ShowSearchHistory show ->
+    let newSearch = {
+      state.Search with
+          ShowHistoryAutocomplete = show
+          SelectedHistoryIndex = None
+    }
+
+    { state with Search = newSearch }, Cmd.none
+  | NavigateSearchHistory direction ->
+    match state.WorkspaceSnapshot with
+    | Some snapshot when not (List.isEmpty snapshot.UI.SearchHistory) ->
+      let historySize = snapshot.UI.SearchHistory.Length
+      let currentIndex = state.Search.SelectedHistoryIndex |> Option.defaultValue -1
+      let newIndex = currentIndex + direction
+
+      if newIndex >= 0 && newIndex < historySize then
+        let newSearch = { state.Search with SelectedHistoryIndex = Some newIndex }
+        { state with Search = newSearch }, Cmd.none
+      else
+        state, Cmd.none
+    | _ -> state, Cmd.none
+  | SelectSearchHistoryItem query ->
+    let newSearch = {
+      state.Search with
+          Query = query
+          ShowHistoryAutocomplete = false
+          SelectedHistoryIndex = None
+    }
+
+    { state with Search = newSearch }, Cmd.ofMsg (SearchQueryChanged query)
   | SetPreviewMode mode ->
     let newState = {
       state with

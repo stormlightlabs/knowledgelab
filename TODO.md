@@ -86,18 +86,7 @@ SearchState with loading states, search panel UI (Cmd/Ctrl+K), results rendering
 
 #### Search UX & Discovery
 
-- [x] Live search with debouncing:
-  - [x] Add 300ms debounce timer in frontend update logic
-  - [x] Cancel pending searches when query changes
-- [ ] Search result highlighting:
-  - [ ] Backend extracts matched text snippets with context windows
-  - [ ] Frontend renders highlighted terms using CSS classes
-- [ ] Search history & autocomplete:
-  - [ ] Store search history in workspace snapshot (last 20 queries)
-  - [ ] Render autocomplete dropdown with arrow key navigation
-- [x] Empty states & error handling:
-  - [x] Show "No results found" with search tips
-  - [x] Display error toast when search API fails
+Live search with 300ms debouncing, snippet highlighting with [[ ]] markers rendered via CSS, search history autocomplete (last 20 queries) with arrow key navigation, and empty state handling.
 
 #### Editor
 
@@ -139,6 +128,7 @@ Undo/redo (Cmd/Ctrl+Z/Shift+Z), toolbar buttons, per-note history preservation, 
 - [x] Test serialization/deserialization of models used in Wails calls.
 - [ ] Virtualization for large note lists (>100 notes)
 - [ ] Keybind help screen/view
+- [ ] Ensure snippet highlighting doesn't collide with wikilinks
 
 ### Command Palette
 

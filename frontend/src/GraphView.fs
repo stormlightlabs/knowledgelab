@@ -93,7 +93,7 @@ let areNeighbors (neighborMap : Map<string, Set<string>>) (nodeA : string) (node
 
 /// SVG graph view component
 [<ReactComponent>]
-let svgGraph (state : State) (dispatch : Msg -> unit) =
+let SvgGraph (state : State) (dispatch : Msg -> unit) =
   let graphData =
     match state.Graph with
     | Some graph -> graphToGraphData graph
@@ -349,7 +349,7 @@ let svgGraph (state : State) (dispatch : Msg -> unit) =
 
 /// Canvas graph view component for large graphs
 [<ReactComponent>]
-let canvasGraph (state : State) (dispatch : Msg -> unit) =
+let CanvasGraph (state : State) (dispatch : Msg -> unit) =
   let graphData =
     match state.Graph with
     | Some graph -> graphToGraphData graph
@@ -620,5 +620,5 @@ let canvasGraph (state : State) (dispatch : Msg -> unit) =
 /// Render the graph view based on the current engine setting
 let render (state : State) (dispatch : Msg -> unit) =
   match state.GraphEngine with
-  | Svg -> svgGraph state dispatch
-  | Canvas -> canvasGraph state dispatch
+  | Svg -> SvgGraph state dispatch
+  | Canvas -> CanvasGraph state dispatch

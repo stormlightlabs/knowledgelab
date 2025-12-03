@@ -88,6 +88,8 @@ Jest.describe (
                 ShowTagAutocomplete = false
                 TagAutocompleteQuery = ""
                 AvailableTags = []
+                ShowHistoryAutocomplete = false
+                SelectedHistoryIndex = None
               }
         }
 
@@ -221,6 +223,8 @@ Jest.describe (
                 ShowTagAutocomplete = false
                 TagAutocompleteQuery = ""
                 AvailableTags = []
+                ShowHistoryAutocomplete = false
+                SelectedHistoryIndex = None
               }
         }
 
@@ -346,5 +350,69 @@ Jest.describe (
         Jest.expect(newState.Search.IsLoading).toEqual false
         Jest.expect(newState.Search.Results.Length).toEqual 0
         Jest.expect(newState.Error).toEqual (Some "Search failed: Network error")
+    )
+
+    Jest.test (
+      "ShowSearchHistory shows history autocomplete",
+      fun () ->
+        let initialState = State.Default
+        let newState, _ = Update (ShowSearchHistory true) initialState
+        Jest.expect(newState.Search.ShowHistoryAutocomplete).toEqual true
+        Jest.expect(newState.Search.SelectedHistoryIndex).toEqual None
+    )
+
+    Jest.test (
+      "ShowSearchHistory hides history autocomplete",
+      fun () ->
+        let initialState = {
+          State.Default with
+              Search = {
+                State.Default.Search with
+                    ShowHistoryAutocomplete = true
+                    SelectedHistoryIndex = Some 1
+              }
+        }
+
+        let newState, _ = Update (ShowSearchHistory false) initialState
+        Jest.expect(newState.Search.ShowHistoryAutocomplete).toEqual false
+        Jest.expect(newState.Search.SelectedHistoryIndex).toEqual None
+    )
+
+    Jest.test (
+      "DebouncedSearch adds query to search history",
+      fun () ->
+        let initialState = {
+          State.Default with
+              WorkspaceSnapshot =
+                Some {
+                  UI = {
+                    ActivePage = ""
+                    SidebarVisible = true
+                    SidebarWidth = 280
+                    RightPanelVisible = false
+                    RightPanelWidth = 300
+                    PinnedPages = []
+                    RecentPages = []
+                    LastWorkspacePath = ""
+                    GraphLayout = "force"
+                    SearchHistory = []
+                  }
+                }
+              Search = {
+                State.Default.Search with
+                    Query = "test query"
+                    IsLoading = false
+              }
+        }
+
+        let newState, _ = Update DebouncedSearch initialState
+        Jest.expect(newState.Search.IsLoading).toEqual true
+        Jest.expect(newState.Search.ShowHistoryAutocomplete).toEqual false
+
+        match newState.WorkspaceSnapshot with
+        | Some snapshot ->
+          Jest.expect(snapshot.UI.SearchHistory.Length).toEqual 1
+          Jest.expect(snapshot.UI.SearchHistory.[0]).toEqual "test query"
+        | None -> failwith "Expected workspace snapshot to exist"
     )
 )

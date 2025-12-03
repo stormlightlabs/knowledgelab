@@ -1,7 +1,6 @@
 module View
 
 open System
-open System.IO
 open Feliz
 open Feliz.Router
 open Model
@@ -514,6 +513,33 @@ module NoteEditor =
     ]
 
 module SearchPanel =
+  /// Parses a snippet with [[ ]] markers and returns highlighted React elements
+  let private parseHighlightedSnippet (snippet : string) : Fable.React.ReactElement list =
+    let rec parse (text : string) (acc : Fable.React.ReactElement list) : Fable.React.ReactElement list =
+      let startIdx = text.IndexOf("[[")
+      let endIdx = text.IndexOf("]]")
+
+      if startIdx = -1 || endIdx = -1 || startIdx >= endIdx then
+        if text.Length > 0 then acc @ [ Html.text text ] else acc
+      else
+        let beforeMarker = text.Substring(0, startIdx)
+        let highlighted = text.Substring(startIdx + 2, endIdx - startIdx - 2)
+        let afterMarker = text.Substring(endIdx + 2)
+
+        let newAcc =
+          if beforeMarker.Length > 0 then
+            acc @ [ Html.text beforeMarker ]
+          else
+            acc
+
+        let newAcc =
+          newAcc
+          @ [ Html.span [ prop.className "search-highlight"; prop.text highlighted ] ]
+
+        parse afterMarker newAcc
+
+    parse snippet []
+
   /// Renders a search result item
   let private searchResultItem (result : SearchResult) (dispatch : Msg -> unit) =
     Html.div [
@@ -526,7 +552,7 @@ module SearchPanel =
         if result.Snippet <> "" then
           Html.div [
             prop.className "text-sm text-base04 mt-1 line-clamp-2"
-            prop.text result.Snippet
+            prop.children (parseHighlightedSnippet result.Snippet)
           ]
         if not (List.isEmpty result.Tags) then
           Html.div [
@@ -579,6 +605,30 @@ module SearchPanel =
                   prop.placeholder "Search notes... (use #tag for tags)"
                   prop.value state.Search.Query
                   prop.onChange handleInputChange
+                  prop.onFocus (fun _ ->
+                    if state.Search.Query = "" then
+                      dispatch (ShowSearchHistory true))
+                  prop.onBlur (fun _ -> dispatch (ShowSearchHistory false))
+                  prop.onKeyDown (fun (e : Browser.Types.KeyboardEvent) ->
+                    match e.key with
+                    | "ArrowDown" when state.Search.ShowHistoryAutocomplete ->
+                      e.preventDefault ()
+                      dispatch (NavigateSearchHistory 1)
+                    | "ArrowUp" when state.Search.ShowHistoryAutocomplete ->
+                      e.preventDefault ()
+                      dispatch (NavigateSearchHistory -1)
+                    | "Enter" when state.Search.ShowHistoryAutocomplete && state.Search.SelectedHistoryIndex.IsSome ->
+                      e.preventDefault ()
+
+                      match state.WorkspaceSnapshot with
+                      | Some snapshot ->
+                        match state.Search.SelectedHistoryIndex with
+                        | Some idx when idx < snapshot.UI.SearchHistory.Length ->
+                          let selectedQuery = snapshot.UI.SearchHistory.[idx]
+                          dispatch (SelectSearchHistoryItem selectedQuery)
+                        | _ -> ()
+                      | _ -> ()
+                    | _ -> ())
                 ]
                 if state.Search.Query <> "" then
                   Html.button [
@@ -610,6 +660,44 @@ module SearchPanel =
                           prop.children [ Html.span [ prop.className "text-blue"; prop.text $"#{tag}" ] ]
                         ])
                     )
+                  ]
+
+                if
+                  state.Search.ShowHistoryAutocomplete
+                  && state.WorkspaceSnapshot.IsSome
+                  && not (List.isEmpty state.WorkspaceSnapshot.Value.UI.SearchHistory)
+                then
+                  Html.div [
+                    prop.className
+                      "absolute top-full left-0 right-0 mt-1 bg-base00 border border-base02 rounded shadow-lg z-50 max-h-64 overflow-y-auto"
+                    prop.onMouseDown (fun e -> e.preventDefault ())
+                    prop.children [
+                      Html.div [
+                        prop.className "px-3 py-2 text-xs text-base03 border-b border-base02 font-semibold"
+                        prop.text "Recent Searches"
+                      ]
+                      Html.div [
+                        prop.children (
+                          state.WorkspaceSnapshot.Value.UI.SearchHistory
+                          |> List.mapi (fun idx query ->
+                            let isSelected = state.Search.SelectedHistoryIndex = Some idx
+
+                            Html.div [
+                              prop.key $"history-{idx}"
+                              prop.className (
+                                if isSelected then
+                                  "px-3 py-2 bg-base02 cursor-pointer transition-colors"
+                                else
+                                  "px-3 py-2 hover:bg-base02 cursor-pointer transition-colors"
+                              )
+                              prop.onMouseDown (fun e ->
+                                e.preventDefault ()
+                                dispatch (SelectSearchHistoryItem query))
+                              prop.children [ Html.span [ prop.className "text-base05"; prop.text query ] ]
+                            ])
+                        )
+                      ]
+                    ]
                   ]
               ]
             ]

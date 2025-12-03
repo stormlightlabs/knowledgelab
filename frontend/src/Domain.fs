@@ -201,6 +201,7 @@ type WorkspaceUI = {
   RecentPages : string list
   LastWorkspacePath : string
   GraphLayout : string
+  SearchHistory : string list
 }
 
 /// WorkspaceSnapshot represents the UI state for a specific workspace

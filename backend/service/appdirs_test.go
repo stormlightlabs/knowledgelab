@@ -32,7 +32,7 @@ func TestNewAppDirs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dirs, err := NewAppDirs(tt.appName, tt.workspaceName)
+			dirs, err := NewAppDirs(tt.appName, tt.workspaceName, nil)
 			if err != nil {
 				t.Fatalf("NewAppDirs() error = %v", err)
 			}
@@ -81,7 +81,7 @@ func TestAppDirs_Ensure(t *testing.T) {
 		DBPath:        filepath.Join(tempDir, "notes", "workspaces", "test", "graph.db"),
 	}
 
-	err := dirs.Ensure()
+	err := dirs.Ensure(nil)
 	if err != nil {
 		t.Fatalf("Ensure() error = %v", err)
 	}
@@ -94,14 +94,14 @@ func TestAppDirs_Ensure(t *testing.T) {
 		t.Errorf("WorkspaceRoot directory was not created: %v", dirs.WorkspaceRoot)
 	}
 
-	err = dirs.Ensure()
+	err = dirs.Ensure(nil)
 	if err != nil {
 		t.Fatalf("Ensure() second call error = %v", err)
 	}
 }
 
 func TestAppDirs_PathStructure(t *testing.T) {
-	dirs, err := NewAppDirs("testapp", "testworkspace")
+	dirs, err := NewAppDirs("testapp", "testworkspace", nil)
 	if err != nil {
 		t.Fatalf("NewAppDirs() error = %v", err)
 	}

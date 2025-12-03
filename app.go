@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"notes/backend/domain"
 	"notes/backend/paths"
@@ -41,7 +42,8 @@ func NewApp() *App {
 	search := service.NewSearchService()
 	themes := service.NewThemeService()
 
-	stores, err := service.NewStores("notes", "default")
+	// Note: logger not yet available, will be attached in startup()
+	stores, err := service.NewStores("notes", "default", nil)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create stores: %v", err))
 	}
@@ -59,9 +61,12 @@ func NewApp() *App {
 	}
 }
 
-// startup is called when the app starts. The context is saved so we can call the runtime methods
+// startup is called when the app starts. The context is saved so we can call the runtime methods.
+// Service initialization order: attach logger contexts -> initialize user config paths.
 func (a *App) startup(ctx context.Context) {
+	a.logInfo("Application starting")
 	a.ctx = ctx
+
 	if a.fs != nil {
 		a.fs.SetLogger(ctx)
 	}
@@ -74,23 +79,33 @@ func (a *App) startup(ctx context.Context) {
 		a.logWarning("failed to initialize user config directory: %v", err)
 	} else {
 		a.userConfigDir = userConfigDir
-		a.logInfo("user config directory: %s", userConfigDir)
+		a.logInfo("User config directory initialized path=%s", userConfigDir)
 	}
+
+	a.logInfo("Application startup complete")
 }
 
-// shutdown is called when the app is closing
+// shutdown is called when the app is closing.
+// Resource cleanup order: filesystem service -> stores (database).
 func (a *App) shutdown(ctx context.Context) {
+	a.logInfo("Application shutdown initiated")
+
 	if a.fs != nil {
+		start := time.Now()
 		a.fs.Close()
+		elapsed := time.Since(start)
+		a.logInfo("Filesystem closed (%dms)", elapsed.Milliseconds())
 	}
+
 	if a.stores != nil {
-		a.stores.Close()
+		a.stores.Close(nil)
 	}
+
+	a.logInfo("Application shutdown complete")
 }
 
 // CreateNewWorkspace scaffolds a new workspace at the selected directory path.
 // Creates the workspace directory, adds a welcome tutorial note, and opens the workspace.
-// Returns workspace information on success.
 func (a *App) CreateNewWorkspace() (*domain.WorkspaceInfo, error) {
 	path, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
 		Title:                      "Select Folder for New Workspace",
@@ -113,7 +128,6 @@ func (a *App) CreateNewWorkspace() (*domain.WorkspaceInfo, error) {
 }
 
 // OpenWorkspace opens a workspace at the specified path and builds the initial index.
-// Returns workspace information including note count and configuration.
 func (a *App) OpenWorkspace(path string) (*domain.WorkspaceInfo, error) {
 	info, err := a.fs.OpenWorkspace(path)
 	if err != nil {
@@ -275,21 +289,24 @@ func (a *App) RenderMarkdown(markdown string) (string, error) {
 }
 
 // buildInitialIndex loads all notes and builds graph and search indexes.
-// Runs asynchronously after workspace is opened.
 func (a *App) buildInitialIndex() {
 	a.indexing = true
 	defer func() { a.indexing = false }()
 
-	a.logInfo("starting initial workspace index build")
+	overallStart := time.Now()
+	a.logInfo("Starting initial workspace index build")
 
+	listStart := time.Now()
 	summaries, err := a.notes.ListNotes()
 	if err != nil {
 		a.logError("failed to list notes during indexing: %v", err)
 		return
 	}
+	a.logInfo("Listed %d notes (%dms)", len(summaries), time.Since(listStart).Milliseconds())
 
+	noteLoadStart := time.Now()
 	notes := make([]domain.Note, 0, len(summaries))
-	for _, summary := range summaries {
+	for i, summary := range summaries {
 		note, err := a.notes.GetNote(summary.ID)
 		if err != nil {
 			a.logWarning("failed to load note %s: %v", summary.ID, err)
@@ -306,13 +323,21 @@ func (a *App) buildInitialIndex() {
 		}
 
 		notes = append(notes, *note)
-	}
 
+		if (i+1)%50 == 0 {
+			a.logInfo("Indexed %d/%d notes...", i+1, len(summaries))
+		}
+	}
+	a.logInfo("Loaded and indexed notes (%dms)", time.Since(noteLoadStart).Milliseconds())
+
+	searchStart := time.Now()
 	if err := a.search.IndexAll(notes); err != nil {
 		a.logError("failed to build search index: %v", err)
+	} else {
+		a.logInfo("Search index built (%dms)", time.Since(searchStart).Milliseconds())
 	}
 
-	a.logInfo("indexed %d notes", len(notes))
+	a.logInfo("Initial index build complete: indexed %d notes (%dms total)", len(notes), time.Since(overallStart).Milliseconds())
 }
 
 // SelectDirectory opens a native directory picker dialog.

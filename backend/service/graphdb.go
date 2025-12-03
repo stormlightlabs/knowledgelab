@@ -12,44 +12,105 @@ import (
 )
 
 // OpenGraphDB opens a SQLite database for storing graph data (pages, blocks, links).
-// Enables foreign key constraints via PRAGMA for referential integrity.
 // The database file is created if it doesn't exist.
-func OpenGraphDB(dbPath string) (*sql.DB, error) {
+//
+// Database setup: opens SQLite connection -> enables PRAGMA foreign_keys for referential integrity.
+func OpenGraphDB(dbPath string, logger *runtimeLogger) (*sql.DB, error) {
+	var timer *Timer
+	if logger != nil {
+		timer = logger.StartTimer("Database opened")
+	}
+
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
+		if timer != nil {
+			timer.CompleteWithError(err, "path=%s", dbPath)
+		}
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		db.Close()
+		if timer != nil {
+			timer.CompleteWithError(err, "path=%s", dbPath)
+		}
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
+	}
+
+	if timer != nil {
+		timer.Complete("path=%s", dbPath)
 	}
 
 	return db, nil
 }
 
 // Migrate applies database migrations to bring the schema up to date.
-// Uses a simple versioning system via the schema_meta table.
-// Safe to call on every application startup.
-func Migrate(db *sql.DB) error {
+// Migration versioning strategy: uses schema_meta table to track applied migrations (user_version).
+// Schema changes are applied incrementally based on current version vs latest version.
+// Safe to call on every application startup - only applies missing migrations.
+func Migrate(db *sql.DB, logger *runtimeLogger) error {
+	var timer *Timer
+	if logger != nil {
+		timer = logger.StartTimer("Migrations applied")
+	}
+
 	if err := createSchemaMeta(db); err != nil {
+		if timer != nil {
+			timer.CompleteWithError(err, "")
+		}
 		return err
 	}
 
 	version, err := getCurrentVersion(db)
 	if err != nil {
+		if timer != nil {
+			timer.CompleteWithError(err, "")
+		}
 		return err
 	}
 
+	migrationsApplied := 0
+
 	if version < 1 {
+		if logger != nil {
+			logger.Debugf("Applying migration 1 (initial schema)")
+		}
 		if err := applyMigration1(db); err != nil {
+			if timer != nil {
+				timer.CompleteWithError(err, "")
+			}
 			return fmt.Errorf("failed to apply migration 1: %w", err)
 		}
+		migrationsApplied++
 	}
 
 	if version < 2 {
+		if logger != nil {
+			logger.Debugf("Applying migration 2 (tasks table)")
+		}
 		if err := applyMigration2(db); err != nil {
+			if timer != nil {
+				timer.CompleteWithError(err, "")
+			}
 			return fmt.Errorf("failed to apply migration 2: %w", err)
+		}
+		migrationsApplied++
+	}
+
+	// Get final version after migrations
+	finalVersion, err := getCurrentVersion(db)
+	if err != nil {
+		if timer != nil {
+			timer.CompleteWithError(err, "")
+		}
+		return err
+	}
+
+	if timer != nil {
+		if migrationsApplied > 0 {
+			timer.Complete("currentVersion=%d migrationsApplied=%d", finalVersion, migrationsApplied)
+		} else {
+			timer.Complete("currentVersion=%d status=up-to-date", finalVersion)
 		}
 	}
 

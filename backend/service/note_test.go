@@ -117,8 +117,12 @@ func TestNoteService_GetNote(t *testing.T) {
 		t.Errorf("Note.Tags length = %d, want 2", len(note.Tags))
 	}
 
-	if len(note.Tags) > 0 && note.Tags[0].Name != "test" {
-		t.Errorf("Note.Tags[0].Name = %q, want %q", note.Tags[0].Name, "test")
+	if len(note.Tags) > 0 && note.Tags[0].Name != "example" {
+		t.Errorf("Note.Tags[0].Name = %q, want %q (tags should be sorted alphabetically)", note.Tags[0].Name, "example")
+	}
+
+	if len(note.Tags) > 1 && note.Tags[1].Name != "test" {
+		t.Errorf("Note.Tags[1].Name = %q, want %q", note.Tags[1].Name, "test")
 	}
 
 	if len(note.Blocks) == 0 {

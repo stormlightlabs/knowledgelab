@@ -138,25 +138,47 @@ type Stores struct {
 }
 
 // NewStores creates and initializes both WorkspaceStore and GraphStore.
-// Creates necessary directories and applies database migrations.
-func NewStores(appName, workspaceName string) (*Stores, error) {
-	dirs, err := NewAppDirs(appName, workspaceName)
+// Initialization sequence: calculate AppDirs paths -> ensure directories exist -> open SQLite DB -> run migrations.
+func NewStores(appName, workspaceName string, logger *runtimeLogger) (*Stores, error) {
+	var overallTimer *Timer
+	if logger != nil {
+		logger.Infof("Starting stores initialization app=%s workspace=%s", appName, workspaceName)
+		overallTimer = logger.StartTimer("Stores initialization complete")
+	}
+
+	dirs, err := NewAppDirs(appName, workspaceName, logger)
 	if err != nil {
+		if overallTimer != nil {
+			overallTimer.CompleteWithError(err, "")
+		}
 		return nil, fmt.Errorf("failed to create app dirs: %w", err)
 	}
 
-	if err := dirs.Ensure(); err != nil {
+	if err := dirs.Ensure(logger); err != nil {
+		if overallTimer != nil {
+			overallTimer.CompleteWithError(err, "")
+		}
 		return nil, fmt.Errorf("failed to ensure directories: %w", err)
 	}
 
-	db, err := OpenGraphDB(dirs.DBPath)
+	db, err := OpenGraphDB(dirs.DBPath, logger)
 	if err != nil {
+		if overallTimer != nil {
+			overallTimer.CompleteWithError(err, "")
+		}
 		return nil, fmt.Errorf("failed to open graph database: %w", err)
 	}
 
-	if err := Migrate(db); err != nil {
+	if err := Migrate(db, logger); err != nil {
 		db.Close()
+		if overallTimer != nil {
+			overallTimer.CompleteWithError(err, "")
+		}
 		return nil, fmt.Errorf("failed to migrate database: %w", err)
+	}
+
+	if overallTimer != nil {
+		overallTimer.Complete("")
 	}
 
 	return &Stores{
@@ -168,6 +190,21 @@ func NewStores(appName, workspaceName string) (*Stores, error) {
 
 // Close closes the graph database connection.
 // Should be called when the application shuts down.
-func (s *Stores) Close() error {
-	return s.Graph.Close()
+func (s *Stores) Close(logger *runtimeLogger) error {
+	var timer *Timer
+	if logger != nil {
+		timer = logger.StartTimer("Stores closed")
+	}
+
+	err := s.Graph.Close()
+
+	if timer != nil {
+		if err != nil {
+			timer.CompleteWithError(err, "")
+		} else {
+			timer.Complete("")
+		}
+	}
+
+	return err
 }

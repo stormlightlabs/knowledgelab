@@ -11,7 +11,7 @@ func TestOpenGraphDB(t *testing.T) {
 	tempDir := t.TempDir()
 	dbPath := filepath.Join(tempDir, "test.db")
 
-	db, err := OpenGraphDB(dbPath)
+	db, err := OpenGraphDB(dbPath, nil)
 	if err != nil {
 		t.Fatalf("OpenGraphDB() error = %v", err)
 	}
@@ -32,13 +32,13 @@ func TestMigrate(t *testing.T) {
 	tempDir := t.TempDir()
 	dbPath := filepath.Join(tempDir, "test.db")
 
-	db, err := OpenGraphDB(dbPath)
+	db, err := OpenGraphDB(dbPath, nil)
 	if err != nil {
 		t.Fatalf("OpenGraphDB() error = %v", err)
 	}
 	defer db.Close()
 
-	err = Migrate(db)
+	err = Migrate(db, nil)
 	if err != nil {
 		t.Fatalf("Migrate() error = %v", err)
 	}
@@ -79,7 +79,7 @@ func TestMigrate(t *testing.T) {
 		}
 	}
 
-	err = Migrate(db)
+	err = Migrate(db, nil)
 	if err != nil {
 		t.Fatalf("Migrate() should be idempotent, got error: %v", err)
 	}
@@ -335,12 +335,12 @@ func setupTestDB(t *testing.T) *sql.DB {
 	tempDir := t.TempDir()
 	dbPath := filepath.Join(tempDir, "test.db")
 
-	db, err := OpenGraphDB(dbPath)
+	db, err := OpenGraphDB(dbPath, nil)
 	if err != nil {
 		t.Fatalf("OpenGraphDB() error = %v", err)
 	}
 
-	err = Migrate(db)
+	err = Migrate(db, nil)
 	if err != nil {
 		db.Close()
 		t.Fatalf("Migrate() error = %v", err)

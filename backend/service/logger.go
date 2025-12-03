@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -18,33 +19,41 @@ func (l *runtimeLogger) attach(ctx context.Context) {
 }
 
 func (l *runtimeLogger) Infof(format string, args ...any) {
+	timestamp := time.Now().UTC().Format(time.RFC3339)
+	message := fmt.Sprintf(format, args...)
 	if l.ctx != nil {
-		runtime.LogInfof(l.ctx, format, args...)
+		runtime.LogInfof(l.ctx, "[%s] INFO: %s", timestamp, message)
 		return
 	}
-	fmt.Printf("INFO: "+format+"\n", args...)
+	fmt.Printf("[%s] INFO: %s\n", timestamp, message)
 }
 
 func (l *runtimeLogger) Debugf(format string, args ...any) {
+	timestamp := time.Now().UTC().Format(time.RFC3339)
+	message := fmt.Sprintf(format, args...)
 	if l.ctx != nil {
-		runtime.LogDebugf(l.ctx, format, args...)
+		runtime.LogDebugf(l.ctx, "[%s] DEBUG: %s", timestamp, message)
 		return
 	}
-	fmt.Printf("DEBUG: "+format+"\n", args...)
+	fmt.Printf("[%s] DEBUG: %s\n", timestamp, message)
 }
 
 func (l *runtimeLogger) Warnf(format string, args ...any) {
+	timestamp := time.Now().UTC().Format(time.RFC3339)
+	message := fmt.Sprintf(format, args...)
 	if l.ctx != nil {
-		runtime.LogWarningf(l.ctx, format, args...)
+		runtime.LogWarningf(l.ctx, "[%s] WARN: %s", timestamp, message)
 		return
 	}
-	fmt.Printf("WARN: "+format+"\n", args...)
+	fmt.Printf("[%s] WARN: %s\n", timestamp, message)
 }
 
 func (l *runtimeLogger) Errorf(format string, args ...any) {
+	timestamp := time.Now().UTC().Format(time.RFC3339)
+	message := fmt.Sprintf(format, args...)
 	if l.ctx != nil {
-		runtime.LogErrorf(l.ctx, format, args...)
+		runtime.LogErrorf(l.ctx, "[%s] ERROR: %s", timestamp, message)
 		return
 	}
-	fmt.Printf("ERROR: "+format+"\n", args...)
+	fmt.Printf("[%s] ERROR: %s\n", timestamp, message)
 }

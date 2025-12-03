@@ -12,7 +12,7 @@ import (
 func cleanupTestWorkspace(t *testing.T, appName, workspaceName string) {
 	t.Helper()
 
-	dirs, err := NewAppDirs(appName, workspaceName)
+	dirs, err := NewAppDirs(appName, workspaceName, nil)
 	if err != nil {
 		t.Fatalf("failed to create app dirs for cleanup: %v", err)
 	}
@@ -231,11 +231,11 @@ func TestTaskService_IndexNote(t *testing.T) {
 
 	cleanupTestWorkspace(t, "test-app", "test-workspace")
 
-	stores, err := NewStores("test-app", "test-workspace")
+	stores, err := NewStores("test-app", "test-workspace", nil)
 	if err != nil {
 		t.Fatalf("failed to create stores: %v", err)
 	}
-	defer stores.Close()
+	defer stores.Close(nil)
 
 	taskService := NewTaskService(stores.Task)
 
@@ -318,11 +318,11 @@ func TestTaskService_GetAllTasks(t *testing.T) {
 
 	cleanupTestWorkspace(t, "test-app", "test-workspace-2")
 
-	stores, err := NewStores("test-app", "test-workspace-2")
+	stores, err := NewStores("test-app", "test-workspace-2", nil)
 	if err != nil {
 		t.Fatalf("failed to create stores: %v", err)
 	}
-	defer stores.Close()
+	defer stores.Close(nil)
 
 	taskService := NewTaskService(stores.Task)
 
@@ -432,11 +432,11 @@ func TestTaskService_UpdateTaskStatus(t *testing.T) {
 
 	cleanupTestWorkspace(t, "test-app", "test-workspace-3")
 
-	stores, err := NewStores("test-app", "test-workspace-3")
+	stores, err := NewStores("test-app", "test-workspace-3", nil)
 	if err != nil {
 		t.Fatalf("failed to create stores: %v", err)
 	}
-	defer stores.Close()
+	defer stores.Close(nil)
 
 	taskService := NewTaskService(stores.Task)
 
@@ -503,11 +503,11 @@ func TestTaskService_RemoveNote(t *testing.T) {
 
 	cleanupTestWorkspace(t, "test-app", "test-workspace-4")
 
-	stores, err := NewStores("test-app", "test-workspace-4")
+	stores, err := NewStores("test-app", "test-workspace-4", nil)
 	if err != nil {
 		t.Fatalf("failed to create stores: %v", err)
 	}
-	defer stores.Close()
+	defer stores.Close(nil)
 
 	taskService := NewTaskService(stores.Task)
 
@@ -559,11 +559,11 @@ func TestTaskService_AdvancedFiltering(t *testing.T) {
 
 	cleanupTestWorkspace(t, "test-app", "test-advanced-filtering")
 
-	stores, err := NewStores("test-app", "test-advanced-filtering")
+	stores, err := NewStores("test-app", "test-advanced-filtering", nil)
 	if err != nil {
 		t.Fatalf("failed to create stores: %v", err)
 	}
-	defer stores.Close()
+	defer stores.Close(nil)
 
 	taskService := NewTaskService(stores.Task)
 

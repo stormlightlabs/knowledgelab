@@ -10,11 +10,11 @@ import (
 func TestNewStores(t *testing.T) {
 	tempDir := t.TempDir()
 
-	stores, err := NewStores(filepath.Join(tempDir, "testapp"), "testworkspace")
+	stores, err := NewStores(filepath.Join(tempDir, "testapp"), "testworkspace", nil)
 	if err != nil {
 		t.Fatalf("NewStores() error = %v", err)
 	}
-	defer stores.Close()
+	defer stores.Close(nil)
 
 	if stores.Workspace == nil {
 		t.Fatal("WorkspaceStore should be initialized")
@@ -40,11 +40,11 @@ func TestNewStores(t *testing.T) {
 
 func TestWorkspaceStore_Settings(t *testing.T) {
 	tempDir := t.TempDir()
-	stores, err := NewStores(filepath.Join(tempDir, "testapp"), "testworkspace")
+	stores, err := NewStores(filepath.Join(tempDir, "testapp"), "testworkspace", nil)
 	if err != nil {
 		t.Fatalf("NewStores() error = %v", err)
 	}
-	defer stores.Close()
+	defer stores.Close(nil)
 
 	settings, err := stores.Workspace.LoadSettings()
 	if err != nil {
@@ -80,11 +80,11 @@ func TestWorkspaceStore_Settings(t *testing.T) {
 
 func TestWorkspaceStore_Snapshot(t *testing.T) {
 	tempDir := t.TempDir()
-	stores, err := NewStores(filepath.Join(tempDir, "testapp"), "testworkspace")
+	stores, err := NewStores(filepath.Join(tempDir, "testapp"), "testworkspace", nil)
 	if err != nil {
 		t.Fatalf("NewStores() error = %v", err)
 	}
-	defer stores.Close()
+	defer stores.Close(nil)
 
 	snapshot, err := stores.Workspace.LoadSnapshot()
 	if err != nil {
@@ -125,11 +125,11 @@ func TestWorkspaceStore_Snapshot(t *testing.T) {
 
 func TestGraphStore_Integration(t *testing.T) {
 	tempDir := t.TempDir()
-	stores, err := NewStores(filepath.Join(tempDir, "testapp"), "testworkspace")
+	stores, err := NewStores(filepath.Join(tempDir, "testapp"), "testworkspace", nil)
 	if err != nil {
 		t.Fatalf("NewStores() error = %v", err)
 	}
-	defer stores.Close()
+	defer stores.Close(nil)
 
 	now := time.Now()
 

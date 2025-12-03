@@ -112,6 +112,7 @@ type NoteSummary struct {
 	Path       string    `json:"path"`
 	Tags       []Tag     `json:"tags"`
 	ModifiedAt time.Time `json:"modifiedAt" ts_type:"string"`
+	CreatedAt  time.Time `json:"createdAt" ts_type:"string"`
 }
 
 // WorkspaceInfo provides basic workspace information.

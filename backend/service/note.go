@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -121,6 +122,7 @@ func (s *NoteService) ListNotes() ([]domain.NoteSummary, error) {
 			Path:       relPath,
 			Tags:       tags,
 			ModifiedAt: info.ModTime(),
+			CreatedAt:  info.ModTime(),
 		})
 	}
 
@@ -213,6 +215,9 @@ func (s *NoteService) parseNote(id string, content []byte, info os.FileInfo) (*d
 	for tagName := range tagSet {
 		tags = append(tags, domain.Tag{Name: tagName, NoteID: id})
 	}
+	sort.Slice(tags, func(i, j int) bool {
+		return tags[i].Name < tags[j].Name
+	})
 
 	createdAt := fields.Created
 	if createdAt.IsZero() {

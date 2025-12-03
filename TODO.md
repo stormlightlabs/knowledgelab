@@ -20,9 +20,7 @@ Local-first Markdown storage with wikilinks, backlinks, graph view, daily notes,
 
 ### Tags System
 
-Implemented tag parsing, indexing, and browsing with a filtering UI.
-
-- [ ] Tag search and autocomplete in search box.
+Implemented tag parsing, indexing, and browsing with a filtering UI and autocomplete.
 
 ### Templates
 
@@ -88,18 +86,18 @@ SearchState with loading states, search panel UI (Cmd/Ctrl+K), results rendering
 
 #### Search UX & Discovery
 
-- [ ] Live search with debouncing:
-  - [ ] Add 300ms debounce timer in frontend update logic
-  - [ ] Cancel pending searches when query changes
+- [x] Live search with debouncing:
+  - [x] Add 300ms debounce timer in frontend update logic
+  - [x] Cancel pending searches when query changes
 - [ ] Search result highlighting:
   - [ ] Backend extracts matched text snippets with context windows
   - [ ] Frontend renders highlighted terms using CSS classes
 - [ ] Search history & autocomplete:
   - [ ] Store search history in workspace snapshot (last 20 queries)
   - [ ] Render autocomplete dropdown with arrow key navigation
-- [ ] Empty states & error handling:
-  - [ ] Show "No results found" with search tips
-  - [ ] Display error toast when search API fails
+- [x] Empty states & error handling:
+  - [x] Show "No results found" with search tips
+  - [x] Display error toast when search API fails
 
 #### Editor
 

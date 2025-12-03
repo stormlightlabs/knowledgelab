@@ -545,7 +545,23 @@ module SearchPanel =
     ]
 
   /// Renders the search panel
+  [<ReactComponent>]
   let Render (state : State) (dispatch : Msg -> unit) =
+    let handleInputChange (value : string) =
+      dispatch (SearchQueryChanged value)
+
+      let lastWord =
+        if value.Contains(" ") then
+          value.Split(' ') |> Array.last
+        else
+          value
+
+      if lastWord.StartsWith("#") && lastWord.Length > 1 then
+        let tagQuery = lastWord.Substring(1)
+        dispatch (UpdateTagAutocomplete(true, tagQuery))
+      else
+        dispatch (UpdateTagAutocomplete(false, ""))
+
     Html.div [
       prop.className "w-80 bg-base01 border-l border-base02 flex flex-col h-full default-transition"
       prop.children [
@@ -560,9 +576,9 @@ module SearchPanel =
                   prop.type' "text"
                   prop.className
                     "w-full px-3 py-2 pr-20 bg-base00 text-base05 border border-base02 rounded focus:outline-none focus:border-blue transition-colors"
-                  prop.placeholder "Search notes..."
+                  prop.placeholder "Search notes... (use #tag for tags)"
                   prop.value state.Search.Query
-                  prop.onChange (fun (value : string) -> dispatch (SearchQueryChanged value))
+                  prop.onChange handleInputChange
                 ]
                 if state.Search.Query <> "" then
                   Html.button [
@@ -570,6 +586,30 @@ module SearchPanel =
                       "absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs bg-base02 hover:bg-red text-base04 hover:text-base00 rounded transition-all"
                     prop.text "Clear"
                     prop.onClick (fun _ -> dispatch SearchCleared)
+                  ]
+
+                if
+                  state.Search.ShowTagAutocomplete
+                  && not (List.isEmpty state.Search.AvailableTags)
+                then
+                  Html.div [
+                    prop.className
+                      "absolute top-full left-0 right-0 mt-1 bg-base00 border border-base02 rounded shadow-lg z-50 max-h-48 overflow-y-auto"
+                    prop.children (
+                      state.Search.AvailableTags
+                      |> List.map (fun tag ->
+                        Html.div [
+                          prop.key tag
+                          prop.className "px-3 py-2 hover:bg-base02 cursor-pointer transition-colors"
+                          prop.onClick (fun _ ->
+                            let words = state.Search.Query.Split(' ')
+                            let newWords = words.[.. words.Length - 2] |> Array.append [| $"#{tag}" |]
+                            let newQuery = System.String.Join(" ", newWords)
+                            dispatch (SearchQueryChanged newQuery)
+                            dispatch (UpdateTagAutocomplete(false, "")))
+                          prop.children [ Html.span [ prop.className "text-blue"; prop.text $"#{tag}" ] ]
+                        ])
+                    )
                   ]
               ]
             ]
@@ -585,13 +625,25 @@ module SearchPanel =
 
         if state.Search.Query = "" then
           Html.div [
-            prop.className "flex-1 flex items-center justify-center p-4"
+            prop.className "flex-1 flex items-center justify-center p-6"
             prop.children [
               Html.div [
-                prop.className "text-center text-base03 text-sm"
+                prop.className "text-center text-base03 text-sm max-w-xs"
                 prop.children [
-                  Html.div [ prop.text "Type to search..." ]
-                  Html.div [ prop.className "mt-2 text-xs"; prop.text "Press Cmd/Ctrl+K to focus" ]
+                  Html.div [ prop.className "text-base font-semibold mb-3"; prop.text "Search Tips" ]
+                  Html.div [
+                    prop.className "text-xs space-y-2 text-left"
+                    prop.children [
+                      Html.div [ prop.text "• Type keywords to search note content" ]
+                      Html.div [ prop.text "• Use #tag to filter by tags" ]
+                      Html.div [ prop.text "• Search is fuzzy - close matches work" ]
+                      Html.div [ prop.text "• Results ranked by relevance (BM25)" ]
+                      Html.div [
+                        prop.className "mt-3 pt-2 border-t border-base02 text-center italic"
+                        prop.text "Press Cmd/Ctrl+K to focus search"
+                      ]
+                    ]
+                  ]
                 ]
               ]
             ]
@@ -599,19 +651,30 @@ module SearchPanel =
         elif state.Search.IsLoading then
           Html.div [
             prop.className "flex-1 flex items-center justify-center p-4"
-            prop.children [
-              Html.div [ prop.className "text-base03 text-sm"; prop.text "Loading results..." ]
-            ]
+            prop.children [ Html.div [ prop.className "text-base03 text-sm"; prop.text "Searching..." ] ]
           ]
         elif List.isEmpty state.Search.Results then
           Html.div [
-            prop.className "flex-1 flex items-center justify-center p-4"
+            prop.className "flex-1 flex items-center justify-center p-6"
             prop.children [
               Html.div [
-                prop.className "text-center text-base03 text-sm"
+                prop.className "text-center text-base03 text-sm max-w-xs"
                 prop.children [
-                  Html.div [ prop.text "No results found" ]
-                  Html.div [ prop.className "mt-2 text-xs"; prop.text $"Try a different query" ]
+                  Html.div [
+                    prop.className "text-base font-semibold mb-2 text-yellow"
+                    prop.text "No results found"
+                  ]
+                  Html.div [
+                    prop.className "text-xs space-y-2"
+                    prop.children [
+                      Html.div [ prop.text $"No matches for '{state.Search.Query}'" ]
+                      Html.div [ prop.className "mt-3 pt-2 border-t border-base02"; prop.text "Try:" ]
+                      Html.div [ prop.text "• Different keywords" ]
+                      Html.div [ prop.text "• Checking spelling" ]
+                      Html.div [ prop.text "• Broader search terms" ]
+                      Html.div [ prop.text "• Using #tags to filter" ]
+                    ]
+                  ]
                 ]
               ]
             ]

@@ -35,6 +35,10 @@ type SearchState = {
   Results : SearchResult list
   IsLoading : bool
   Filters : SearchFilters
+  DebounceTimer : int option
+  ShowTagAutocomplete : bool
+  TagAutocompleteQuery : string
+  AvailableTags : string list
 }
 
 /// Tag filtering mode for multi-tag selection
@@ -144,6 +148,10 @@ type State = {
         DateFrom = None
         DateTo = None
       }
+      DebounceTimer = None
+      ShowTagAutocomplete = false
+      TagAutocompleteQuery = ""
+      AvailableTags = []
     }
     Graph = None
     SelectedNode = None
@@ -226,6 +234,8 @@ type Msg =
   | UpdateSearchQuery of query : string
   | PerformSearch
   | SearchCompleted of Result<SearchResult list, string>
+  | DebouncedSearch
+  | UpdateTagAutocomplete of show : bool * query : string
   | LoadGraph
   | GraphLoaded of Result<Graph, string>
   | LoadTags
@@ -286,9 +296,13 @@ type Msg =
   | Undo
   | Redo
 
-/// Debounce delay in milliseconds
+/// Debounce delay in milliseconds for settings/snapshot saves
 [<Literal>]
 let private DebounceDelayMs = 800
+
+/// Debounce delay for search queries in milliseconds
+[<Literal>]
+let private SearchDebounceDelayMs = 300
 
 /// JavaScript setTimeout interop for debouncing
 [<Emit("setTimeout(() => $0(), $1)")>]
@@ -325,6 +339,13 @@ let routeToUrl (route : Route) : string list =
 let private debounceCmd (msg : Msg) : Cmd<Msg> =
   let delayedDispatch (dispatch : Msg -> unit) =
     setTimeout (fun () -> dispatch msg) DebounceDelayMs |> ignore
+
+  [ delayedDispatch ]
+
+/// Creates a debounced command for search with custom delay
+let private debounceSearchCmd (msg : Msg) (delay : int) : Cmd<Msg> =
+  let delayedDispatch (dispatch : Msg -> unit) =
+    setTimeout (fun () -> dispatch msg) delay |> ignore
 
   [ delayedDispatch ]
 
@@ -921,20 +942,56 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
 
     { state with VisiblePanels = newPanels }, Cmd.none
   | SearchQueryChanged query ->
-    let newSearch = { state.Search with Query = query; IsLoading = true }
-    { state with Search = newSearch }, Cmd.ofMsg PerformSearch
+    cancelTimer state.Search.DebounceTimer
+
+    if String.IsNullOrWhiteSpace query then
+      let newSearch = {
+        state.Search with
+            Query = query
+            Results = []
+            IsLoading = false
+            DebounceTimer = None
+            ShowTagAutocomplete = false
+      }
+      { state with Search = newSearch }, Cmd.none
+    else
+      let newSearch = {
+        state.Search with
+            Query = query
+            IsLoading = true
+            DebounceTimer = None
+      }
+      { state with Search = newSearch }, debounceSearchCmd DebouncedSearch SearchDebounceDelayMs
   | SearchResultsReceived(Ok results) ->
     let newSearch = { state.Search with Results = results; IsLoading = false }
     { state with Search = newSearch; Error = None }, Cmd.none
   | SearchResultsReceived(Error err) ->
-    let newSearch = { state.Search with IsLoading = false }
-    { state with Search = newSearch; Error = Some err }, Cmd.none
+    let newSearch = { state.Search with IsLoading = false; Results = [] }
+    { state with Search = newSearch; Error = Some $"Search failed: {err}" }, Cmd.none
+  | DebouncedSearch ->
+    let query = {
+      Query = state.Search.Query
+      Tags = state.Search.Filters.Tags
+      PathPrefix = state.Search.Filters.PathPrefix
+      DateFrom = state.Search.Filters.DateFrom
+      DateTo = state.Search.Filters.DateTo
+      Limit = 50
+    }
+
+    let newSearch = { state.Search with IsLoading = true }
+
+    { state with Search = newSearch },
+    Cmd.OfPromise.either Api.search query (safeArrayToList >> Ok >> SearchResultsReceived) (fun ex ->
+      SearchResultsReceived(Error ex.Message))
   | SearchCleared ->
+    cancelTimer state.Search.DebounceTimer
     let newSearch = {
       state.Search with
           Query = ""
           Results = []
           IsLoading = false
+          DebounceTimer = None
+          ShowTagAutocomplete = false
     }
 
     { state with Search = newSearch }, Cmd.none
@@ -1090,6 +1147,23 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
   | WorkspaceSnapshotSaved(Error err) -> { state with Error = Some err }, Cmd.none
   | UpdateSearchFilters filters ->
     let newSearch = { state.Search with Filters = filters }
+    { state with Search = newSearch }, Cmd.none
+  | UpdateTagAutocomplete(show, query) ->
+    let filteredTags =
+      if String.IsNullOrWhiteSpace query then
+        []
+      else
+        state.TagInfos
+        |> List.filter (fun t -> t.Name.StartsWith(query, StringComparison.OrdinalIgnoreCase))
+        |> List.map (fun t -> t.Name)
+        |> List.truncate 10
+
+    let newSearch = {
+      state.Search with
+          ShowTagAutocomplete = show && not (List.isEmpty filteredTags)
+          TagAutocompleteQuery = query
+          AvailableTags = filteredTags
+    }
     { state with Search = newSearch }, Cmd.none
   | SetPreviewMode mode ->
     let newState = {

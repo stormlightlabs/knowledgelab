@@ -36,55 +36,55 @@ module WorkspacePicker =
   /// Renders the workspace picker screen when no workspace is open
   let Render (state : State) (dispatch : Msg -> unit) =
     Html.div [
-      prop.className "flex items-center justify-center h-screen bg-base00 w-full"
+      prop.className "flex items-center justify-center min-h-screen bg-base00 w-full p-4"
       prop.children [
         Html.div [
-          prop.className "text-center max-w-2xl w-full px-4"
+          prop.className "text-center max-w-2xl w-full"
           prop.children [
             Html.div [
-              prop.className "mb-8"
+              prop.className "mb-6 md:mb-8"
               prop.children [
                 Html.h1 [
-                  prop.className "text-5xl font-bold mb-4 text-base05"
+                  prop.className "text-3xl md:text-5xl font-bold mb-2 md:mb-4 text-base05"
                   prop.text "Knowledge Lab"
                 ]
                 Html.p [
-                  prop.className "text-lg text-base04 mb-2"
+                  prop.className "text-base md:text-lg text-base04 mb-1 md:mb-2"
                   prop.text "Your local-first, graph-based knowledge workspace"
                 ]
                 Html.p [
-                  prop.className "text-sm text-base03"
+                  prop.className "text-xs md:text-sm text-base03"
                   prop.text "Build your personal knowledge graph with markdown, wikilinks, and powerful search"
                 ]
               ]
             ]
             Html.div [
-              prop.className "bg-base01 p-8 rounded-lg shadow-xl border border-base02"
+              prop.className "bg-base01 p-4 md:p-8 rounded-lg shadow-xl border border-base02"
               prop.children [
                 Html.h2 [
-                  prop.className "text-xl font-semibold mb-4 text-base05"
+                  prop.className "text-lg md:text-xl font-semibold mb-3 md:mb-4 text-base05"
                   prop.text "Get Started"
                 ]
                 Html.p [
-                  prop.className "text-base03 mb-6"
+                  prop.className "text-sm md:text-base text-base03 mb-4 md:mb-6"
                   prop.text "Open a folder to use as your notes workspace."
                 ]
                 Html.p [
-                  prop.className "text-base03 mb-6"
+                  prop.className "text-sm md:text-base text-base03 mb-4 md:mb-6"
                   prop.text "All your notes will be stored locally as markdown files."
                 ]
                 Html.div [
-                  prop.className "w-full grid gap-4 grid-cols-2"
+                  prop.className "w-full grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2"
                   prop.children [
                     Html.button [
                       prop.className
-                        "bg-blue hover:bg-blue-bright text-base00 font-bold py-3 px-6 rounded default-transition shadow-md hover:shadow-lg"
+                        "bg-blue hover:bg-blue-bright text-base00 font-bold py-3 px-4 md:px-6 rounded default-transition shadow-md hover:shadow-lg text-sm md:text-base"
                       prop.text "Open Folder"
                       prop.onClick (fun _ -> dispatch SelectWorkspaceFolder)
                     ]
                     Html.button [
                       prop.className
-                        "bg-blue hover:bg-blue-bright text-base00 font-bold py-3 px-6 rounded default-transition shadow-md hover:shadow-lg"
+                        "bg-blue hover:bg-blue-bright text-base00 font-bold py-3 px-4 md:px-6 rounded default-transition shadow-md hover:shadow-lg text-sm md:text-base"
                       prop.text "Create New Workspace"
                       prop.onClick (fun _ -> dispatch CreateWorkspace)
                     ]
@@ -105,12 +105,15 @@ module WorkspacePicker =
                 Html.none
               else
                 Html.div [
-                  prop.className "mt-6 bg-base01 p-6 rounded-lg shadow-xl border border-base02"
+                  prop.className "mt-4 md:mt-6 bg-base01 p-4 md:p-6 rounded-lg shadow-xl border border-base02"
                   prop.children [
                     Html.div [
-                      prop.className "flex items-center justify-between mb-4"
+                      prop.className "flex items-center justify-between mb-3 md:mb-4"
                       prop.children [
-                        Html.h3 [ prop.className "text-lg font-semibold text-base05"; prop.text "Recent Files" ]
+                        Html.h3 [
+                          prop.className "text-base md:text-lg font-semibold text-base05"
+                          prop.text "Recent Files"
+                        ]
                         Html.button [
                           prop.className
                             "text-xs text-base03 hover:text-base05 default-transition underline-offset-2 hover:underline"
@@ -120,7 +123,7 @@ module WorkspacePicker =
                       ]
                     ]
                     Html.div [
-                      prop.className "space-y-2 max-h-60 overflow-y-auto"
+                      prop.className "space-y-2 max-h-48 md:max-h-60 overflow-y-auto"
                       prop.children (
                         recentPages
                         |> List.truncate 10
@@ -164,10 +167,10 @@ module Sidebar =
         prop.className "p-3 hover:bg-base02 cursor-pointer border-b border-base02 transition-all"
         prop.onClick (fun _ -> dispatch (SelectNote note.id))
         prop.children [
-          Html.div [ prop.className "font-semibold text-base05"; prop.text note.title ]
-          Html.div [ prop.className "text-sm text-base03"; prop.text note.path ]
+          Html.div [ prop.className "font-semibold text-base05 truncate"; prop.text note.title ]
+          Html.div [ prop.className "text-sm text-base03 truncate"; prop.text note.path ]
           Html.div [
-            prop.className "text-xs text-base04 mt-1"
+            prop.className "text-xs text-base04 mt-1 truncate"
             prop.text $"Modified {formatRelativeTime note.modifiedAt} • Created {formatRelativeTime note.createdAt}"
           ]
         ]
@@ -345,90 +348,125 @@ module NavigationBar =
   /// Renders the top navigation bar
   let Render (state : State) (dispatch : Msg -> unit) =
     Html.div [
-      prop.className "h-12 bg-base01 border-b border-base02 flex items-center px-4 gap-2 shrink-0"
+      prop.className
+        "h-12 bg-base01 border-b border-base02 flex items-center px-2 md:px-4 gap-1 md:gap-2 shrink-0 overflow-x-auto"
       prop.children [
+        // Primary navigation (always visible)
         Html.button [
-          prop.className "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
+          prop.className
+            "px-2 md:px-3 py-1 rounded text-xs md:text-sm font-medium text-base05 hover:bg-base02 default-transition whitespace-nowrap"
           prop.text "Notes"
           prop.onClick (fun _ -> dispatch (NavigateTo NoteList))
         ]
         Html.button [
-          prop.className "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
+          prop.className
+            "px-2 md:px-3 py-1 rounded text-xs md:text-sm font-medium text-base05 hover:bg-base02 default-transition whitespace-nowrap"
           prop.text "Graph"
           prop.onClick (fun _ -> dispatch (NavigateTo GraphViewRoute))
         ]
         Html.button [
-          prop.className "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
+          prop.className
+            "px-2 md:px-3 py-1 rounded text-xs md:text-sm font-medium text-base05 hover:bg-base02 default-transition whitespace-nowrap"
           prop.text "Settings"
           prop.onClick (fun _ -> dispatch (NavigateTo Settings))
         ]
-        Html.div [ prop.className "flex-1" ]
+
+        Html.div [ prop.className "flex-1 min-w-0" ]
+
+        // Panel toggle buttons
         Html.div [
-          prop.className "flex items-center gap-2"
+          prop.className "flex items-center gap-1 md:gap-2 shrink-0"
           prop.children [
+            // Sidebar toggle (always visible)
             Html.button [
               prop.className
-                "px-2.5 py-1 rounded text-xs font-semibold text-base05 border border-base03 hover:border-base05 transition-colors"
-              prop.text (
-                if state.UIState.IsSidebarCollapsed then
-                  "Show Sidebar"
-                else
-                  "Hide Sidebar"
-              )
+                "px-2 py-1 rounded text-xs font-semibold text-base05 border border-base03 hover:border-base05 transition-colors whitespace-nowrap"
+              prop.children [
+                Html.span [
+                  prop.className "hidden lg:inline"
+                  prop.text (
+                    if state.UIState.IsSidebarCollapsed then
+                      "Show Sidebar"
+                    else
+                      "Hide Sidebar"
+                  )
+                ]
+                Html.span [
+                  prop.className "inline lg:hidden"
+                  prop.text (if state.UIState.IsSidebarCollapsed then "☰" else "✕")
+                ]
+              ]
               prop.onClick (fun _ -> dispatch ToggleSidebarCollapsed)
             ]
+
+            // Right panels toggle (hidden on mobile)
             Html.button [
               prop.className
-                "px-2.5 py-1 rounded text-xs font-semibold text-base05 border border-base03 hover:border-base05 transition-colors"
-              prop.text (
-                if state.UIState.AreRightPanelsCollapsed then
-                  "Show Panels"
-                else
-                  "Hide Panels"
-              )
+                "hidden sm:block px-2 py-1 rounded text-xs font-semibold text-base05 border border-base03 hover:border-base05 transition-colors whitespace-nowrap"
+              prop.children [
+                Html.span [
+                  prop.className "hidden lg:inline"
+                  prop.text (
+                    if state.UIState.AreRightPanelsCollapsed then
+                      "Show Panels"
+                    else
+                      "Hide Panels"
+                  )
+                ]
+                Html.span [
+                  prop.className "inline lg:hidden"
+                  prop.text (if state.UIState.AreRightPanelsCollapsed then "≡" else "✕")
+                ]
+              ]
               prop.onClick (fun _ -> dispatch ToggleRightPanelsCollapsed)
             ]
+
+            // Panel visibility toggles (hidden on mobile/tablet)
+            Html.button [
+              prop.className
+                "hidden lg:block px-2 md:px-3 py-1 rounded text-xs md:text-sm font-medium text-base05 hover:bg-base02 default-transition whitespace-nowrap"
+              prop.text (
+                if state.VisiblePanels.Contains Backlinks then
+                  "Hide Backlinks"
+                else
+                  "Show Backlinks"
+              )
+              prop.onClick (fun _ -> dispatch (TogglePanel Backlinks))
+            ]
+            Html.button [
+              prop.className
+                "hidden lg:block px-2 md:px-3 py-1 rounded text-xs md:text-sm font-medium text-base05 hover:bg-base02 default-transition whitespace-nowrap"
+              prop.text (
+                if state.VisiblePanels.Contains TasksPanel then
+                  "Hide Tasks"
+                else
+                  "Show Tasks"
+              )
+              prop.onClick (fun _ -> dispatch (TogglePanel TasksPanel))
+            ]
+            Html.button [
+              prop.className
+                "hidden lg:block px-2 md:px-3 py-1 rounded text-xs md:text-sm font-medium text-base05 hover:bg-base02 default-transition whitespace-nowrap"
+              prop.text (
+                if state.VisiblePanels.Contains TagsPanel then
+                  "Hide Tags"
+                else
+                  "Show Tags"
+              )
+              prop.onClick (fun _ -> dispatch (TogglePanel TagsPanel))
+            ]
+            Html.button [
+              prop.className
+                "hidden lg:block px-2 md:px-3 py-1 rounded text-xs md:text-sm font-medium text-base05 hover:bg-base02 default-transition whitespace-nowrap"
+              prop.text (
+                if state.VisiblePanels.Contains SearchPanel then
+                  "Hide Search"
+                else
+                  "Show Search"
+              )
+              prop.onClick (fun _ -> dispatch (TogglePanel SearchPanel))
+            ]
           ]
-        ]
-        Html.button [
-          prop.className "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
-          prop.text (
-            if state.VisiblePanels.Contains Backlinks then
-              "Hide Backlinks"
-            else
-              "Show Backlinks"
-          )
-          prop.onClick (fun _ -> dispatch (TogglePanel Backlinks))
-        ]
-        Html.button [
-          prop.className "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
-          prop.text (
-            if state.VisiblePanels.Contains TasksPanel then
-              "Hide Tasks"
-            else
-              "Show Tasks"
-          )
-          prop.onClick (fun _ -> dispatch (TogglePanel TasksPanel))
-        ]
-        Html.button [
-          prop.className "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
-          prop.text (
-            if state.VisiblePanels.Contains TagsPanel then
-              "Hide Tags"
-            else
-              "Show Tags"
-          )
-          prop.onClick (fun _ -> dispatch (TogglePanel TagsPanel))
-        ]
-        Html.button [
-          prop.className "px-3 py-1 rounded text-sm font-medium text-base05 hover:bg-base02 default-transition"
-          prop.text (
-            if state.VisiblePanels.Contains SearchPanel then
-              "Hide Search"
-            else
-              "Show Search"
-          )
-          prop.onClick (fun _ -> dispatch (TogglePanel SearchPanel))
         ]
       ]
     ]
@@ -483,8 +521,14 @@ module App =
 
         Html.div [
           prop.key "notes-list"
-          prop.className "relative shrink-0 h-full transition-all duration-300 ease-in-out"
-          prop.style [ style.width (length.px sidebarWidth); style.custom ("overflow", "visible") ]
+          prop.className (
+            "relative shrink-0 h-full transition-all duration-300 ease-in-out"
+            + if not collapsed then " sm:w-60 lg:w-72" else " w-0"
+          )
+          prop.style [
+            if not collapsed then
+              style.width (length.px sidebarWidth)
+          ]
           prop.children [
             Html.div [
               prop.className (
@@ -540,8 +584,14 @@ module App =
 
         Html.div [
           prop.key "right-panels-wrapper"
-          prop.className "relative shrink-0 h-full transition-all duration-300 ease-in-out"
-          prop.style [ style.width (length.px panelWidth); style.custom ("overflow", "hidden") ]
+          prop.className (
+            "relative shrink-0 h-full transition-all duration-300 ease-in-out"
+            + if not collapsed then " sm:w-60 lg:w-80" else " w-0"
+          )
+          prop.style [
+            if not collapsed then
+              style.width (length.px panelWidth)
+          ]
           prop.children [
             Html.div [
               prop.className (
@@ -553,7 +603,7 @@ module App =
               )
               prop.children [
                 Html.div [
-                  prop.className "flex items-center border-b border-base02"
+                  prop.className "flex items-center border-b border-base02 overflow-x-auto"
                   prop.children (
                     panels
                     |> List.map (fun panel ->
@@ -562,7 +612,7 @@ module App =
                       Html.button [
                         prop.key (panelLabel panel)
                         prop.className (
-                          "px-3 py-2 text-xs font-semibold uppercase tracking-wide transition-colors border-b-2"
+                          "px-2 md:px-3 py-2 text-xs font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap"
                           + if isActive then
                               " border-blue text-base05"
                             else

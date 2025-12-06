@@ -41,8 +41,11 @@ module SearchPanel =
       prop.className "p-3 hover:bg-base02 cursor-pointer border-b border-base02 transition-all"
       prop.onClick (fun _ -> dispatch (SelectNote result.NoteId))
       prop.children [
-        Html.div [ prop.className "font-medium text-base05 mb-1"; prop.text result.Title ]
-        Html.div [ prop.className "text-xs text-base03 mb-1"; prop.text result.Path ]
+        Html.div [
+          prop.className "font-medium text-base05 mb-1 truncate"
+          prop.text result.Title
+        ]
+        Html.div [ prop.className "text-xs text-base03 mb-1 truncate"; prop.text result.Path ]
         if result.Snippet <> "" then
           Html.div [
             prop.className "text-sm text-base04 mt-1 line-clamp-2"

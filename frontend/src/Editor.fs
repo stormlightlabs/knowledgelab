@@ -274,7 +274,7 @@ module NoteEditor =
     /// Renders the editor toolbar with formatting buttons and preview toggles
     let Render (state : State) (dispatch : Msg -> unit) =
       Html.div [
-        prop.className "flex items-center gap-2 pl-0 pr-6 py-2 bg-base01 border-b border-base02 shrink-0"
+        prop.className "flex items-center gap-2 pl-0 px-4 py-2 bg-base01 border-b border-base02 shrink-0"
         prop.children [
           Html.div [
             prop.className "flex items-center gap-1"
@@ -401,7 +401,7 @@ module NoteEditor =
 
     Html.div [
       prop.className
-        "h-6 bg-base01 border-t border-base02 flex items-center justify-between pl-0 pr-6 text-xs text-base04 shrink-0"
+        "h-6 bg-base01 border-t border-base02 flex items-center justify-between px-4 text-xs text-base04 shrink-0"
       prop.children [
         Html.div [
           prop.className "flex items-center gap-4"
@@ -453,7 +453,7 @@ module NoteEditor =
           prop.className "border-b border-base02 shrink-0 bg-base00"
           prop.children [
             Html.div [
-              prop.className "pl-0 pr-6 py-3"
+              prop.className "p-4"
               prop.children [
                 Html.h1 [ prop.className "text-2xl font-bold text-base05"; prop.text note.Title ]
                 Html.div [ prop.className "text-sm text-base03 mt-1"; prop.text note.Path ]

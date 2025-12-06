@@ -66,6 +66,11 @@ func TestNewAppDirs(t *testing.T) {
 			if dirs.DBPath != expectedDBPath {
 				t.Errorf("DBPath = %v, want %v", dirs.DBPath, expectedDBPath)
 			}
+
+			expectedAppSnapshotPath := filepath.Join(expectedConfigRoot, "app.toml")
+			if dirs.AppSnapshotPath != expectedAppSnapshotPath {
+				t.Errorf("AppSnapshotPath = %v, want %v", dirs.AppSnapshotPath, expectedAppSnapshotPath)
+			}
 		})
 	}
 }
@@ -74,11 +79,12 @@ func TestAppDirs_Ensure(t *testing.T) {
 	tempDir := t.TempDir()
 
 	dirs := &AppDirs{
-		ConfigRoot:    filepath.Join(tempDir, "notes"),
-		WorkspaceRoot: filepath.Join(tempDir, "notes", "workspaces", "test"),
-		SettingsPath:  filepath.Join(tempDir, "notes", "settings.toml"),
-		WorkspacePath: filepath.Join(tempDir, "notes", "workspaces", "test", "workspace.toml"),
-		DBPath:        filepath.Join(tempDir, "notes", "workspaces", "test", "graph.db"),
+		ConfigRoot:      filepath.Join(tempDir, "notes"),
+		WorkspaceRoot:   filepath.Join(tempDir, "notes", "workspaces", "test"),
+		SettingsPath:    filepath.Join(tempDir, "notes", "settings.toml"),
+		WorkspacePath:   filepath.Join(tempDir, "notes", "workspaces", "test", "workspace.toml"),
+		DBPath:          filepath.Join(tempDir, "notes", "workspaces", "test", "graph.db"),
+		AppSnapshotPath: filepath.Join(tempDir, "notes", "app.toml"),
 	}
 
 	err := dirs.Ensure(nil)

@@ -220,7 +220,6 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = []
             RecentPages = []
-            LastWorkspacePath = "/workspace"
             GraphLayout = "force"
             SearchHistory = []
             NotesSortBy = None
@@ -266,7 +265,6 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = []
             RecentPages = [ "existing.md" ]
-            LastWorkspacePath = "/workspace"
             GraphLayout = "force"
             SearchHistory = []
             NotesSortBy = None
@@ -311,7 +309,6 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = []
             RecentPages = [ "note-a"; "note-b"; "note-c" ]
-            LastWorkspacePath = "/workspace"
             GraphLayout = "force"
             SearchHistory = []
             NotesSortBy = None

@@ -144,12 +144,20 @@ export const LoadWorkspaceSnapshot = () =>
       PinnedPages: [],
       RecentPages: [],
       SearchHistory: [],
-      LastWorkspacePath: "/mock/workspace/directory",
       GraphLayout: "force",
     },
   });
 
 export const SaveWorkspaceSnapshot = () => Promise.resolve();
+
+export const LoadAppSnapshot = () =>
+  Promise.resolve({
+    LastWorkspacePath: "/mock/workspace/directory",
+  });
+
+export const SaveAppSnapshot = () => Promise.resolve();
+
+export const CloseWorkspace = () => Promise.resolve();
 
 export const ClearRecentFiles = () =>
   Promise.resolve({
@@ -162,7 +170,6 @@ export const ClearRecentFiles = () =>
       PinnedPages: [],
       RecentPages: [],
       SearchHistory: [],
-      LastWorkspacePath: "/mock/workspace/directory",
       GraphLayout: "force",
     },
   });

@@ -20,6 +20,8 @@ type AppDirs struct {
 	WorkspacePath string
 	// DBPath is the full path to the SQLite database file
 	DBPath string
+	// AppSnapshotPath is the full path to the app.toml file (global app state)
+	AppSnapshotPath string
 }
 
 // NewAppDirs creates a new AppDirs instance with all paths initialized.
@@ -34,11 +36,12 @@ func NewAppDirs(appName, workspaceName string, logger *runtimeLogger) (*AppDirs,
 	workspaceRoot := filepath.Join(configRoot, "workspaces", workspaceName)
 
 	dirs := &AppDirs{
-		ConfigRoot:    configRoot,
-		WorkspaceRoot: workspaceRoot,
-		SettingsPath:  filepath.Join(configRoot, "settings.toml"),
-		WorkspacePath: filepath.Join(workspaceRoot, "workspace.toml"),
-		DBPath:        filepath.Join(workspaceRoot, "graph.db"),
+		ConfigRoot:      configRoot,
+		WorkspaceRoot:   workspaceRoot,
+		SettingsPath:    filepath.Join(configRoot, "settings.toml"),
+		WorkspacePath:   filepath.Join(workspaceRoot, "workspace.toml"),
+		DBPath:          filepath.Join(workspaceRoot, "graph.db"),
+		AppSnapshotPath: filepath.Join(configRoot, "app.toml"),
 	}
 
 	if logger != nil {

@@ -193,6 +193,9 @@ type EditorSettings = {
 /// Settings represents the application-wide settings stored in settings.toml
 type Settings = { General : GeneralSettings; Editor : EditorSettings }
 
+/// AppSnapshot represents global application state that persists across workspace changes
+type AppSnapshot = { LastWorkspacePath : string }
+
 /// WorkspaceUI contains UI state for a workspace
 type WorkspaceUI = {
   ActivePage : string
@@ -202,7 +205,6 @@ type WorkspaceUI = {
   RightPanelWidth : int
   PinnedPages : string list
   RecentPages : string list
-  LastWorkspacePath : string
   GraphLayout : string
   SearchHistory : string list
   NotesSortBy : string option

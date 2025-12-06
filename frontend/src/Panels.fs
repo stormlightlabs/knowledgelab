@@ -466,34 +466,34 @@ module BacklinksPanel =
 
 module TaskPanel =
   /// Renders a task item with completion checkbox and metadata
-  let private taskItem (task : Task) (dispatch : Msg -> unit) =
+  let private taskItem (state : State) (task : Task) (dispatch : Msg -> unit) =
     let formattedCreatedAt = task.CreatedAt.ToString("yyyy-MM-dd")
+    let isToggling = state.ToggleTaskInProgress.Contains(task.Id)
 
     Html.div [
       prop.key task.Id
-      prop.className "p-3 hover:bg-base02 cursor-pointer border-b border-base02 transition-all"
-      prop.role "button"
-      prop.tabIndex 0
-      prop.onClick (fun _ -> dispatch (ToggleTaskFromPanel task))
-      prop.onKeyDown (fun (ev : KeyboardEvent) ->
-        if ev.key = "Enter" || ev.key = " " then
-          ev.preventDefault ()
-          dispatch (ToggleTaskFromPanel task))
+      prop.className "p-3 hover:bg-base02 border-b border-base02 transition-all"
       prop.children [
         Html.div [
           prop.className "flex items-start gap-2"
           prop.children [
-            Html.div [
-              prop.className "shrink-0 mt-0.5 text-lg"
-              prop.children [
-                if task.IsCompleted then
-                  Html.span [ prop.className "text-green"; prop.text "\u2611" ]
+            Html.input [
+              prop.type' "checkbox"
+              prop.className (
+                if isToggling then
+                  "task-checkbox cursor-wait opacity-50 shrink-0 mt-0.5"
                 else
-                  Html.span [ prop.className "text-base03"; prop.text "\u2610" ]
-              ]
+                  "task-checkbox cursor-pointer shrink-0 mt-0.5"
+              )
+              prop.isChecked task.IsCompleted
+              prop.disabled isToggling
+              prop.onChange (fun (e : Browser.Types.Event) ->
+                e.stopPropagation ()
+                dispatch (ToggleTaskCheckbox task))
             ]
             Html.div [
-              prop.className "flex-1 min-w-0"
+              prop.className "flex-1 min-w-0 cursor-pointer"
+              prop.onClick (fun _ -> dispatch (SelectNote task.NoteId))
               prop.children [
                 Html.div [
                   prop.className (
@@ -709,7 +709,7 @@ module TaskPanel =
         else
           Html.div [
             prop.className "flex-1 overflow-y-auto min-h-0"
-            prop.children (state.AllTasks |> List.map (fun task -> taskItem task dispatch))
+            prop.children (state.AllTasks |> List.map (fun task -> taskItem state task dispatch))
           ]
       ]
     ]

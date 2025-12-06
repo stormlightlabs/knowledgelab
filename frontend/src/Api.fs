@@ -83,6 +83,15 @@ module Raw =
   [<Import("ClearRecentFiles", from = "@wailsjs/go/main/App")>]
   let clearRecentFiles () : JS.Promise<obj> = jsNative
 
+  [<Import("LoadAppSnapshot", from = "@wailsjs/go/main/App")>]
+  let loadAppSnapshot () : JS.Promise<obj> = jsNative
+
+  [<Import("SaveAppSnapshot", from = "@wailsjs/go/main/App")>]
+  let saveAppSnapshot (snapshot : AppSnapshot) : JS.Promise<unit> = jsNative
+
+  [<Import("CloseWorkspace", from = "@wailsjs/go/main/App")>]
+  let closeWorkspace () : JS.Promise<unit> = jsNative
+
   [<Import("GetUserConfigDir", from = "@wailsjs/go/main/App")>]
   let getUserConfigDir () : string = jsNative
 
@@ -220,6 +229,13 @@ let saveWorkspaceSnapshot = Raw.saveWorkspaceSnapshot
 let clearRecentFiles () : JS.Promise<WorkspaceSnapshot> =
   Raw.clearRecentFiles ()
   |> Promise.map (decodeResponse Json.workspaceSnapshotDecoder)
+
+let loadAppSnapshot () : JS.Promise<AppSnapshot> =
+  Raw.loadAppSnapshot () |> Promise.map (decodeResponse Json.appSnapshotDecoder)
+
+let saveAppSnapshot = Raw.saveAppSnapshot
+
+let closeWorkspace = Raw.closeWorkspace
 
 /// Gets the user configuration directory path (synchronous)
 let getUserConfigDir () : string = Raw.getUserConfigDir ()

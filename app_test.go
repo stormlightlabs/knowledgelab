@@ -1,9 +1,9 @@
 package main
 
 import (
-	"context"
 	"testing"
 
+	"notes/backend/paths"
 	"notes/backend/service"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -149,7 +149,6 @@ func TestApp_SettingsAndSnapshotMethods(t *testing.T) {
 		testSnapshot.UI.ActivePage = "test-page.md"
 		testSnapshot.UI.SidebarWidth = 350
 		testSnapshot.UI.PinnedPages = []string{"page1.md", "page2.md"}
-		testSnapshot.UI.LastWorkspacePath = "/tmp/workspace-path"
 
 		err := app.SaveWorkspaceSnapshot(testSnapshot)
 		if err != nil {
@@ -171,10 +170,6 @@ func TestApp_SettingsAndSnapshotMethods(t *testing.T) {
 
 		if len(loaded.UI.PinnedPages) != 2 {
 			t.Errorf("len(PinnedPages) = %d, want %d", len(loaded.UI.PinnedPages), 2)
-		}
-
-		if loaded.UI.LastWorkspacePath != "/tmp/workspace-path" {
-			t.Errorf("LastWorkspacePath = %q, want %q", loaded.UI.LastWorkspacePath, "/tmp/workspace-path")
 		}
 	})
 
@@ -215,7 +210,11 @@ func TestApp_ConfigDirMethods(t *testing.T) {
 	app := NewApp()
 
 	t.Run("GetUserConfigDir returns non-empty path", func(t *testing.T) {
-		app.startup(context.TODO())
+		userConfigDir, err := paths.UserConfigDir("KnowledgeLab")
+		if err != nil {
+			t.Skipf("Could not initialize user config dir: %v", err)
+		}
+		app.userConfigDir = userConfigDir
 
 		configDir := app.GetUserConfigDir()
 		if configDir == "" {

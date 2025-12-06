@@ -393,7 +393,6 @@ Jest.describe (
                     RightPanelWidth = 300
                     PinnedPages = []
                     RecentPages = []
-                    LastWorkspacePath = ""
                     GraphLayout = "force"
                     SearchHistory = []
                     NotesSortBy = None

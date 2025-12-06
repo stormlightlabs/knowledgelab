@@ -27,7 +27,6 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = [ "page1.md"; "page2.md" ]
             RecentPages = [ "recent1.md" ]
-            LastWorkspacePath = "/workspace"
             GraphLayout = "force"
             SearchHistory = []
             NotesSortBy = None
@@ -59,7 +58,6 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = []
             RecentPages = [ ""; "note-a.md"; " " ]
-            LastWorkspacePath = "/workspace"
             GraphLayout = "force"
             SearchHistory = []
             NotesSortBy = None
@@ -78,31 +76,181 @@ Jest.describe (
     )
 
     Jest.test (
-      "WorkspaceSnapshotLoaded auto-opens last workspace when remembered path exists",
+      "AppSnapshotLoaded auto-opens last workspace when path exists",
       fun () ->
-        let snapshot = {
-          UI = {
-            ActivePage = ""
-            SidebarVisible = true
-            SidebarWidth = 280
-            RightPanelVisible = false
-            RightPanelWidth = 300
-            PinnedPages = []
-            RecentPages = []
-            LastWorkspacePath = "/workspace/path"
-            GraphLayout = "force"
-            SearchHistory = []
-            NotesSortBy = None
-            NotesSortOrder = None
-          }
-        }
-
-        let _, cmd = Update (WorkspaceSnapshotLoaded(Ok snapshot)) State.Default
+        let appSnapshot = { LastWorkspacePath = "/workspace/path" }
+        let newState, cmd = Update (AppSnapshotLoaded(Ok appSnapshot)) State.Default
         let dispatched = collectCommands cmd
+
+        Jest.expect(newState.AppSnapshot.IsSome).toEqual true
 
         match dispatched with
         | [ OpenWorkspace path ] -> Jest.expect(path).toEqual "/workspace/path"
         | _ -> failwith "Expected OpenWorkspace command to be dispatched"
+    )
+
+    Jest.test (
+      "AppSnapshotLoaded skips auto-open when path is empty",
+      fun () ->
+        let appSnapshot = { LastWorkspacePath = "" }
+
+        let _, cmd = Update (AppSnapshotLoaded(Ok appSnapshot)) State.Default
+        let dispatched = collectCommands cmd
+
+        Jest.expect(dispatched.Length).toEqual 0
+    )
+
+    Jest.test (
+      "AppSnapshotLoaded skips auto-open when workspace is already open",
+      fun () ->
+        let appSnapshot = { LastWorkspacePath = "/workspace/path" }
+
+        let initialState = {
+          State.Default with
+              Workspace =
+                Some {
+                  Workspace = {
+                    Id = "test-id"
+                    Name = "Test"
+                    RootPath = "/other/path"
+                    IgnorePatterns = []
+                    CreatedAt = System.DateTime.Now
+                    LastOpenedAt = System.DateTime.Now
+                  }
+                  Config = {
+                    DailyNoteFormat = "yyyy-MM-dd"
+                    DailyNoteFolder = ""
+                    DefaultTags = []
+                  }
+                  NoteCount = 0
+                  TotalBlocks = 0
+                }
+        }
+
+        let _, cmd = Update (AppSnapshotLoaded(Ok appSnapshot)) initialState
+        let dispatched = collectCommands cmd
+
+        Jest.expect(dispatched.Length).toEqual 0
+    )
+
+    Jest.test (
+      "AppSnapshotChanged updates state immediately",
+      fun () ->
+        let appSnapshot = { LastWorkspacePath = "/new/workspace" }
+
+        let newState, _ = Update (AppSnapshotChanged appSnapshot) State.Default
+
+        Jest.expect(newState.AppSnapshot).toEqual (Some appSnapshot)
+    )
+
+    Jest.test (
+      "DebouncedAppSnapshotSave triggers save when snapshot exists",
+      fun () ->
+        let appSnapshot = { LastWorkspacePath = "/workspace" }
+        let initialState = { State.Default with AppSnapshot = Some appSnapshot }
+        let newState, _ = Update DebouncedAppSnapshotSave initialState
+        Jest.expect(newState.AppSnapshotSaveTimer).toEqual None
+    )
+
+    Jest.test (
+      "DebouncedAppSnapshotSave does nothing when no snapshot",
+      fun () ->
+        let initialState = { State.Default with AppSnapshot = None }
+        let newState, _ = Update DebouncedAppSnapshotSave initialState
+        Jest.expect(newState).toEqual initialState
+    )
+
+    Jest.test (
+      "CloseWorkspace sets loading and triggers API call",
+      fun () ->
+        let initialState = {
+          State.Default with
+              Workspace =
+                Some {
+                  Workspace = {
+                    Id = "test-id"
+                    Name = "Test"
+                    RootPath = "/workspace"
+                    IgnorePatterns = []
+                    CreatedAt = System.DateTime.Now
+                    LastOpenedAt = System.DateTime.Now
+                  }
+                  Config = {
+                    DailyNoteFormat = "yyyy-MM-dd"
+                    DailyNoteFolder = ""
+                    DefaultTags = []
+                  }
+                  NoteCount = 5
+                  TotalBlocks = 10
+                }
+        }
+
+        let newState, _ = Update CloseWorkspace initialState
+
+        Jest.expect(newState.Loading).toEqual true
+    )
+
+    Jest.test (
+      "WorkspaceClosed resets state and preserves app-wide settings",
+      fun () ->
+        let initialState = {
+          State.Default with
+              Workspace =
+                Some {
+                  Workspace = {
+                    Id = "test-id"
+                    Name = "Test"
+                    RootPath = "/workspace"
+                    IgnorePatterns = []
+                    CreatedAt = System.DateTime.Now
+                    LastOpenedAt = System.DateTime.Now
+                  }
+                  Config = {
+                    DailyNoteFormat = "yyyy-MM-dd"
+                    DailyNoteFolder = ""
+                    DefaultTags = []
+                  }
+                  NoteCount = 5
+                  TotalBlocks = 10
+                }
+              AppSnapshot = Some { LastWorkspacePath = "/workspace" }
+              Settings =
+                Some {
+                  General = {
+                    Theme = "dark"
+                    Language = "en"
+                    AutoSave = true
+                    AutoSaveInterval = 30
+                    ColorOverrides = Map.empty
+                    Base16Theme = None
+                  }
+                  Editor = {
+                    FontFamily = "monospace"
+                    FontSize = 14
+                    LineHeight = 1.6
+                    TabSize = 2
+                    VimMode = false
+                    SpellCheck = true
+                  }
+                }
+              Notes = [
+                {
+                  id = "note1"
+                  title = "Note 1"
+                  path = "note1.md"
+                  createdAt = System.DateTime.Now
+                  modifiedAt = System.DateTime.Now
+                  tags = []
+                }
+              ]
+        }
+
+        let newState, _ = Update (WorkspaceClosed(Ok())) initialState
+
+        Jest.expect(newState.Workspace.IsNone).toEqual true
+        Jest.expect(newState.Notes.Length).toEqual 0
+        Jest.expect(newState.AppSnapshot).toEqual initialState.AppSnapshot
+        Jest.expect(newState.Settings).toEqual initialState.Settings
     )
 
     Jest.test (
@@ -117,7 +265,6 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = []
             RecentPages = []
-            LastWorkspacePath = ""
             GraphLayout = "force"
             SearchHistory = []
             NotesSortBy = None
@@ -152,7 +299,6 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = []
             RecentPages = [ "note-a"; "note-b" ]
-            LastWorkspacePath = "/workspace"
             GraphLayout = "force"
             SearchHistory = []
             NotesSortBy = None
@@ -177,7 +323,6 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = []
             RecentPages = []
-            LastWorkspacePath = "/workspace"
             GraphLayout = "force"
             SearchHistory = []
             NotesSortBy = None
@@ -246,7 +391,6 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = []
             RecentPages = []
-            LastWorkspacePath = ""
             GraphLayout = "force"
             SearchHistory = []
             NotesSortBy = None
@@ -279,11 +423,16 @@ Jest.describe (
               PendingNoteToOpen = Some "note.md"
         }
 
-        let newState, _ = Update (WorkspaceOpened(Ok workspaceInfo)) initialState
+        let newState, cmd = Update (WorkspaceOpened(Ok workspaceInfo)) initialState
+        let commands = collectCommands cmd
 
-        match newState.WorkspaceSnapshot with
-        | Some updatedSnapshot -> Jest.expect(updatedSnapshot.UI.LastWorkspacePath).toEqual "/workspace"
-        | None -> failwith "Expected workspace snapshot to be present"
+        let hasAppSnapshotUpdate =
+          commands
+          |> List.exists (function
+            | AppSnapshotChanged snapshot -> snapshot.LastWorkspacePath = "/workspace"
+            | _ -> false)
+
+        Jest.expect(hasAppSnapshotUpdate).toEqual true
 
         Jest.expect(newState.PendingWorkspacePath).toEqual None
         Jest.expect(newState.PendingNoteToOpen).toEqual None
@@ -303,7 +452,6 @@ Jest.describe (
             RightPanelWidth = 400
             PinnedPages = [ "pinned1.md" ]
             RecentPages = []
-            LastWorkspacePath = "/workspace"
             GraphLayout = "tree"
             SearchHistory = []
             NotesSortBy = None
@@ -352,7 +500,6 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = []
             RecentPages = []
-            LastWorkspacePath = "/workspace"
             GraphLayout = "force"
             SearchHistory = []
             NotesSortBy = None
@@ -385,7 +532,6 @@ Jest.describe (
             RightPanelWidth = 300
             PinnedPages = []
             RecentPages = []
-            LastWorkspacePath = "/workspace"
             GraphLayout = "force"
             SearchHistory = []
             NotesSortBy = None

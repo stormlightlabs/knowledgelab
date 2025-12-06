@@ -136,10 +136,13 @@ type State = {
   AllTasks : Task list
   TaskFilter : TaskFilter
   IsLoadingTasks : bool
+  ToggleTaskInProgress : Set<string>
   Settings : Settings option
+  AppSnapshot : AppSnapshot option
   WorkspaceSnapshot : WorkspaceSnapshot option
   SettingsSaveTimer : int option
   SnapshotSaveTimer : int option
+  AppSnapshotSaveTimer : int option
   EditorState : EditorState
   UIState : UIState
   NoteHistories : Map<string, EditorSnapshot list * EditorSnapshot list>
@@ -201,10 +204,13 @@ type State = {
       NoteModifiedBefore = None
     }
     IsLoadingTasks = false
+    ToggleTaskInProgress = Set.empty
     Settings = None
+    AppSnapshot = None
     WorkspaceSnapshot = None
     SettingsSaveTimer = None
     SnapshotSaveTimer = None
+    AppSnapshotSaveTimer = None
     EditorState = {
       PreviewMode = EditOnly
       CursorPosition = None
@@ -246,6 +252,8 @@ type Msg =
   | CreateWorkspace
   | OpenWorkspace of path : string
   | WorkspaceOpened of Result<WorkspaceInfo, string>
+  | CloseWorkspace
+  | WorkspaceClosed of Result<unit, string>
   | LoadNotes
   | NotesLoaded of Result<NoteSummary list, string>
   | SelectNote of noteId : string
@@ -295,10 +303,14 @@ type Msg =
   | GraphEngineChanged of GraphEngine
   | HydrateFromDisk
   | SettingsLoaded of Result<Settings, string>
+  | AppSnapshotLoaded of Result<AppSnapshot, string>
   | WorkspaceSnapshotLoaded of Result<WorkspaceSnapshot, string>
   | SettingsChanged of Settings
   | DebouncedSettingsSave
   | SettingsSaved of Result<unit, string>
+  | AppSnapshotChanged of AppSnapshot
+  | DebouncedAppSnapshotSave
+  | AppSnapshotSaved of Result<unit, string>
   | WorkspaceSnapshotChanged of WorkspaceSnapshot
   | DebouncedSnapshotSave
   | WorkspaceSnapshotSaved of Result<unit, string>
@@ -331,8 +343,10 @@ type Msg =
   | ToggleTaskAtCursor
   | ToggleTaskAtLine of lineNumber : int
   | ToggleTaskFromPanel of Task
+  | ToggleTaskCheckbox of Task
   | CurrentNoteRefreshed of Result<Note, string>
   | TaskToggled of string option * bool * Result<unit, string>
+  | TaskToggleCompleted of noteId : string * taskId : string * Result<unit, string>
   | LoadAllTasks
   | LoadTasksForNote of noteId : string
   | TasksLoaded of Result<TaskInfo, string>
@@ -426,10 +440,6 @@ let private sanitizeSnapshot (snapshot : WorkspaceSnapshot) =
   let sanitizedUI = {
     snapshot.UI with
         RecentPages = sanitizeRecentPages snapshot.UI.RecentPages
-        LastWorkspacePath =
-          match snapshot.UI.LastWorkspacePath with
-          | null -> ""
-          | value -> value.Trim()
   }
 
   { snapshot with UI = sanitizedUI }
@@ -738,16 +748,10 @@ let private updateRecentPage (noteId : string) (state : State) : State * Cmd<Msg
   else
     match state.WorkspaceSnapshot with
     | Some snapshot ->
-      let resolvedWorkspacePath =
-        match state.Workspace with
-        | Some ws when not (String.IsNullOrWhiteSpace ws.Workspace.RootPath) -> ws.Workspace.RootPath
-        | _ -> snapshot.UI.LastWorkspacePath
-
       let updatedUI = {
         snapshot.UI with
             RecentPages = addToRecentPages noteId snapshot.UI.RecentPages
             ActivePage = noteId
-            LastWorkspacePath = resolvedWorkspacePath
       }
 
       let updatedSnapshot = { snapshot with UI = updatedUI }
@@ -817,29 +821,29 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
           PendingNoteToOpen = None
     }
 
-    let stateWithSnapshot, snapshotCmd =
-      match baseState.WorkspaceSnapshot with
-      | Some snapshot when snapshot.UI.LastWorkspacePath <> targetWorkspacePath ->
-        let updatedSnapshot = {
-          snapshot with
-              UI = { snapshot.UI with LastWorkspacePath = targetWorkspacePath }
-        }
-
-        { baseState with WorkspaceSnapshot = Some updatedSnapshot },
-        Cmd.ofMsg (WorkspaceSnapshotChanged updatedSnapshot)
-      | _ -> baseState, Cmd.none
+    let appSnapshotCmd =
+      match state.AppSnapshot with
+      | Some snapshot when snapshot.LastWorkspacePath <> targetWorkspacePath ->
+        let updatedSnapshot = { snapshot with LastWorkspacePath = targetWorkspacePath }
+        Cmd.ofMsg (AppSnapshotChanged updatedSnapshot)
+      | None ->
+        let newSnapshot = { LastWorkspacePath = targetWorkspacePath }
+        Cmd.ofMsg (AppSnapshotChanged newSnapshot)
+      | _ -> Cmd.none
 
     let pendingNoteCmd =
       match pendingNote with
       | Some noteId -> Cmd.ofMsg (SelectNote noteId)
       | None -> Cmd.none
 
-    stateWithSnapshot,
+    baseState,
     Cmd.batch [
       Cmd.ofMsg LoadNotes
       Cmd.ofMsg LoadAllTasks
       Cmd.ofMsg LoadTagsWithCounts
-      snapshotCmd
+      Cmd.OfPromise.either Api.loadWorkspaceSnapshot () (Ok >> WorkspaceSnapshotLoaded) (fun ex ->
+        WorkspaceSnapshotLoaded(Error ex.Message))
+      appSnapshotCmd
       pendingNoteCmd
     ]
   | WorkspaceOpened(Error err) ->
@@ -851,6 +855,22 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
           PendingNoteToOpen = None
     },
     Cmd.none
+  | CloseWorkspace ->
+    { state with Loading = true },
+    Cmd.OfPromise.either Api.closeWorkspace () (fun _ -> WorkspaceClosed(Ok())) (fun ex ->
+      WorkspaceClosed(Error ex.Message))
+  | WorkspaceClosed(Ok()) ->
+    let resetState = {
+      State.Default with
+          AppSnapshot = state.AppSnapshot
+          Settings = state.Settings
+          CurrentTheme = state.CurrentTheme
+          AvailableThemes = state.AvailableThemes
+          ColorOverrides = state.ColorOverrides
+    }
+
+    resetState, Cmd.ofMsg (NavigateTo WorkspacePicker)
+  | WorkspaceClosed(Error err) -> { state with Loading = false; Error = Some err }, Cmd.none
   | LoadNotes ->
     { state with Loading = true },
     Cmd.OfPromise.either Api.listNotes () (safeArrayToList >> Ok >> NotesLoaded) (fun ex ->
@@ -1306,8 +1326,8 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     state,
     Cmd.batch [
       Cmd.OfPromise.either Api.loadSettings () (Ok >> SettingsLoaded) (fun ex -> SettingsLoaded(Error ex.Message))
-      Cmd.OfPromise.either Api.loadWorkspaceSnapshot () (Ok >> WorkspaceSnapshotLoaded) (fun ex ->
-        WorkspaceSnapshotLoaded(Error ex.Message))
+      Cmd.OfPromise.either Api.loadAppSnapshot () (Ok >> AppSnapshotLoaded) (fun ex ->
+        AppSnapshotLoaded(Error ex.Message))
       Cmd.ofMsg LoadThemes
       Cmd.OfPromise.either Api.getDefaultTheme () (Ok >> ThemeLoaded) (fun ex -> Error ex.Message |> ThemeLoaded)
     ]
@@ -1326,17 +1346,23 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
 
     newState, themeCmd
   | SettingsLoaded(Error err) -> { state with Error = Some err }, Cmd.none
-  | WorkspaceSnapshotLoaded(Ok snapshot) ->
-    let sanitizedSnapshot = sanitizeSnapshot snapshot
+  | AppSnapshotLoaded(Ok appSnapshot) ->
+    let newState = { state with AppSnapshot = Some appSnapshot; Error = None }
 
+    // Auto-open last workspace if available and no workspace is currently open
     let autoOpenCmd =
       if
         state.Workspace.IsNone
-        && not (String.IsNullOrWhiteSpace sanitizedSnapshot.UI.LastWorkspacePath)
+        && not (String.IsNullOrWhiteSpace appSnapshot.LastWorkspacePath)
       then
-        Cmd.ofMsg (OpenWorkspace sanitizedSnapshot.UI.LastWorkspacePath)
+        Cmd.ofMsg (OpenWorkspace appSnapshot.LastWorkspacePath)
       else
         Cmd.none
+
+    newState, autoOpenCmd
+  | AppSnapshotLoaded(Error err) -> { state with Error = Some err }, Cmd.none
+  | WorkspaceSnapshotLoaded(Ok snapshot) ->
+    let sanitizedSnapshot = sanitizeSnapshot snapshot
 
     // Restore sort preferences from snapshot
     let sortBy =
@@ -1359,7 +1385,7 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
           NotesSortOrder = sortOrder
           Error = None
     },
-    autoOpenCmd
+    Cmd.none
   | WorkspaceSnapshotLoaded(Error err) -> { state with Error = Some err }, Cmd.none
   | SettingsChanged settings ->
     cancelTimer state.SettingsSaveTimer
@@ -1373,6 +1399,18 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
     | None -> state, Cmd.none
   | SettingsSaved(Ok()) -> { state with Error = None }, Cmd.none
   | SettingsSaved(Error err) -> { state with Error = Some err }, Cmd.none
+  | AppSnapshotChanged snapshot ->
+    cancelTimer state.AppSnapshotSaveTimer
+    { state with AppSnapshot = Some snapshot }, debounceCmd DebouncedAppSnapshotSave
+  | DebouncedAppSnapshotSave ->
+    match state.AppSnapshot with
+    | Some snapshot ->
+      { state with AppSnapshotSaveTimer = None },
+      Cmd.OfPromise.either Api.saveAppSnapshot snapshot (fun _ -> AppSnapshotSaved(Ok())) (fun ex ->
+        AppSnapshotSaved(Error ex.Message))
+    | None -> state, Cmd.none
+  | AppSnapshotSaved(Ok()) -> { state with Error = None }, Cmd.none
+  | AppSnapshotSaved(Error err) -> { state with Error = Some err }, Cmd.none
   | WorkspaceSnapshotChanged snapshot ->
     cancelTimer state.SnapshotSaveTimer
     { state with WorkspaceSnapshot = Some snapshot }, debounceCmd DebouncedSnapshotSave
@@ -1709,6 +1747,63 @@ let Update (msg : Msg) (state : State) : (State * Cmd<Msg>) =
       ()
       (fun _ -> TaskToggled(Some task.NoteId, false, Ok()))
       (fun ex -> TaskToggled(Some task.NoteId, false, Error ex.Message))
+  | ToggleTaskCheckbox task ->
+    let updatedTasks =
+      state.AllTasks
+      |> List.map (fun t ->
+        if t.Id = task.Id then
+          { t with IsCompleted = not t.IsCompleted }
+        else
+          t)
+
+    let updatedState = {
+      state with
+          AllTasks = updatedTasks
+          ToggleTaskInProgress = state.ToggleTaskInProgress.Add(task.Id)
+    }
+
+    updatedState,
+    Cmd.OfPromise.either
+      (fun () -> Api.toggleTaskInNote task.NoteId task.LineNumber)
+      ()
+      (fun _ -> TaskToggleCompleted(task.NoteId, task.Id, Ok()))
+      (fun ex -> TaskToggleCompleted(task.NoteId, task.Id, Error ex.Message))
+  | TaskToggleCompleted(noteId, taskId, Ok()) ->
+    let stateWithoutProgress = {
+      state with
+          ToggleTaskInProgress = state.ToggleTaskInProgress.Remove(taskId)
+    }
+
+    let refreshNoteCmdOpt =
+      match state.CurrentNote with
+      | Some note when note.Id = noteId ->
+        Cmd.OfPromise.either Api.getNote noteId (Ok >> CurrentNoteRefreshed) (fun ex ->
+          CurrentNoteRefreshed(Error ex.Message))
+        |> Some
+      | _ -> None
+
+    let cmds =
+      match refreshNoteCmdOpt with
+      | Some refreshCmd -> [ Cmd.ofMsg LoadAllTasks; refreshCmd ]
+      | None -> [ Cmd.ofMsg LoadAllTasks ]
+
+    stateWithoutProgress, Cmd.batch cmds
+  | TaskToggleCompleted(_, taskId, Error err) ->
+    let revertedTasks =
+      state.AllTasks
+      |> List.map (fun t ->
+        if t.Id = taskId then
+          { t with IsCompleted = not t.IsCompleted }
+        else
+          t)
+
+    {
+      state with
+          AllTasks = revertedTasks
+          ToggleTaskInProgress = state.ToggleTaskInProgress.Remove(taskId)
+          Error = Some $"Failed to toggle task: {err}"
+    },
+    Cmd.none
   | TaskToggled(noteId, clearLoading, Ok()) ->
     let updatedState =
       if clearLoading then

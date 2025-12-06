@@ -99,8 +99,6 @@ module WorkspacePicker =
               let recentPages =
                 snapshot.UI.RecentPages |> List.filter (String.IsNullOrWhiteSpace >> not)
 
-              let workspacePath = snapshot.UI.LastWorkspacePath
-
               if List.isEmpty recentPages then
                 Html.none
               else
@@ -127,7 +125,7 @@ module WorkspacePicker =
                       prop.children (
                         recentPages
                         |> List.truncate 10
-                        |> List.map (fun noteId -> recentFileItem workspacePath noteId dispatch)
+                        |> List.map (fun noteId -> recentFileItem "" noteId dispatch)
                       )
                     ]
                   ]
@@ -351,7 +349,6 @@ module NavigationBar =
       prop.className
         "h-12 bg-base01 border-b border-base02 flex items-center px-2 md:px-4 gap-1 md:gap-2 shrink-0 overflow-x-auto"
       prop.children [
-        // Primary navigation (always visible)
         Html.button [
           prop.className
             "px-2 md:px-3 py-1 rounded text-xs md:text-sm font-medium text-base05 hover:bg-base02 default-transition whitespace-nowrap"
@@ -370,14 +367,16 @@ module NavigationBar =
           prop.text "Settings"
           prop.onClick (fun _ -> dispatch (NavigateTo Settings))
         ]
-
         Html.div [ prop.className "flex-1 min-w-0" ]
-
-        // Panel toggle buttons
+        Html.button [
+          prop.className
+            "px-2 md:px-3 py-1 rounded text-xs md:text-sm font-medium text-base05 hover:bg-red border border-base03 hover:border-red default-transition whitespace-nowrap"
+          prop.text "Close Workspace"
+          prop.onClick (fun _ -> dispatch CloseWorkspace)
+        ]
         Html.div [
           prop.className "flex items-center gap-1 md:gap-2 shrink-0"
           prop.children [
-            // Sidebar toggle (always visible)
             Html.button [
               prop.className
                 "px-2 py-1 rounded text-xs font-semibold text-base05 border border-base03 hover:border-base05 transition-colors whitespace-nowrap"
@@ -399,7 +398,6 @@ module NavigationBar =
               prop.onClick (fun _ -> dispatch ToggleSidebarCollapsed)
             ]
 
-            // Right panels toggle (hidden on mobile)
             Html.button [
               prop.className
                 "hidden sm:block px-2 py-1 rounded text-xs font-semibold text-base05 border border-base03 hover:border-base05 transition-colors whitespace-nowrap"
@@ -421,7 +419,6 @@ module NavigationBar =
               prop.onClick (fun _ -> dispatch ToggleRightPanelsCollapsed)
             ]
 
-            // Panel visibility toggles (hidden on mobile/tablet)
             Html.button [
               prop.className
                 "hidden lg:block px-2 md:px-3 py-1 rounded text-xs md:text-sm font-medium text-base05 hover:bg-base02 default-transition whitespace-nowrap"

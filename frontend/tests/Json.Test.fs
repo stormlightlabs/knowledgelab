@@ -343,7 +343,6 @@ Jest.describe (
       "RightPanelWidth": 400,
       "PinnedPages": ["index.md", "todo.md"],
       "RecentPages": ["notes/current.md", "daily/2025-01-28.md"],
-      "LastWorkspacePath": "/home/user/notes",
       "GraphLayout": "force",
       "SearchHistory": ["python programming", "golang tutorial", "react hooks"]
     }
@@ -374,7 +373,6 @@ Jest.describe (
       "RightPanelWidth": 300,
       "PinnedPages": [],
       "RecentPages": [],
-      "LastWorkspacePath": "",
       "GraphLayout": "force",
       "SearchHistory": []
     }
@@ -403,7 +401,6 @@ Jest.describe (
         "RightPanelWidth": 300,
         "PinnedPages": ["notes/important.md"],
         "RecentPages": ["notes/test.md", "notes/other.md"],
-        "LastWorkspacePath": "/workspace/path",
         "GraphLayout": "tree",
         "SearchHistory": ["first query", "second query"]
       }
@@ -435,7 +432,6 @@ Jest.describe (
       "RightPanelWidth": 300,
       "PinnedPages": [],
       "RecentPages": [],
-      "LastWorkspacePath": "",
       "GraphLayout": "force"
     }
     """

@@ -30,6 +30,17 @@ func (ws *WorkspaceStore) SaveSettings(settings Settings) error {
 	return SaveSettings(ws.dirs.SettingsPath, settings)
 }
 
+// LoadAppSnapshot loads application-wide state from app.toml.
+func (ws *WorkspaceStore) LoadAppSnapshot() (AppSnapshot, error) {
+	return LoadAppSnapshot(ws.dirs.AppSnapshotPath)
+}
+
+// SaveAppSnapshot saves application-wide state to app.toml.
+// Frontend should debounce calls to this method (500-1000ms recommended).
+func (ws *WorkspaceStore) SaveAppSnapshot(snapshot AppSnapshot) error {
+	return SaveAppSnapshot(ws.dirs.AppSnapshotPath, snapshot)
+}
+
 // LoadSnapshot loads workspace-specific UI state from workspace.toml.
 func (ws *WorkspaceStore) LoadSnapshot() (WorkspaceSnapshot, error) {
 	return LoadWorkspaceSnapshot(ws.dirs.WorkspacePath)

@@ -63,8 +63,8 @@ func NewApp() *App {
 // startup is called when the app starts. The context is saved so we can call the runtime methods.
 // Service initialization order: attach logger contexts -> initialize user config paths.
 func (a *App) startup(ctx context.Context) {
-	a.logInfo("Application starting")
 	a.ctx = ctx
+	a.logInfo("Application starting")
 
 	if a.fs != nil {
 		a.fs.SetLogger(ctx)
@@ -435,6 +435,42 @@ func (a *App) ClearRecentFiles() (*service.WorkspaceSnapshot, error) {
 	}
 
 	return &snapshot, nil
+}
+
+// LoadAppSnapshot loads application-wide state from disk.
+// Contains global app state like the last opened workspace path.
+func (a *App) LoadAppSnapshot() (*service.AppSnapshot, error) {
+	snapshot, err := a.stores.Workspace.LoadAppSnapshot()
+	if err != nil {
+		return nil, a.wrapError("failed to load app snapshot", err)
+	}
+	return &snapshot, nil
+}
+
+// SaveAppSnapshot saves application-wide state to disk.
+// Frontend should debounce calls (500-1000ms) to avoid excessive writes.
+func (a *App) SaveAppSnapshot(snapshot service.AppSnapshot) error {
+	if err := a.stores.Workspace.SaveAppSnapshot(snapshot); err != nil {
+		return a.wrapError("failed to save app snapshot", err)
+	}
+	return nil
+}
+
+// CloseWorkspace closes the current workspace and cleans up resources.
+// Should be called before opening a new workspace or when the user explicitly closes the workspace.
+func (a *App) CloseWorkspace() error {
+	a.logInfo("Closing workspace")
+
+	a.indexing = false
+
+	if a.fs != nil {
+		if err := a.fs.Close(); err != nil {
+			a.logWarning("Error closing filesystem service: %v", err)
+		}
+	}
+
+	a.logInfo("Workspace closed")
+	return nil
 }
 
 // GetUserConfigDir returns the user-level configuration directory path.

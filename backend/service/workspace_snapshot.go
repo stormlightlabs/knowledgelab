@@ -30,12 +30,14 @@ type WorkspaceUI struct {
 	PinnedPages []string `toml:"pinned_pages"`
 	// RecentPages contains IDs of recently opened notes (most recent first)
 	RecentPages []string `toml:"recent_pages"`
-	// LastWorkspacePath stores the absolute path to the workspace this snapshot belongs to.
-	LastWorkspacePath string `toml:"last_workspace_path"`
 	// GraphLayout stores the last graph view layout (e.g., "force", "tree")
 	GraphLayout string `toml:"graph_layout"`
 	// SearchHistory contains recent search queries (most recent first, max 20)
 	SearchHistory []string `toml:"search_history"`
+	// NotesSortBy specifies the current note sorting criterion (e.g., "title", "modified", "created")
+	NotesSortBy *string `toml:"notes_sort_by"`
+	// NotesSortOrder specifies the current sort order (e.g., "asc", "desc")
+	NotesSortOrder *string `toml:"notes_sort_order"`
 }
 
 // DefaultWorkspaceSnapshot returns a WorkspaceSnapshot with sensible defaults.
@@ -49,9 +51,10 @@ func DefaultWorkspaceSnapshot() WorkspaceSnapshot {
 			RightPanelWidth:   300,
 			PinnedPages:       []string{},
 			RecentPages:       []string{},
-			LastWorkspacePath: "",
 			GraphLayout:       "force",
 			SearchHistory:     []string{},
+			NotesSortBy:       nil,
+			NotesSortOrder:    nil,
 		},
 	}
 }
@@ -60,7 +63,6 @@ func DefaultWorkspaceSnapshot() WorkspaceSnapshot {
 // If the file doesn't exist, returns default snapshot without error.
 // Returns an error only if the file exists but cannot be parsed.
 func LoadWorkspaceSnapshot(path string) (WorkspaceSnapshot, error) {
-	// If file doesn't exist, return defaults
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return DefaultWorkspaceSnapshot(), nil
 	}
@@ -75,8 +77,6 @@ func LoadWorkspaceSnapshot(path string) (WorkspaceSnapshot, error) {
 
 // SaveWorkspaceSnapshot saves workspace UI state to a TOML file.
 // Creates the file if it doesn't exist, overwrites if it does.
-//
-// Debounce interval: 500-1000ms for UI state changes like active page, sidebar width, etc.
 func SaveWorkspaceSnapshot(path string, snapshot WorkspaceSnapshot) error {
 	f, err := os.Create(path)
 	if err != nil {

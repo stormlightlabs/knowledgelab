@@ -205,6 +205,12 @@ let settingsDecoder : Decoder<Settings> =
     Editor = get.Required.Field "Editor" editorSettingsDecoder
   })
 
+/// Decodes AppSnapshot from JSON
+let appSnapshotDecoder : Decoder<AppSnapshot> =
+  Decode.object (fun get -> {
+    LastWorkspacePath = get.Required.Field "LastWorkspacePath" Decode.string
+  })
+
 /// Decodes WorkspaceUI from JSON (Go sends PascalCase for WorkspaceUI)
 let workspaceUIDecoder : Decoder<WorkspaceUI> =
   Decode.object (fun get -> {
@@ -215,9 +221,8 @@ let workspaceUIDecoder : Decoder<WorkspaceUI> =
     RightPanelWidth = get.Required.Field "RightPanelWidth" Decode.int
     PinnedPages = get.Required.Field "PinnedPages" (Decode.list Decode.string)
     RecentPages = get.Required.Field "RecentPages" (Decode.list Decode.string)
-    SearchHistory = get.Required.Field "SearchHistory" (Decode.list Decode.string)
-    LastWorkspacePath = get.Optional.Field "LastWorkspacePath" Decode.string |> Option.defaultValue ""
     GraphLayout = get.Required.Field "GraphLayout" Decode.string
+    SearchHistory = get.Required.Field "SearchHistory" (Decode.list Decode.string)
     NotesSortBy = get.Optional.Field "NotesSortBy" Decode.string
     NotesSortOrder = get.Optional.Field "NotesSortOrder" Decode.string
   })
